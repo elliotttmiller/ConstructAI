@@ -6,7 +6,7 @@ Transform your construction workflow from start to finish with autonomous AI.
 
 __version__ = "0.1.0"
 
-from .models.project import Project, Task, Resource
+from .models.project import Project, Task, Resource, TaskStatus, ResourceType
 from .engine.optimizer import WorkflowOptimizer
 from .engine.auditor import ProjectAuditor
 
@@ -14,6 +14,8 @@ __all__ = [
     "Project",
     "Task",
     "Resource",
+    "TaskStatus",
+    "ResourceType",
     "WorkflowOptimizer",
     "ProjectAuditor",
 ]
