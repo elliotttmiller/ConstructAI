@@ -5,12 +5,17 @@ REST API interface for ConstructAI.
 from typing import Dict, Any, Optional
 from datetime import datetime
 import json
+import logging
 
 from ..models.project import Project
 from ..engine.auditor import ProjectAuditor
 from ..engine.optimizer import WorkflowOptimizer
 from ..engine.compliance import ComplianceChecker
 from ..utils.data_io import ProjectDataHandler
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class ConstructAIAPI:
@@ -49,10 +54,19 @@ class ConstructAIAPI:
                 "status": "success",
                 "data": result.generate_summary()
             }
-        except Exception as e:
+        except ValueError as e:
+            # Log full error for debugging
+            logger.error(f"Validation error in audit_project: {e}")
             return {
                 "status": "error",
-                "message": str(e)
+                "message": "Invalid project data format"
+            }
+        except Exception as e:
+            # Log full error for debugging but don't expose to user
+            logger.error(f"Error in audit_project: {e}", exc_info=True)
+            return {
+                "status": "error",
+                "message": "An error occurred while auditing the project"
             }
     
     def optimize_project(self, project_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -80,10 +94,17 @@ class ConstructAIAPI:
                     "optimized_project": self.data_handler._project_to_dict(result.optimized_project)
                 }
             }
-        except Exception as e:
+        except ValueError as e:
+            logger.error(f"Validation error in optimize_project: {e}")
             return {
                 "status": "error",
-                "message": str(e)
+                "message": "Invalid project data format"
+            }
+        except Exception as e:
+            logger.error(f"Error in optimize_project: {e}", exc_info=True)
+            return {
+                "status": "error",
+                "message": "An error occurred while optimizing the project"
             }
     
     def check_compliance(self, project_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -107,10 +128,17 @@ class ConstructAIAPI:
                 "status": "success",
                 "data": results
             }
-        except Exception as e:
+        except ValueError as e:
+            logger.error(f"Validation error in check_compliance: {e}")
             return {
                 "status": "error",
-                "message": str(e)
+                "message": "Invalid project data format"
+            }
+        except Exception as e:
+            logger.error(f"Error in check_compliance: {e}", exc_info=True)
+            return {
+                "status": "error",
+                "message": "An error occurred while checking compliance"
             }
     
     def full_analysis(self, project_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -141,10 +169,17 @@ class ConstructAIAPI:
                     "optimized_project": self.data_handler._project_to_dict(opt_result.optimized_project)
                 }
             }
-        except Exception as e:
+        except ValueError as e:
+            logger.error(f"Validation error in full_analysis: {e}")
             return {
                 "status": "error",
-                "message": str(e)
+                "message": "Invalid project data format"
+            }
+        except Exception as e:
+            logger.error(f"Error in full_analysis: {e}", exc_info=True)
+            return {
+                "status": "error",
+                "message": "An error occurred during analysis"
             }
     
     def get_project_summary(self, project_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -173,10 +208,17 @@ class ConstructAIAPI:
                     "target_end_date": project.target_end_date.isoformat() if project.target_end_date else None
                 }
             }
-        except Exception as e:
+        except ValueError as e:
+            logger.error(f"Validation error in get_project_summary: {e}")
             return {
                 "status": "error",
-                "message": str(e)
+                "message": "Invalid project data format"
+            }
+        except Exception as e:
+            logger.error(f"Error in get_project_summary: {e}", exc_info=True)
+            return {
+                "status": "error",
+                "message": "An error occurred while getting project summary"
             }
 
 
