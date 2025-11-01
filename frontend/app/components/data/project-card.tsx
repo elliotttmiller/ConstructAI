@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { cn, formatRelativeTime, formatCurrency } from "@/app/lib/utils";
+import { cn, formatCurrency } from "@/app/lib/utils";
 import { MoreVertical, Folder } from "lucide-react";
 import type { Project } from "@/app/lib/types";
 

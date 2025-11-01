@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { cn } from "@/app/lib/utils";
 import { Play, Download, Settings, Sparkles } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
@@ -67,7 +66,7 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
                       Ready for AI Analysis
                     </h3>
                     <p className="mb-4 text-sm text-neutral-600">
-                      Click "Analyze" to start comprehensive project audit and
+                      Click &ldquo;Analyze&rdquo; to start comprehensive project audit and
                       optimization
                     </p>
                   </div>
