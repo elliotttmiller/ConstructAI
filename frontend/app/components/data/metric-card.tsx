@@ -13,6 +13,7 @@ interface MetricCardProps {
     isPositive: boolean;
   };
   color?: "primary" | "success" | "warning" | "error" | "info";
+  className?: string;
 }
 
 export function MetricCard({
@@ -21,6 +22,7 @@ export function MetricCard({
   value,
   trend,
   color = "primary",
+  className,
 }: MetricCardProps) {
   const colorClasses = {
     primary: "bg-primary/10 text-primary",
@@ -31,7 +33,10 @@ export function MetricCard({
   };
 
   return (
-    <div className="flex h-30 w-80 items-center gap-4 rounded-lg border border-neutral-200 bg-surface p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className={cn(
+      "flex h-30 min-w-[20rem] items-center gap-4 rounded-lg border border-neutral-200 bg-surface p-4 shadow-sm transition-shadow hover:shadow-md",
+      className
+    )}>
       {/* Icon Section (Left) */}
       <div
         className={cn(
@@ -75,7 +80,7 @@ export function MetricCard({
  */
 export function MetricCardSkeleton() {
   return (
-    <div className="flex h-30 w-80 items-center gap-4 rounded-lg border border-neutral-200 bg-surface p-4">
+    <div className="flex h-30 min-w-[20rem] items-center gap-4 rounded-lg border border-neutral-200 bg-surface p-4">
       <div className="h-12 w-12 animate-pulse rounded-lg bg-neutral-200"></div>
       <div className="flex flex-1 flex-col gap-2">
         <div className="h-3 w-16 animate-pulse rounded bg-neutral-200"></div>

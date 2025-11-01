@@ -10,7 +10,7 @@ Enterprise-grade Next.js frontend for the ConstructAI platform - AI-powered cons
 - **Real-time AI Streaming**: Live updates during analysis and optimization
 - **Professional States**: Loading skeletons, empty states, error boundaries
 - **Type-Safe**: Full TypeScript implementation with strict types
-- **Performance Optimized**: Next.js 14+ App Router, React Query, optimized bundles
+- **Performance Optimized**: Next.js 16+ App Router, React Query, optimized bundles
 - **Accessible**: WCAG 2.1 AAA compliance with keyboard navigation and ARIA labels
 
 ## 📋 Prerequisites
