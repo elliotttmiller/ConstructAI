@@ -113,11 +113,15 @@ class ProjectDataHandler:
     @staticmethod
     def _dict_to_project(data: Dict[str, Any]) -> Project:
         """Convert dictionary to Project."""
+        # Use explicit start date or raise error if not provided
+        if not data.get("start_date"):
+            raise ValueError("Project start_date is required for import")
+        
         project = Project(
             id=data["id"],
             name=data["name"],
             description=data["description"],
-            start_date=datetime.fromisoformat(data["start_date"]) if data.get("start_date") else datetime.now(),
+            start_date=datetime.fromisoformat(data["start_date"]),
             target_end_date=datetime.fromisoformat(data["target_end_date"]) if data.get("target_end_date") else None,
             budget=data.get("budget", 0.0),
             metadata=data.get("metadata", {})

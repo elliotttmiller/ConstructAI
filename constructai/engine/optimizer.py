@@ -62,7 +62,7 @@ class OptimizationResult:
             "improvements": {
                 "duration_reduction_days": self._calculate_critical_path_duration(self.original_project) - opt_duration,
                 "duration_reduction_percent": ((self._calculate_critical_path_duration(self.original_project) - opt_duration) / self._calculate_critical_path_duration(self.original_project) * 100) if self._calculate_critical_path_duration(self.original_project) > 0 else 0,
-                "cost_savings": orig_cost - opt_cost,
+                "cost_savings": max(0, orig_cost - opt_cost),  # Ensure non-negative
                 "cost_savings_percent": ((orig_cost - opt_cost) / orig_cost * 100) if orig_cost > 0 else 0
             }
         }
@@ -126,6 +126,10 @@ class WorkflowOptimizer:
     - Value engineering principles
     - Industry best practices (PMBOK, PRINCE2)
     """
+    
+    # Constants for optimization parameters
+    BOTTLENECK_DURATION_REDUCTION = 0.15  # 15% reduction for bottleneck tasks
+    MATERIAL_COST_REDUCTION = 0.03  # 3% value engineering reduction
     
     def __init__(self):
         self.optimization_strategies = self._load_optimization_strategies()
@@ -249,8 +253,7 @@ class WorkflowOptimizer:
                 # Strategy: Try to reduce duration of bottleneck tasks
                 original_duration = task.duration_days
                 # Simulate adding resources to reduce duration (simplified)
-                reduction_factor = 0.15  # 15% reduction with optimized resources
-                task.duration_days = original_duration * (1 - reduction_factor)
+                task.duration_days = original_duration * (1 - self.BOTTLENECK_DURATION_REDUCTION)
                 
                 result.add_improvement(
                     category="bottleneck_elimination",
@@ -320,12 +323,12 @@ class WorkflowOptimizer:
             if original_cost > 0:
                 # Simulate value engineering (e.g., alternative materials, methods)
                 # In real implementation, this would use historical data and ML
-                potential_reduction = original_cost * 0.03  # 3% reduction opportunity
+                potential_reduction = original_cost * self.MATERIAL_COST_REDUCTION
                 
                 # Apply reduction to material costs (simplified)
                 for resource in task.resources:
                     if resource.type == ResourceType.MATERIAL and resource.cost_per_unit > 0:
-                        resource.cost_per_unit *= 0.97  # 3% reduction
+                        resource.cost_per_unit *= (1 - self.MATERIAL_COST_REDUCTION)
                         total_savings += potential_reduction
                         cost_reductions.append(task.id)
                         break  # Only apply once per task
