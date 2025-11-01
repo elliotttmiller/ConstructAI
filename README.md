@@ -1,8 +1,46 @@
 # ConstructAI - AI-Powered Construction Workflow Optimization
 
-Transform your construction workflow from start to finish with autonomous AI. ConstructAI audits your project plan and intelligently generates a professionally optimized, data-driven execution strategy.
+**Full-Stack Construction Intelligence Platform**
+
+Transform your construction workflow from start to finish with autonomous AI. ConstructAI provides comprehensive document analysis, specification intelligence, and data-driven execution strategies.
 
 ## 🚀 Features
+
+### 📄 Module 1: Intelligent Document Ingestion & Parsing
+- **Multi-Format Support**: PDF, DOCX, Excel, and text documents
+- **Advanced OCR**: Extract text from scanned documents
+- **Structure Preservation**: Maintains document hierarchy (sections, subsections, bullet points)
+- **Document Type Detection**: Automatically identifies RFPs, proposals, specifications, drawings, BOQs, schedules
+- **MasterFormat Classification**: AI model classifies text into CSI MasterFormat divisions (50+ divisions)
+
+### 🔍 Module 2: Specification Clause Extraction & Graph Construction  
+- **Clause Isolation**: Identifies atomic specification clauses
+- **Named Entity Recognition (NER)**: Extracts key entities
+  - Materials: "Concrete", "Type X drywall"
+  - Standards: "ASTM A36", "ACI 318"
+  - Performance Criteria: "5,000 psi", "1-hour fire rating"
+  - Methods: "Submit shop drawings prior to fabrication"
+- **Graph Database**: Stores clauses and relationships (in-memory or Neo4j)
+- **Powerful Queries**: "Find all clauses related to Division 09 that reference a fire rating"
+
+### 🤖 Module 3: AI Analysis Engine
+#### Service 3.1: Clarity & Ambiguity Analyzer
+- Flags subjective/vague language ("high-quality", "adequate", "sufficient")
+- Identifies missing specifications (units, standards, measurements)
+- Provides specific rewrite suggestions based on best practices
+
+#### Service 3.2: Standards Compliance Checker  
+- Validates against ISO 19650, OSHA, PMI PMBOK, RICS
+- Flags outdated or incorrect standards
+- Checks performance criteria achievability
+
+#### Service 3.3: Completeness Auditor
+- Checks for missing critical components by project type
+- Rule-based engine powered by MasterFormat taxonomy
+
+#### Service 3.4: Cross-Discipline Clash Detector
+- Identifies conflicts between specification divisions
+- Graph database-powered relationship analysis
 
 ### Autonomous Project Auditing
 - **Risk Detection**: Identifies schedule, budget, resource, and compliance risks
@@ -50,7 +88,42 @@ pip install -e .
 
 ## 🎯 Quick Start
 
-### Command Line Interface
+### Document Analysis (New!)
+
+```python
+from constructai.document_processing import DocumentIngestor, MasterFormatClassifier
+from constructai.nlp import ClauseExtractor, ConstructionNER, AmbiguityAnalyzer
+
+# Ingest a specification document
+ingestor = DocumentIngestor()
+document = ingestor.ingest_document("specifications.pdf")
+
+# Classify with MasterFormat
+classifier = MasterFormatClassifier()
+divisions = classifier.classify(document["content"])
+print(f"Primary Division: {divisions[0]['division']} - {divisions[0]['name']}")
+
+# Extract specification clauses
+extractor = ClauseExtractor()
+clauses = extractor.extract_clauses(document["content"])
+print(f"Extracted {len(clauses)} clauses")
+
+# Named Entity Recognition
+ner = ConstructionNER()
+entities = ner.extract_entities(clauses[0].text)
+print(f"Materials: {entities['materials']}")
+print(f"Standards: {entities['standards']}")
+
+# Ambiguity Analysis
+analyzer = AmbiguityAnalyzer()
+analysis = analyzer.analyze(clauses[0].text)
+if analysis['is_ambiguous']:
+    print(f"Clarity Score: {analysis['clarity_score']}/100")
+    for issue in analysis['issues']:
+        print(f"  - {issue['message']}")
+```
+
+### Project Workflow Optimization
 
 Run a full project analysis:
 ```bash
