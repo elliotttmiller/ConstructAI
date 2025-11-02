@@ -48,3 +48,11 @@ Thumbs.db
 # Temporary files
 tmp/
 *.tmp
+
+# Next.js / Frontend
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+frontend/.env*.local
+frontend/dist/
+frontend/build/
