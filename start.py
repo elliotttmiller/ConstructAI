@@ -1,0 +1,490 @@
+#!/usr/bin/env python3
+"""
+ConstructAI Professional Startup Script
+
+This script manages the complete startup process for both backend and frontend servers:
+1. Gracefully terminates any existing processes on required ports
+2. Validates dependencies and environment
+3. Starts backend FastAPI server (port 8000)
+4. Verifies backend health before proceeding
+5. Starts frontend Next.js server (port 3000)
+6. Verifies frontend health
+7. Provides real-time status updates and error handling
+
+Author: ConstructAI Team
+Version: 1.0.0
+"""
+
+import subprocess
+import sys
+import time
+import os
+import signal
+import platform
+import psutil
+import requests
+from pathlib import Path
+from typing import Optional, List, Tuple
+from datetime import datetime
+
+
+# Configuration
+BACKEND_PORT = 8000
+FRONTEND_PORT = 3000
+BACKEND_HOST = "127.0.0.1"
+FRONTEND_HOST = "localhost"
+BACKEND_HEALTH_ENDPOINT = f"http://{BACKEND_HOST}:{BACKEND_PORT}/api/v2/health"
+FRONTEND_HEALTH_ENDPOINT = f"http://{FRONTEND_HOST}:{FRONTEND_PORT}"
+MAX_HEALTH_CHECK_ATTEMPTS = 30
+HEALTH_CHECK_INTERVAL = 2  # seconds
+STARTUP_DELAY = 3  # seconds to wait for process initialization
+
+
+class Colors:
+    """ANSI color codes for terminal output."""
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
+def print_header(message: str):
+    """Print a formatted header message."""
+    print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{message.center(70)}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.ENDC}\n")
+
+
+def print_success(message: str):
+    """Print a success message."""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    print(f"{Colors.OKGREEN}✓ [{timestamp}] {message}{Colors.ENDC}")
+
+
+def print_info(message: str):
+    """Print an info message."""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    print(f"{Colors.OKCYAN}ℹ [{timestamp}] {message}{Colors.ENDC}")
+
+
+def print_warning(message: str):
+    """Print a warning message."""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    print(f"{Colors.WARNING}⚠ [{timestamp}] {message}{Colors.ENDC}")
+
+
+def print_error(message: str):
+    """Print an error message."""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    print(f"{Colors.FAIL}✗ [{timestamp}] {message}{Colors.ENDC}")
+
+
+def get_project_root() -> Path:
+    """Get the project root directory."""
+    return Path(__file__).parent.absolute()
+
+
+def find_process_by_port(port: int) -> List[psutil.Process]:
+    """
+    Find processes using a specific port.
+    
+    Args:
+        port: Port number to check
+        
+    Returns:
+        List of Process objects using the port
+    """
+    processes = []
+    for proc in psutil.process_iter(['pid', 'name']):
+        try:
+            # Get network connections for this process (using net_connections to avoid deprecation)
+            try:
+                connections = proc.net_connections()
+            except AttributeError:
+                # Fallback for older psutil versions
+                connections = proc.connections()
+            
+            for conn in connections:
+                if hasattr(conn, 'laddr') and conn.laddr and conn.laddr.port == port:
+                    processes.append(proc)
+                    break
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, AttributeError):
+            pass
+    return processes
+
+
+def kill_processes_on_port(port: int, service_name: str) -> bool:
+    """
+    Gracefully terminate processes using a specific port.
+    
+    Args:
+        port: Port number to clear
+        service_name: Name of the service for logging
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    print_info(f"Checking for existing {service_name} processes on port {port}...")
+    
+    processes = find_process_by_port(port)
+    
+    if not processes:
+        print_success(f"No existing processes found on port {port}")
+        return True
+    
+    print_warning(f"Found {len(processes)} process(es) on port {port}. Terminating...")
+    
+    for proc in processes:
+        try:
+            print_info(f"  Terminating PID {proc.pid} ({proc.name()})")
+            proc.terminate()
+        except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+            print_warning(f"  Could not terminate PID {proc.pid}: {e}")
+    
+    # Wait for processes to terminate gracefully
+    gone, alive = psutil.wait_procs(processes, timeout=5)
+    
+    # Force kill any remaining processes
+    for proc in alive:
+        try:
+            print_warning(f"  Force killing PID {proc.pid}")
+            proc.kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+            print_error(f"  Could not kill PID {proc.pid}: {e}")
+    
+    # Final verification
+    time.sleep(1)
+    remaining = find_process_by_port(port)
+    if remaining:
+        print_error(f"Failed to clear port {port}. {len(remaining)} process(es) still running.")
+        return False
+    
+    print_success(f"Successfully cleared port {port}")
+    return True
+
+
+def check_python_dependencies() -> bool:
+    """
+    Verify that required Python packages are installed.
+    
+    Returns:
+        True if all dependencies are installed, False otherwise
+    """
+    print_info("Checking Python dependencies...")
+    
+    # Map of package names to their import names (if different)
+    required_packages = {
+        'fastapi': 'fastapi',
+        'uvicorn': 'uvicorn',
+        'numpy': 'numpy',
+        'pandas': 'pandas',
+        'pyyaml': 'yaml',  # pyyaml is imported as 'yaml'
+        'psutil': 'psutil',
+        'requests': 'requests',
+    }
+    
+    missing_packages = []
+    
+    for package_name, import_name in required_packages.items():
+        try:
+            __import__(import_name)
+        except ImportError:
+            missing_packages.append(package_name)
+    
+    if missing_packages:
+        print_error(f"Missing Python packages: {', '.join(missing_packages)}")
+        print_info("Install with: pip install -r requirements.txt")
+        return False
+    
+    print_success("All Python dependencies are installed")
+    return True
+
+
+def check_node_dependencies() -> bool:
+    """
+    Verify that Node.js dependencies are installed.
+    
+    Returns:
+        True if dependencies are installed, False otherwise
+    """
+    print_info("Checking Node.js dependencies...")
+    
+    frontend_dir = get_project_root() / "frontend"
+    node_modules = frontend_dir / "node_modules"
+    
+    if not node_modules.exists():
+        print_error("Node modules not installed")
+        print_info("Run: cd frontend && npm install")
+        return False
+    
+    print_success("Node.js dependencies are installed")
+    return True
+
+
+def check_health(url: str, service_name: str, max_attempts: int = MAX_HEALTH_CHECK_ATTEMPTS) -> bool:
+    """
+    Check if a service is responding to health checks.
+    
+    Args:
+        url: Health check endpoint URL
+        service_name: Name of the service for logging
+        max_attempts: Maximum number of health check attempts
+        
+    Returns:
+        True if service is healthy, False otherwise
+    """
+    print_info(f"Waiting for {service_name} to be ready...")
+    
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                print_success(f"{service_name} is ready! (attempt {attempt}/{max_attempts})")
+                return True
+        except requests.exceptions.RequestException:
+            pass
+        
+        if attempt % 5 == 0:
+            print_info(f"  Still waiting... (attempt {attempt}/{max_attempts})")
+        
+        time.sleep(HEALTH_CHECK_INTERVAL)
+    
+    print_error(f"{service_name} failed to start after {max_attempts} attempts")
+    return False
+
+
+def start_backend() -> Optional[subprocess.Popen]:
+    """
+    Start the FastAPI backend server.
+    
+    Returns:
+        Process object if successful, None otherwise
+    """
+    print_info("Starting FastAPI backend server...")
+    
+    project_root = get_project_root()
+    
+    try:
+        # Start uvicorn with the FastAPI app
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "constructai.web.fastapi_app:app",
+                "--host", BACKEND_HOST,
+                "--port", str(BACKEND_PORT),
+                "--reload"
+            ],
+            cwd=str(project_root),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            bufsize=1
+        )
+        
+        print_success(f"Backend process started (PID: {process.pid})")
+        
+        # Wait a moment for the process to initialize
+        time.sleep(STARTUP_DELAY)
+        
+        # Check if process is still running
+        if process.poll() is not None:
+            print_error("Backend process terminated unexpectedly")
+            output, _ = process.communicate()
+            print_error(f"Output: {output}")
+            return None
+        
+        return process
+        
+    except Exception as e:
+        print_error(f"Failed to start backend: {e}")
+        return None
+
+
+def start_frontend() -> Optional[subprocess.Popen]:
+    """
+    Start the Next.js frontend server.
+    
+    Returns:
+        Process object if successful, None otherwise
+    """
+    print_info("Starting Next.js frontend server...")
+    
+    frontend_dir = get_project_root() / "frontend"
+    
+    try:
+        # Determine the npm command based on platform
+        npm_cmd = "npm.cmd" if platform.system() == "Windows" else "npm"
+        
+        # Start Next.js development server
+        process = subprocess.Popen(
+            [npm_cmd, "run", "dev"],
+            cwd=str(frontend_dir),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            bufsize=1,
+            shell=True if platform.system() == "Windows" else False
+        )
+        
+        print_success(f"Frontend process started (PID: {process.pid})")
+        
+        # Wait a moment for the process to initialize
+        time.sleep(STARTUP_DELAY)
+        
+        # Check if process is still running
+        if process.poll() is not None:
+            print_error("Frontend process terminated unexpectedly")
+            output, _ = process.communicate()
+            print_error(f"Output: {output}")
+            return None
+        
+        return process
+        
+    except Exception as e:
+        print_error(f"Failed to start frontend: {e}")
+        return None
+
+
+def cleanup_processes(backend_process: Optional[subprocess.Popen], 
+                     frontend_process: Optional[subprocess.Popen]):
+    """
+    Clean up running processes on exit.
+    
+    Args:
+        backend_process: Backend process object
+        frontend_process: Frontend process object
+    """
+    print_warning("\nShutting down servers...")
+    
+    if backend_process and backend_process.poll() is None:
+        print_info("Stopping backend server...")
+        backend_process.terminate()
+        try:
+            backend_process.wait(timeout=5)
+            print_success("Backend server stopped")
+        except subprocess.TimeoutExpired:
+            backend_process.kill()
+            print_warning("Backend server force killed")
+    
+    if frontend_process and frontend_process.poll() is None:
+        print_info("Stopping frontend server...")
+        frontend_process.terminate()
+        try:
+            frontend_process.wait(timeout=5)
+            print_success("Frontend server stopped")
+        except subprocess.TimeoutExpired:
+            frontend_process.kill()
+            print_warning("Frontend server force killed")
+
+
+def monitor_processes(backend_process: subprocess.Popen, 
+                      frontend_process: subprocess.Popen):
+    """
+    Monitor running processes and display status.
+    
+    Args:
+        backend_process: Backend process object
+        frontend_process: Frontend process object
+    """
+    print_header("Servers Running Successfully")
+    print_success(f"Backend:  http://{BACKEND_HOST}:{BACKEND_PORT}")
+    print_success(f"Frontend: http://{FRONTEND_HOST}:{FRONTEND_PORT}")
+    print_info("\nPress Ctrl+C to stop all servers\n")
+    
+    try:
+        while True:
+            # Check if processes are still running
+            backend_running = backend_process.poll() is None
+            frontend_running = frontend_process.poll() is None
+            
+            if not backend_running:
+                print_error("Backend process has stopped unexpectedly!")
+                break
+            
+            if not frontend_running:
+                print_error("Frontend process has stopped unexpectedly!")
+                break
+            
+            time.sleep(5)
+            
+    except KeyboardInterrupt:
+        print_info("\nReceived shutdown signal")
+
+
+def main():
+    """Main execution function."""
+    print_header("ConstructAI Startup Script")
+    print_info(f"Platform: {platform.system()}")
+    print_info(f"Python: {sys.version.split()[0]}")
+    print_info(f"Working Directory: {get_project_root()}")
+    
+    backend_process = None
+    frontend_process = None
+    
+    try:
+        # Step 1: Kill existing processes
+        print_header("Step 1: Clearing Existing Processes")
+        if not kill_processes_on_port(BACKEND_PORT, "Backend"):
+            print_error("Failed to clear backend port. Please manually close the process.")
+            return 1
+        
+        if not kill_processes_on_port(FRONTEND_PORT, "Frontend"):
+            print_error("Failed to clear frontend port. Please manually close the process.")
+            return 1
+        
+        # Step 2: Verify dependencies
+        print_header("Step 2: Verifying Dependencies")
+        if not check_python_dependencies():
+            return 1
+        
+        if not check_node_dependencies():
+            return 1
+        
+        # Step 3: Start backend
+        print_header("Step 3: Starting Backend Server")
+        backend_process = start_backend()
+        if not backend_process:
+            return 1
+        
+        # Step 4: Verify backend health
+        print_header("Step 4: Verifying Backend Health")
+        if not check_health(BACKEND_HEALTH_ENDPOINT, "Backend"):
+            return 1
+        
+        # Step 5: Start frontend
+        print_header("Step 5: Starting Frontend Server")
+        frontend_process = start_frontend()
+        if not frontend_process:
+            return 1
+        
+        # Step 6: Verify frontend health
+        print_header("Step 6: Verifying Frontend Health")
+        if not check_health(FRONTEND_HEALTH_ENDPOINT, "Frontend"):
+            return 1
+        
+        # Step 7: Monitor processes
+        monitor_processes(backend_process, frontend_process)
+        
+        return 0
+        
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+        
+    finally:
+        # Always cleanup processes
+        cleanup_processes(backend_process, frontend_process)
+        print_header("Shutdown Complete")
+
+
+if __name__ == "__main__":
+    sys.exit(main())
