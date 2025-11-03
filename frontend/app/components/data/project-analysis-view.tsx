@@ -17,8 +17,11 @@ import {
   Download,
   ArrowLeft,
   Play,
+  Upload as UploadIcon,
 } from "lucide-react";
-import type { Project, AuditResult, OptimizationResult } from "@/app/lib/types";
+import type { Project, AuditResult, OptimizationResult, Risk, ComplianceIssue, Bottleneck, ResourceConflict } from "@/app/lib/types";
+import { apiClient } from "@/app/lib/api/client";
+import { DocumentUpload } from "./document-upload";
 
 interface ProjectAnalysisViewProps {
   project: Project;
@@ -30,17 +33,93 @@ export function ProjectAnalysisView({
   onBack,
 }: ProjectAnalysisViewProps) {
   const { isAnalyzing, steps, overallProgress, startAnalysis } = useAIAnalysis();
-  const [analysisResults] = useState<{
+  const [analysisResults, setAnalysisResults] = useState<{
     audit?: AuditResult;
     optimization?: OptimizationResult;
   } | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleAnalyze = async () => {
     try {
       await startAnalysis();
-      // TODO: Integrate with real API to fetch results
+      
+      // Fetch real analysis results from API
+      const result = await apiClient.analyzeProjectById(project.id, {
+        tasks: [],
+        resources: []
+      });
+      
+      setAnalysisResults({
+        audit: {
+          overall_score: result.audit.overall_score,
+          risks: result.audit.risks as Risk[],
+          compliance_issues: result.audit.compliance_issues as ComplianceIssue[],
+          bottlenecks: result.audit.bottlenecks as Bottleneck[],
+          resource_conflicts: result.audit.resource_conflicts as ResourceConflict[],
+        },
+        optimization: {
+          summary: {
+            duration_reduction_days: result.optimization.duration_reduction_days,
+            cost_savings: result.optimization.cost_savings,
+            parallel_opportunities: result.optimization.parallel_opportunities,
+            bottlenecks_resolved: result.optimization.bottlenecks_resolved,
+          },
+          optimized_project: project,
+          optimizations_applied: result.optimization.optimizations_applied as Array<{
+            type: "parallel_execution" | "bottleneck_removal" | "resource_balancing" | "cost_reduction";
+            description: string;
+            impact: string;
+          }>
+        }
+      });
+      
+      alert(
+        `Analysis Complete!\n\n` +
+        `Overall Score: ${result.audit.overall_score}%\n` +
+        `Cost Savings: $${result.optimization.cost_savings.toLocaleString()}\n` +
+        `Time Reduction: ${result.optimization.duration_reduction_days} days`
+      );
     } catch (error) {
       console.error("Analysis failed:", error);
+      alert("Analysis failed. Please try again.");
+    }
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const format = prompt("Choose export format:\n- json\n- pdf\n- excel", "json");
+      
+      if (!format || !["json", "pdf", "excel"].includes(format.toLowerCase())) {
+        setIsExporting(false);
+        return;
+      }
+
+      const result = await apiClient.exportProject(
+        project.id, 
+        format.toLowerCase() as "json" | "pdf" | "excel"
+      );
+      
+      if (result.data) {
+        // JSON export - download directly
+        const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${project.name}-export.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        alert("Export downloaded successfully!");
+      } else if (result.download_url) {
+        alert(`Export ready! Download URL: ${result.download_url}\n\n(Full file generation coming soon)`);
+      }
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert("Export failed. Please try again.");
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -60,9 +139,14 @@ export function ProjectAnalysisView({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleExport}
+            disabled={isExporting}
+          >
             <Download className="h-4 w-4" />
-            Export
+            {isExporting ? "Exporting..." : "Export"}
           </Button>
           <Button
             size="sm"
@@ -215,6 +299,28 @@ export function ProjectAnalysisView({
               </div>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Document Upload */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UploadIcon className="h-5 w-5" />
+            Project Documents
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4 text-sm text-neutral-600">
+            Upload construction documents, contracts, or specifications to analyze with AI. Our system will automatically extract tasks, resources, and identify optimization opportunities.
+          </p>
+          <DocumentUpload
+            projectId={project.id}
+            onUploadComplete={(files) => {
+              console.log("Upload complete:", files);
+              alert(`${files.length} document(s) uploaded successfully! You can now analyze them.`);
+            }}
+          />
         </CardContent>
       </Card>
     </div>

@@ -102,6 +102,10 @@ def find_process_by_port(port: int) -> List[psutil.Process]:
     processes = []
     for proc in psutil.process_iter(['pid', 'name']):
         try:
+            # Skip system processes (PID 0, 4) as they can't be terminated
+            if proc.pid in (0, 4):
+                continue
+                
             # Get network connections for this process (using net_connections to avoid deprecation)
             try:
                 connections = proc.net_connections()

@@ -51,6 +51,12 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --gradient-shine: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
   
   /* Layout */
   --sidebar-width: 320px;
@@ -58,16 +64,79 @@
   --container-max: 1280px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-surface: var(--surface);
-  --color-foreground: var(--foreground);
-  --color-primary: var(--primary);
-  --color-primary-hover: var(--primary-hover);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-error: var(--error);
-  --color-info: var(--info);
+@layer base {
+  :root {
+    --color-background: var(--background);
+    --color-surface: var(--surface);
+    --color-foreground: var(--foreground);
+    --color-primary: var(--primary);
+    --color-primary-hover: var(--primary-hover);
+    --color-success: var(--success);
+    --color-warning: var(--warning);
+    --color-error: var(--error);
+    --color-info: var(--info);
+  }
+  
+  .bg-surface {
+    background-color: var(--surface);
+  }
+  
+  .bg-background {
+    background-color: var(--background);
+  }
+  
+  .bg-primary {
+    background-color: var(--primary);
+  }
+  
+  .bg-primary-hover,
+  .bg-primary:hover {
+    background-color: var(--primary-hover);
+  }
+  
+  .bg-success {
+    background-color: var(--success);
+  }
+  
+  .bg-error {
+    background-color: var(--error);
+  }
+  
+  .bg-warning {
+    background-color: var(--warning);
+  }
+  
+  .bg-info {
+    background-color: var(--info);
+  }
+  
+  .text-primary {
+    color: var(--primary);
+  }
+  
+  .text-success {
+    color: var(--success);
+  }
+  
+  .text-error {
+    color: var(--error);
+  }
+  
+  .text-warning {
+    color: var(--warning);
+  }
+  
+  .text-info {
+    color: var(--info);
+  }
+  
+  .text-foreground {
+    color: var(--foreground);
+  }
+  
+  .border-primary {
+    border-color: var(--primary);
+  }
 }
 
 * {

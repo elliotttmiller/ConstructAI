@@ -2,21 +2,31 @@
 
 import * as React from "react";
 import { cn, formatCurrency } from "@/app/lib/utils";
-import { MoreVertical, Folder } from "lucide-react";
+import { MoreVertical, Folder, Edit, Copy, Archive, Trash2 } from "lucide-react";
 import type { Project } from "@/app/lib/types";
+import {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "../ui/dropdown-menu";
 
 interface ProjectCardProps {
   project: Project;
   isSelected?: boolean;
   onClick?: () => void;
+  onAction?: (action: string, project: Project) => void;
 }
 
-export function ProjectCard({ project, isSelected, onClick }: ProjectCardProps) {
+export function ProjectCard({ project, isSelected, onClick, onAction }: ProjectCardProps) {
+  const handleAction = (action: string) => {
+    onAction?.(action, project);
+  };
+
   return (
     <div
       onClick={onClick}
       className={cn(
-        "group relative flex h-20 w-full cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 bg-surface p-3 transition-all hover:border-primary hover:shadow-md",
+        "group relative flex h-20 w-full cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 bg-white p-3 transition-all hover:border-primary hover:shadow-md",
         isSelected && "border-primary bg-primary/5 shadow-md"
       )}
       role="button"
@@ -34,7 +44,7 @@ export function ProjectCard({ project, isSelected, onClick }: ProjectCardProps) 
       )}
 
       {/* Avatar/Icon Section (20%) */}
-      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
         <Folder className="h-6 w-6 text-primary" />
       </div>
 
@@ -51,28 +61,48 @@ export function ProjectCard({ project, isSelected, onClick }: ProjectCardProps) 
       </div>
 
       {/* Actions Section (20%) */}
-      <div className="flex flex-shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <div
           className={cn(
             "rounded-full px-2 py-0.5 text-xs font-medium",
             project.status === "in_progress" && "bg-info/10 text-info",
             project.status === "completed" && "bg-success/10 text-success",
             project.status === "planning" && "bg-warning/10 text-warning",
-            project.status === "on_hold" && "bg-neutral-200 text-neutral-600"
+            project.status === "on_hold" && "bg-neutral-200 text-neutral-600",
+            project.status === "archived" && "bg-neutral-300 text-neutral-700"
           )}
         >
           {project.status.replace("_", " ")}
         </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            // Handle actions menu
-          }}
-          className="opacity-0 transition-opacity group-hover:opacity-100"
-          aria-label="More options"
+        
+        <DropdownMenu
+          trigger={
+            <button
+              className="rounded p-1 hover:bg-neutral-100 transition-colors"
+              aria-label="More options"
+            >
+              <MoreVertical className="h-4 w-4 text-neutral-600" />
+            </button>
+          }
         >
-          <MoreVertical className="h-4 w-4 text-neutral-600" />
-        </button>
+          <DropdownMenuItem onClick={() => handleAction("edit")}>
+            <Edit className="h-4 w-4" />
+            Edit Project
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleAction("duplicate")}>
+            <Copy className="h-4 w-4" />
+            Duplicate
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleAction("archive")}>
+            <Archive className="h-4 w-4" />
+            Archive
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => handleAction("delete")} variant="danger">
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenu>
       </div>
     </div>
   );

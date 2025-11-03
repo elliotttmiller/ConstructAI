@@ -7,7 +7,7 @@ export interface Project {
   id: string;
   name: string;
   description: string;
-  status: "planning" | "in_progress" | "completed" | "on_hold";
+  status: "planning" | "in_progress" | "completed" | "on_hold" | "archived";
   budget: number;
   total_cost?: number;
   total_tasks: number;
@@ -104,4 +104,20 @@ export interface APIError {
   message: string;
   code?: string;
   details?: unknown;
+}
+
+export interface ProjectConfig {
+  analysis_settings: {
+    enable_ai_suggestions: boolean;
+    risk_threshold: "low" | "medium" | "high";
+    optimization_level: "basic" | "standard" | "aggressive";
+  };
+  notification_settings: {
+    email_alerts: boolean;
+    slack_integration: boolean;
+  };
+  export_settings: {
+    default_format: "json" | "pdf" | "excel";
+    include_metadata: boolean;
+  };
 }

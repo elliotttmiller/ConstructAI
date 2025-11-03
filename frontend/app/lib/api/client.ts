@@ -109,6 +109,28 @@ class APIClient {
   }
 
   /**
+   * Duplicate a project
+   */
+  async duplicateProject(id: string): Promise<Project> {
+    const response = await fetch(`${this.baseURL}/api/projects/${id}/duplicate`, {
+      method: "POST",
+      headers: this.headers,
+    });
+    return this.handleResponse(response);
+  }
+
+  /**
+   * Archive a project
+   */
+  async archiveProject(id: string): Promise<Project> {
+    const response = await fetch(`${this.baseURL}/api/projects/${id}/archive`, {
+      method: "PUT",
+      headers: this.headers,
+    });
+    return this.handleResponse(response);
+  }
+
+  /**
    * Audit a project
    */
   async auditProject(projectData: unknown): Promise<AuditResult> {
@@ -154,6 +176,97 @@ class APIClient {
       };
     }>(response);
     return result.data;
+  }
+
+  /**
+   * Analyze a specific project by ID
+   */
+  async analyzeProjectById(projectId: string, projectData?: unknown): Promise<{
+    status: string;
+    project_id: string;
+    audit: {
+      overall_score: number;
+      risks: unknown[];
+      compliance_issues: unknown[];
+      bottlenecks: unknown[];
+      resource_conflicts: unknown[];
+    };
+    optimization: {
+      duration_reduction_days: number;
+      cost_savings: number;
+      parallel_opportunities: number;
+      bottlenecks_resolved: number;
+      optimizations_applied: unknown[];
+    };
+  }> {
+    const response = await fetch(`${this.baseURL}/api/projects/${projectId}/analyze`, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify(projectData || {}),
+    });
+    return this.handleResponse(response);
+  }
+
+  /**
+   * Export project data
+   */
+  async exportProject(projectId: string, format: "json" | "pdf" | "excel" = "json"): Promise<{
+    status: string;
+    format: string;
+    data?: unknown;
+    download_url?: string;
+    message?: string;
+    exported_at?: string;
+  }> {
+    const response = await fetch(`${this.baseURL}/api/projects/${projectId}/export?format=${format}`, {
+      headers: this.headers,
+    });
+    return this.handleResponse(response);
+  }
+
+  /**
+   * Get project configuration
+   */
+  async getProjectConfig(projectId: string): Promise<{
+    status: string;
+    project_id: string;
+    config: {
+      analysis_settings: {
+        enable_ai_suggestions: boolean;
+        risk_threshold: string;
+        optimization_level: string;
+      };
+      notification_settings: {
+        email_alerts: boolean;
+        slack_integration: boolean;
+      };
+      export_settings: {
+        default_format: string;
+        include_metadata: boolean;
+      };
+    };
+  }> {
+    const response = await fetch(`${this.baseURL}/api/projects/${projectId}/config`, {
+      headers: this.headers,
+    });
+    return this.handleResponse(response);
+  }
+
+  /**
+   * Update project configuration
+   */
+  async updateProjectConfig(projectId: string, config: unknown): Promise<{
+    status: string;
+    project_id: string;
+    message: string;
+    config: unknown;
+  }> {
+    const response = await fetch(`${this.baseURL}/api/projects/${projectId}/config`, {
+      method: "PUT",
+      headers: this.headers,
+      body: JSON.stringify(config),
+    });
+    return this.handleResponse(response);
   }
 
   /**

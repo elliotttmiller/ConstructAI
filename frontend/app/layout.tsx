@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ConstructAI - Enterprise AI Construction Assistant",
+  title: "ConstructAI",
   description: "AI-powered construction workflow optimization and specification analysis platform",
 };
 
