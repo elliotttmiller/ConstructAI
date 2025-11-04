@@ -1,8 +1,18 @@
 """
 AI-Powered Construction Intelligence Report Generator for ConstructAI.
 
-This module generates comprehensive, actionable construction insights and execution strategies
-using advanced AI analysis and construction industry best practices.
+⚠️ CRITICAL: THIS MODULE DOES **ZERO** AI ANALYSIS ⚠️
+
+This is ONLY a formatter/exporter. It takes the already-completed AI analysis results
+from the database (stored by the /documents/{document_id}/analyze endpoint) and 
+formats them into a professional PDF report.
+
+The AI analysis workflow (7-phase autonomous intelligence) runs in:
+- constructai.ai.universal_intelligence
+- constructai.ai.analysis_generator  
+- constructai.web.fastapi_app (analyze_document endpoint)
+
+This module's ONLY job: Read stored analysis → Format → Export PDF
 
 Report Sections:
 - Project Intelligence & Scope Analysis
@@ -86,42 +96,97 @@ class ConstructAIPDFReport:
         """
         Use pre-analyzed AI content from project metadata.
         PDF export should NOT re-run analysis - it should format existing results.
-        """
-        # Extract analysis from project metadata (set by analyze endpoint)
-        latest_analysis = self.project_data.get('project_metadata', {}).get('latest_analysis', {})
         
-        if not latest_analysis:
-            logger.warning("No analysis results found in project. Run analysis first before exporting.")
+        IMPORTANT: Document analysis results are stored in:
+        project_metadata.documents[].analysis_result (from /documents/{document_id}/analyze endpoint)
+        
+        NOT in project_metadata.latest_analysis (that's from /projects/{id}/analyze endpoint)
+        """
+        # Extract documents from project metadata
+        documents = self.project_data.get('project_metadata', {}).get('documents', [])
+        
+        if not documents:
+            logger.warning("No documents found in project. Upload and analyze a document first.")
             self.ai_content = {}
             return
         
-        # Extract audit and optimization results
-        audit = latest_analysis.get('audit', {})
-        optimization = latest_analysis.get('optimization', {})
+        # Find the most recently analyzed document
+        analyzed_docs = [doc for doc in documents if doc.get('analysis_result')]
         
-        # Format for PDF sections
+        if not analyzed_docs:
+            logger.warning("No analyzed documents found in project. Run document analysis first before exporting.")
+            self.ai_content = {}
+            return
+        
+        # Sort by analyzed_at timestamp and get the most recent
+        analyzed_docs.sort(key=lambda d: d.get('analyzed_at', ''), reverse=True)
+        latest_doc = analyzed_docs[0]
+        
+        logger.info(f"Using analysis from document: {latest_doc.get('filename', 'unknown')}")
+        
+        # Extract the analysis result structure from document analysis
+        analysis = latest_doc.get('analysis_result', {})
+        
+        if not analysis:
+            logger.warning("Document has empty analysis_result. This should not happen.")
+            self.ai_content = {}
+            return
+        
+        # Extract key sections from document analysis result
+        # Document analysis has different structure than project analysis!
+        phases = analysis.get('phases', [])
+        quality_metrics = analysis.get('quality_metrics', {})
+        universal_intel = analysis.get('universal_intelligence', {})
+        deep_analysis = analysis.get('deep_analysis', {})
+        risk_assessment = analysis.get('risk_assessment', {})
+        strategic_planning = analysis.get('strategic_planning', {})
+        mep_analysis = analysis.get('mep_analysis', {})
+        
+        # Convert to format expected by PDF sections
         self.ai_content = {
             "project_intelligence": {
-                "overall_score": audit.get('overall_score', 0),
-                "risks": audit.get('risks', []),
-                "compliance_issues": audit.get('compliance_issues', []),
-                "recommendations": audit.get('recommendations', [])
+                "overall_score": quality_metrics.get('quality_score', 0) * 100,  # Convert to percentage
+                "document_type": universal_intel.get('classification', {}).get('document_type', 'Unknown'),
+                "structure_type": universal_intel.get('classification', {}).get('structure_type', 'Unknown'),
+                "summary": universal_intel.get('summary', ''),
+                "confidence": universal_intel.get('classification', {}).get('confidence', 0),
+                "execution_time": analysis.get('execution_time_seconds', 0),
+                "ai_decisions": quality_metrics.get('ai_decisions_made', 0),
+                "key_sections": universal_intel.get('classification', {}).get('key_sections', [])
             },
-            "execution_strategy": {
-                "improvements": optimization.get('improvements', []),
-                "metrics": optimization.get('metrics_comparison', {})
+            "deep_analysis": {
+                "divisions_summary": deep_analysis.get('divisions_summary', {}),
+                "materials": deep_analysis.get('materials_identified', []),
+                "standards": deep_analysis.get('standards_referenced', []),
+                "companies": deep_analysis.get('companies', []),
+                "people": deep_analysis.get('people', []),
+                "dates": deep_analysis.get('dates', []),
+                "costs": deep_analysis.get('costs', [])
             },
             "risk_analysis": {
-                "risks": audit.get('risks', []),
-                "bottlenecks": audit.get('bottlenecks', [])
+                "risk_level": risk_assessment.get('risk_level', 'unknown'),
+                "risk_score": risk_assessment.get('risk_score', 0),
+                "risk_categories": risk_assessment.get('risk_categories', [])
             },
-            "optimization_results": {
-                "metrics": optimization.get('metrics_comparison', {}),
-                "optimized_project": optimization.get('optimized_project', {})
+            "strategic_planning": {
+                "recommendations": strategic_planning.get('recommendations', []),
+                "critical_requirements": strategic_planning.get('critical_requirements', []),
+                "priority_actions": strategic_planning.get('priority_actions', [])
+            },
+            "mep_analysis": {
+                "hvac": mep_analysis.get('hvac', {}),
+                "plumbing": mep_analysis.get('plumbing', {}),
+                "overall": mep_analysis.get('overall', {})
+            },
+            "quality_metrics": {
+                "quality_score": quality_metrics.get('quality_score', 0),
+                "confidence_score": quality_metrics.get('confidence_score', 0),
+                "completeness_score": quality_metrics.get('completeness_score', 0),
+                "ai_iterations": quality_metrics.get('ai_iterations', 0)
             }
         }
         
-        logger.info(f"Using pre-analyzed content from {latest_analysis.get('timestamp', 'unknown')}")
+        logger.info(f"Using pre-analyzed content from {analysis.get('timestamp', 'unknown')}")
     
     def _setup_custom_styles(self):
         """Configure professional paragraph styles for construction industry reports."""

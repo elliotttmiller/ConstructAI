@@ -421,6 +421,93 @@ class APIClient {
   }
 
   /**
+   * 🌊 STEP 2 (STREAMING): Analyze with real-time progress updates
+   * Server-Sent Events (SSE) endpoint that streams progress during analysis
+   * 
+   * @param projectId - The project ID
+   * @param documentId - The document ID to analyze
+   * @param onProgress - Callback for progress updates (phase, message, progress %)
+   * @param onInsight - Callback for intermediate insights ("Found 27 clauses")
+   * @param onComplete - Callback when analysis completes with final results
+   * @param onError - Callback for errors
+   */
+  analyzeDocumentStream(
+    projectId: string,
+    documentId: string,
+    callbacks: {
+      onProgress?: (data: {
+        phase: number;
+        total_phases: number;
+        status: string;
+        message: string;
+        progress: number;
+        elapsed: number;
+        estimated_remaining: number;
+        insights?: Record<string, unknown>;
+      }) => void;
+      onInsight?: (data: {
+        type: string;
+        value: number | string;
+        message: string;
+      }) => void;
+      onComplete?: (data: {
+        analysis_id: string;
+        execution_time: number;
+        quality_score: number;
+        ai_decisions: number;
+        recommendations: number;
+        requirements: number;
+        document_type: string;
+      }) => void;
+      onError?: (data: { error: string; phase?: string }) => void;
+    }
+  ): { close: () => void } {
+    const eventSource = new EventSource(
+      `${this.baseURL}/api/projects/${projectId}/documents/${documentId}/analyze/stream`
+    );
+
+    eventSource.addEventListener("progress", (event) => {
+      if (callbacks.onProgress) {
+        const data = JSON.parse(event.data);
+        callbacks.onProgress(data);
+      }
+    });
+
+    eventSource.addEventListener("insight", (event) => {
+      if (callbacks.onInsight) {
+        const data = JSON.parse(event.data);
+        callbacks.onInsight(data);
+      }
+    });
+
+    eventSource.addEventListener("complete", (event) => {
+      if (callbacks.onComplete) {
+        const data = JSON.parse(event.data);
+        callbacks.onComplete(data);
+      }
+      eventSource.close();
+    });
+
+    eventSource.addEventListener("error", (event) => {
+      const messageEvent = event as MessageEvent;
+      if (callbacks.onError && messageEvent.data) {
+        try {
+          const data = JSON.parse(messageEvent.data);
+          callbacks.onError(data);
+        } catch {
+          callbacks.onError({ error: "Stream connection error" });
+        }
+      }
+      eventSource.close();
+    });
+
+    // Return control object for cancellation
+    return {
+      close: () => eventSource.close()
+    };
+  }
+
+  /**
    * 📤🤖 COMBINED: Upload AND analyze in one call (convenience method)
    * Uses the two-step workflow internally for proper separation of concerns
    * 

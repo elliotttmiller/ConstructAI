@@ -198,6 +198,36 @@ body {
    GLOBAL ANIMATIONS & TRANSITIONS
    ============================================ */
 
+/* Pulse animation for loading states */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Fade in animation for new elements */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
 /* Smooth transitions for all interactive elements */
 * {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;

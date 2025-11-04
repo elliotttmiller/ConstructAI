@@ -2,79 +2,98 @@
 
 import * as React from "react";
 import { useState } from "react";
-import { Play, Download, Settings, Sparkles, CheckCircle2, Upload, FileText } from "lucide-react";
+import { Play, Download, Settings, Sparkles, CheckCircle2, Upload, FileText, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { apiClient } from "@/app/lib/api/client";
 import { ConfigurationModal } from "../data/configuration-modal";
 import { DocumentUpload } from "../data/document-upload";
+import { RealTimeAnalysisViewport } from "../analysis/real-time-analysis-viewport";
+import { ProjectDashboard } from "../dashboard/project-dashboard";
+import { UniversalDomainViewer } from "../analysis/universal-domain-viewer";
 import type { ProjectConfig } from "@/app/lib/types";
 
+// Universal, extensible document analysis interface
 interface DocumentAnalysis {
+  // Core metrics - applicable to all document types
   sections: number;
   clauses_extracted: number;
   divisions_found: Record<string, number>;
   sample_clauses: unknown[];
   ner_analysis: unknown[];
-  mep_analysis?: {
-    hvac: {
-      equipment: Array<{ type: string; mention: string }>;
-      capacities: string[];
-      efficiency_ratings: string[];
-      ductwork: string[];
-      standards: string[];
-      summary: {
-        total_equipment: number;
-        equipment_types: number;
-        has_capacity_specs: boolean;
-        has_efficiency_ratings: boolean;
+  
+  // Domain-specific analysis - flexible structure for any specialty
+  domain_analysis?: {
+    [domain: string]: {
+      // Generic items structure - works for equipment, fixtures, materials, etc.
+      items?: Array<{
+        type: string;
+        mention: string;
+        category?: string;
+        specifications?: string[];
+      }>;
+      
+      // Generic specifications array - adaptable to any domain
+      specifications?: Array<{
+        category: string;
+        values: string[];
+        standards?: string[];
+      }>;
+      
+      // Standards applicable to this domain
+      standards?: string[];
+      
+      // Summary metrics - generic enough for any domain
+      summary?: {
+        total_items: number;
+        item_types: number;
+        has_specifications: boolean;
         completeness_score: number;
+        [key: string]: unknown; // Allow additional custom metrics
       };
-    };
-    plumbing: {
-      fixtures: Array<{ type: string; mention: string }>;
-      piping: string[];
-      water_supply: string[];
-      drainage: string[];
-      standards: string[];
-      summary: {
-        total_fixtures: number;
-        fixture_types: number;
-        has_piping_specs: boolean;
-        has_water_supply_specs: boolean;
-        completeness_score: number;
-      };
-    };
-    overall: {
-      has_hvac_specs: boolean;
-      has_plumbing_specs: boolean;
-      hvac_completeness: number;
-      plumbing_completeness: number;
-      overall_completeness: number;
+      
+      // Allow any additional domain-specific fields
+      [key: string]: unknown;
     };
   };
+  
+  // Overall analysis insights - universal across all domains
   insights?: {
     completeness_score: number;
     key_materials: string[];
     key_standards: string[];
     risk_indicators: Array<{
       type: string;
-      severity: string;
+      severity: "low" | "medium" | "high" | "critical";
       text: string;
+      location?: string;
     }>;
     recommendations: Array<{
-      priority: string;
+      priority: "low" | "medium" | "high" | "critical";
       category: string;
       message: string;
+      impact?: string;
     }>;
     summary: {
       total_divisions: number;
       most_referenced_division: string;
       specification_density: number;
-      has_mep_specifications?: boolean;
+      document_type?: string;
+      detected_domains?: string[]; // e.g., ["hvac", "plumbing", "electrical", "structural"]
+      [key: string]: unknown; // Allow additional custom metrics
     };
   };
+  
+  // Metadata - universal document information
+  metadata?: {
+    document_type?: string;
+    confidence_score?: number;
+    processing_time?: number;
+    ai_model_version?: string;
+    [key: string]: unknown;
+  };
 }
+
 
 interface AIStudioProps {
   projectId?: string;
@@ -93,48 +112,37 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
     size: number;
     analysis?: DocumentAnalysis;
   }>>([]);
-  const [analysisResults, setAnalysisResults] = useState<{
-    audit: {
-      overall_score: number;
-      risks: unknown[];
-      compliance_issues: unknown[];
-      bottlenecks: unknown[];
-      resource_conflicts: unknown[];
-      recommendations: unknown[];
-    };
-    optimization: {
-      improvements: Array<{
-        category: string;
-        description: string;
-        impact: string;
-        metric_change?: string;
-      }>;
-      metrics_comparison: {
-        original: {
-          total_duration: number;
-          critical_path_duration: number;
-          total_cost: number;
-          total_tasks: number;
-          avg_task_duration: number;
-        };
-        optimized: {
-          total_duration: number;
-          critical_path_duration: number;
-          total_cost: number;
-          total_tasks: number;
-          avg_task_duration: number;
-        };
-        improvements: {
-          duration_reduction_days: number;
-          duration_reduction_percent: number;
-          cost_savings: number;
-          cost_savings_percent: number;
-        };
-      };
-      optimized_project: unknown;
-    };
-  } | null>(null);
   const [documentAnalysis, setDocumentAnalysis] = useState<DocumentAnalysis | null>(null);
+  
+  // 🌊 Real-time streaming progress state
+  const [streamController, setStreamController] = useState<{ close: () => void } | null>(null);
+  const [showAnalysisViewport, setShowAnalysisViewport] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState({
+    phase: 0,
+    totalPhases: 7,
+    message: "",
+    progress: 0,
+    elapsed: 0,
+    estimatedRemaining: 0,
+    status: "idle" as "idle" | "running" | "completed" | "error"
+  });
+  const [analysisInsights, setAnalysisInsights] = useState<Array<{
+    type: string;
+    value: number | string;
+    message: string;
+    timestamp: number;
+  }>>([]);
+  const [analysisResultSummary, setAnalysisResultSummary] = useState<{
+    execution_time: number;
+    quality_score: number;
+    ai_decisions: number;
+    recommendations: number;
+    requirements: number;
+    document_type: string;
+    clauses_found?: number;
+    divisions_detected?: number;
+    entities_extracted?: number;
+  } | null>(null);
 
   const handleDocumentUpload = (documentId: string, analysis?: DocumentAnalysis, autonomousResult?: unknown) => {
     console.log("Document uploaded:", { documentId, analysis, autonomousResult });
@@ -148,17 +156,12 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
       analysis: analysis || undefined
     }]);
     
-    // Only show analysis alert if analysis is provided
-    if (analysis) {
-      alert(
-        `Document Analyzed!\n\n` +
-        `Sections Found: ${analysis.sections}\n` +
-        `Clauses Extracted: ${analysis.clauses_extracted}\n` +
-        `MasterFormat Divisions: ${Object.keys(analysis.divisions_found || {}).length}\n\n` +
-        `View detailed results in console.`
-      );
-      setDocumentAnalysis(analysis);
-    }
+    // Just notify upload complete - user must click Analyze button
+    alert(
+      `✅ Document uploaded successfully!\n\n` +
+      `Document ID: ${documentId}\n\n` +
+      `Click the "Analyze" button to run AI analysis.`
+    );
   };
 
   const handleConfigure = async () => {
@@ -270,59 +273,140 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
     }
   };
 
+  const handleCancelAnalysis = () => {
+    if (streamController) {
+      streamController.close();
+      setStreamController(null);
+      setIsAnalyzing(false);
+      setShowAnalysisViewport(false);
+      setAnalysisProgress({
+        phase: 0,
+        totalPhases: 7,
+        message: "Analysis cancelled by user",
+        progress: 0,
+        elapsed: 0,
+        estimatedRemaining: 0,
+        status: "idle"
+      });
+      setAnalysisInsights([]);
+    }
+  };
+
   const handleAnalyze = async () => {
     if (!projectId) {
       alert("Please select a project first");
       return;
     }
 
-    // If we have document analysis, show it
-    if (documentAnalysis) {
-      console.log("Showing document analysis:", documentAnalysis);
-      alert(
-        `Document Analysis Results:\n\n` +
-        `Sections: ${documentAnalysis.sections}\n` +
-        `Clauses Extracted: ${documentAnalysis.clauses_extracted}\n` +
-        `MasterFormat Divisions Found: ${Object.keys(documentAnalysis.divisions_found || {}).length}\n\n` +
-        `Sample Clauses: ${documentAnalysis.sample_clauses?.length || 0}\n` +
-        `NER Analysis: ${documentAnalysis.ner_analysis?.length || 0} entities\n\n` +
-        `Full details in console.`
-      );
+    // Get the most recently uploaded document
+    if (uploadedDocs.length === 0) {
+      alert("Please upload a document first before analyzing");
       return;
     }
 
-    // Otherwise run project analysis
+    const lastDoc = uploadedDocs[uploadedDocs.length - 1];
+    if (!lastDoc.documentId) {
+      alert("No valid document to analyze");
+      return;
+    }
+
     setIsAnalyzing(true);
+    setShowAnalysisViewport(true);
+    setAnalysisInsights([]);
+    setAnalysisProgress({
+      phase: 0,
+      totalPhases: 7,
+      message: "Initializing analysis...",
+      progress: 0,
+      elapsed: 0,
+      estimatedRemaining: 0,
+      status: "running"
+    });
+    
     try {
-      console.log("Starting AI analysis for project:", projectId);
+      console.log(`🤖 Starting AI analysis stream for document ${lastDoc.documentId}...`);
       
-      const result = await apiClient.analyzeProjectById(projectId, {
-        tasks: [],
-        resources: []
-      });
-      
-      console.log("Analysis complete:", result);
-      setAnalysisResults(result);
-      
-      // Extract metrics from new structure
-      const metrics = result.optimization?.metrics_comparison?.improvements || {};
-      const costSavings = metrics.cost_savings || 0;
-      const durationReduction = metrics.duration_reduction_days || 0;
-      const improvements = result.optimization?.improvements?.length || 0;
-      
-      alert(
-        `Analysis Complete!\n\n` +
-        `Overall Score: ${result.audit.overall_score}%\n` +
-        `Cost Savings: $${costSavings.toLocaleString()}\n` +
-        `Time Reduction: ${durationReduction} days\n` +
-        `Improvements Applied: ${improvements}\n\n` +
-        `Detailed results displayed in console.`
+      // Use STREAMING endpoint for real-time progress
+      const controller = apiClient.analyzeDocumentStream(
+        projectId,
+        lastDoc.documentId,
+        {
+          onProgress: (data) => {
+            console.log("📊 Progress update:", data);
+            setAnalysisProgress({
+              phase: data.phase,
+              totalPhases: data.total_phases,
+              message: data.message,
+              progress: data.progress,
+              elapsed: data.elapsed,
+              estimatedRemaining: data.estimated_remaining,
+              status: data.status as "running" | "completed"
+            });
+          },
+          
+          onInsight: (data) => {
+            console.log("💡 Insight:", data);
+            setAnalysisInsights(prev => [...prev, {
+              ...data,
+              timestamp: Date.now()
+            }]);
+          },
+          
+          onComplete: (data) => {
+            console.log("✅ Analysis complete:", data);
+            setAnalysisProgress(prev => ({
+              ...prev,
+              status: "completed",
+              progress: 100
+            }));
+            setIsAnalyzing(false);
+            setStreamController(null);
+            
+            // Store completion data
+            setDocumentAnalysis(data as unknown as DocumentAnalysis);
+            
+            // Extract summary for viewport display
+            setAnalysisResultSummary({
+              execution_time: data.execution_time || 0,
+              quality_score: data.quality_score || 0,
+              ai_decisions: data.ai_decisions || 0,
+              recommendations: data.recommendations || 0,
+              requirements: data.requirements || 0,
+              document_type: data.document_type || "Construction Specification",
+              clauses_found: (data as {clauses_found?: number}).clauses_found,
+              divisions_detected: (data as {divisions_detected?: number}).divisions_detected,
+              entities_extracted: (data as {entities_extracted?: number}).entities_extracted
+            });
+            
+            // Keep viewport open to show completion - user will close it
+          },
+          
+          onError: (data) => {
+            console.error("❌ Analysis error:", data);
+            setAnalysisProgress(prev => ({
+              ...prev,
+              status: "error",
+              message: `Error: ${data.error}`
+            }));
+            setIsAnalyzing(false);
+            setStreamController(null);
+            // Keep viewport open to show error - user will close it
+          }
+        }
       );
+      
+      setStreamController(controller);
+      
     } catch (error) {
       console.error("Analysis failed:", error);
-      alert("AI Analysis failed. Please check console for details.");
-    } finally {
+      setAnalysisProgress(prev => ({
+        ...prev,
+        status: "error",
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }));
       setIsAnalyzing(false);
+      setStreamController(null);
+      // Keep viewport open to show error
     }
   };
 
@@ -392,6 +476,31 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
       <div className="flex-1 overflow-y-auto p-8">
         {projectId ? (
           <div className="mx-auto max-w-6xl space-y-6">
+            {/* Project Dashboard */}
+            {!documentAnalysis && (
+              <ProjectDashboard
+                projectName={projectName || "Unnamed Project"}
+                stats={{
+                  totalDocuments: uploadedDocs.length,
+                  analyzedDocuments: documentAnalysis ? 1 : 0,
+                  totalClauses: (documentAnalysis as unknown as {clauses_extracted?: number})?.clauses_extracted || 0,
+                  qualityScore: analysisResultSummary?.quality_score || 0,
+                  lastAnalyzed: documentAnalysis ? "Just now" : undefined,
+                  status: isAnalyzing 
+                    ? "processing" 
+                    : documentAnalysis 
+                    ? "completed" 
+                    : uploadedDocs.length > 0 
+                    ? "ready" 
+                    : "idle"
+                }}
+                onUpload={() => setShowUpload(true)}
+                onAnalyze={handleAnalyze}
+                onExport={handleExport}
+                isAnalyzing={isAnalyzing}
+              />
+            )}
+
             {/* Document Analysis Results */}
             {documentAnalysis && (
               <div className="space-y-6">
@@ -583,366 +692,111 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
                   </div>
                 )}
 
-                {/* MEP Analysis Section */}
-                {documentAnalysis.mep_analysis && (documentAnalysis.mep_analysis.overall.has_hvac_specs || documentAnalysis.mep_analysis.overall.has_plumbing_specs) && (
-                  <div className="space-y-6">
-                    <div className="border-t pt-6">
-                      <h3 className="text-xl font-semibold text-primary mb-4">MEP Systems Analysis</h3>
-                    </div>
-
-                    <div className="grid gap-6 md:grid-cols-2">
-                      {/* HVAC Analysis */}
-                      {documentAnalysis.mep_analysis.overall.has_hvac_specs && (
-                        <Card className="shadow-lg border-primary/20">
-                          <CardHeader className="pb-4">
-                            <CardTitle className="flex items-center gap-2 text-primary">
-                              <Sparkles className="h-5 w-5" />
-                              HVAC Systems
-                            </CardTitle>
-                            <p className="text-sm text-neutral-500 mt-1">
-                              {documentAnalysis.mep_analysis.hvac.summary.completeness_score.toFixed(0)}% Complete
-                            </p>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            {/* Equipment List */}
-                            {documentAnalysis.mep_analysis.hvac.equipment.length > 0 && (
-                              <div>
-                                <h4 className="text-sm font-semibold text-foreground mb-2">
-                                  Equipment ({documentAnalysis.mep_analysis.hvac.summary.total_equipment} items)
-                                </h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {documentAnalysis.mep_analysis.hvac.equipment.slice(0, 8).map((equip, idx) => (
-                                    <span 
-                                      key={idx} 
-                                      className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-md"
-                                    >
-                                      {equip.type}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Capacities */}
-                            {documentAnalysis.mep_analysis.hvac.capacities.length > 0 && (
-                              <div>
-                                <h4 className="text-sm font-semibold text-foreground mb-2">Capacities</h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {documentAnalysis.mep_analysis.hvac.capacities.slice(0, 6).map((cap, idx) => (
-                                    <span 
-                                      key={idx} 
-                                      className="text-xs px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md font-medium"
-                                    >
-                                      {cap}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Efficiency Ratings */}
-                            {documentAnalysis.mep_analysis.hvac.efficiency_ratings.length > 0 && (
-                              <div>
-                                <h4 className="text-sm font-semibold text-foreground mb-2">Efficiency Ratings</h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {documentAnalysis.mep_analysis.hvac.efficiency_ratings.map((rating, idx) => (
-                                    <span 
-                                      key={idx} 
-                                      className="text-xs px-2 py-1 bg-success/10 text-success rounded-md"
-                                    >
-                                      {rating}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Standards */}
-                            {documentAnalysis.mep_analysis.hvac.standards.length > 0 && (
-                              <div>
-                                <h4 className="text-sm font-semibold text-foreground mb-2">Standards Compliance</h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {documentAnalysis.mep_analysis.hvac.standards.map((std, idx) => (
-                                    <span 
-                                      key={idx} 
-                                      className="text-xs px-2 py-1 bg-warning/10 text-warning rounded-md"
-                                    >
-                                      {std}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {/* Plumbing Analysis */}
-                      {documentAnalysis.mep_analysis.overall.has_plumbing_specs && (
-                        <Card className="shadow-lg border-primary/20">
-                          <CardHeader className="pb-4">
-                            <CardTitle className="flex items-center gap-2 text-primary">
-                              <Sparkles className="h-5 w-5" />
-                              Plumbing Systems
-                            </CardTitle>
-                            <p className="text-sm text-neutral-500 mt-1">
-                              {documentAnalysis.mep_analysis.plumbing.summary.completeness_score.toFixed(0)}% Complete
-                            </p>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            {/* Fixtures */}
-                            {documentAnalysis.mep_analysis.plumbing.fixtures.length > 0 && (
-                              <div>
-                                <h4 className="text-sm font-semibold text-foreground mb-2">
-                                  Fixtures ({documentAnalysis.mep_analysis.plumbing.summary.total_fixtures} items)
-                                </h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {documentAnalysis.mep_analysis.plumbing.fixtures.slice(0, 8).map((fixture, idx) => (
-                                    <span 
-                                      key={idx} 
-                                      className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-md"
-                                    >
-                                      {fixture.type}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Piping */}
-                            {documentAnalysis.mep_analysis.plumbing.piping.length > 0 && (
-                              <div>
-                                <h4 className="text-sm font-semibold text-foreground mb-2">Piping Materials</h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {documentAnalysis.mep_analysis.plumbing.piping.slice(0, 6).map((pipe, idx) => (
-                                    <span 
-                                      key={idx} 
-                                      className="text-xs px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md font-medium"
-                                    >
-                                      {pipe}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Water Supply */}
-                            {documentAnalysis.mep_analysis.plumbing.water_supply.length > 0 && (
-                              <div>
-                                <h4 className="text-sm font-semibold text-foreground mb-2">Water Supply Specs</h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {documentAnalysis.mep_analysis.plumbing.water_supply.map((spec, idx) => (
-                                    <span 
-                                      key={idx} 
-                                      className="text-xs px-2 py-1 bg-success/10 text-success rounded-md"
-                                    >
-                                      {spec}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Standards */}
-                            {documentAnalysis.mep_analysis.plumbing.standards.length > 0 && (
-                              <div>
-                                <h4 className="text-sm font-semibold text-foreground mb-2">Standards Compliance</h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {documentAnalysis.mep_analysis.plumbing.standards.map((std, idx) => (
-                                    <span 
-                                      key={idx} 
-                                      className="text-xs px-2 py-1 bg-warning/10 text-warning rounded-md"
-                                    >
-                                      {std}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      )}
-                    </div>
-                  </div>
+                {/* Universal Domain Analysis Section */}
+                {documentAnalysis.domain_analysis && Object.keys(documentAnalysis.domain_analysis).length > 0 && (
+                  <UniversalDomainViewer domainAnalysis={documentAnalysis.domain_analysis} />
                 )}
               </div>
             )}
 
-            {/* Analysis Results */}
-            {analysisResults && (
-              <div className="grid gap-6 md:grid-cols-2">
-                <Card className="shadow-lg border-success/20">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-success">
-                      <CheckCircle2 className="h-5 w-5" />
-                      Audit Results
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-6">
-                      <div>
-                        <p className="text-5xl font-bold text-success">
-                          {analysisResults.audit.overall_score}%
-                        </p>
-                        <p className="mt-1 text-sm text-neutral-600">Overall Score</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-200">
-                        <div>
-                          <p className="text-2xl font-bold text-foreground">
-                            {analysisResults.audit.risks.length}
-                          </p>
-                          <p className="text-xs text-neutral-600">Risks Found</p>
-                        </div>
-                        <div>
-                          <p className="text-2xl font-bold text-foreground">
-                            {analysisResults.audit.compliance_issues.length}
-                          </p>
-                          <p className="text-xs text-neutral-600">Compliance Issues</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-lg border-primary/20">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-primary">
-                      <Sparkles className="h-5 w-5" />
-                      Optimization Results
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <p className="text-3xl font-bold text-success">
-                          {analysisResults.optimization.metrics_comparison.improvements.duration_reduction_days}
-                        </p>
-                        <p className="text-xs text-neutral-600">Days Saved</p>
-                      </div>
-                      <div>
-                        <p className="text-3xl font-bold text-success">
-                          ${analysisResults.optimization.metrics_comparison.improvements.cost_savings.toLocaleString()}
-                        </p>
-                        <p className="text-xs text-neutral-600">Cost Savings</p>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-primary">
-                          {analysisResults.optimization.improvements.length}
-                        </p>
-                        <p className="text-xs text-neutral-600">Improvements Applied</p>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-primary">
-                          {analysisResults.optimization.metrics_comparison.improvements.duration_reduction_percent.toFixed(1)}%
-                        </p>
-                        <p className="text-xs text-neutral-600">Time Reduction</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+            {/* Streamlined Upload Section - Only shown when no analysis yet */}
+            {!documentAnalysis && uploadedDocs.length === 0 && !showUpload && (
+              <div className="flex items-center justify-center py-20">
+                <div className="text-center max-w-lg">
+                  <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-primary/60 shadow-lg">
+                    <Sparkles className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="mb-3 text-2xl font-bold text-foreground">
+                    Ready for AI Analysis
+                  </h3>
+                  <p className="mb-8 text-neutral-600">
+                    Upload construction documents and let our AI analyze them with deep intelligence
+                  </p>
+                  <Button
+                    size="lg"
+                    onClick={() => setShowUpload(true)}
+                    className="bg-primary hover:bg-primary-hover shadow-md"
+                  >
+                    <Upload className="mr-2 h-5 w-5" />
+                    Upload Your First Document
+                  </Button>
+                </div>
               </div>
             )}
 
-            {/* Analysis Workspace */}
-            <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Project Analysis</span>
-                  {!showUpload && (
+            {/* Compact Upload Modal */}
+            {showUpload && (
+              <Card className="shadow-xl border-primary/20">
+                <CardHeader className="border-b border-neutral-200">
+                  <CardTitle className="flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <Upload className="h-5 w-5 text-primary" />
+                      Upload Document
+                    </span>
                     <Button
-                      variant="outline"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowUpload(false)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <DocumentUpload
+                    projectId={projectId}
+                    onUploadComplete={(docId) => {
+                      handleDocumentUpload(docId);
+                      setShowUpload(false);
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Uploaded Documents - Compact List */}
+            {uploadedDocs.length > 0 && !documentAnalysis && (
+              <Card className="shadow-md">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-base">
+                    <span className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Documents Ready ({uploadedDocs.length})
+                    </span>
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={() => setShowUpload(true)}
+                      className="text-xs"
                     >
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload Documents
+                      <Upload className="mr-1 h-3 w-3" />
+                      Add More
                     </Button>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {showUpload ? (
-                  <div>
-                    <div className="mb-4 flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-foreground">
-                        Upload Project Documents
-                      </h3>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowUpload(false)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                    <DocumentUpload
-                      projectId={projectId}
-                      onUploadComplete={handleDocumentUpload}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center py-16 text-center">
-                    <div>
-                      <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-primary/60">
-                        <Sparkles className="h-10 w-10 text-white" />
-                      </div>
-                      <h3 className="mb-2 text-xl font-semibold text-foreground">
-                        Ready for AI Analysis
-                      </h3>
-                      <p className="mb-6 text-sm text-neutral-600 max-w-md mx-auto">
-                        Upload project documents to analyze, or click &ldquo;Analyze&rdquo; to audit the current project
-                      </p>
-                      <div className="flex gap-3 justify-center">
-                        <Button
-                          variant="outline"
-                          onClick={() => setShowUpload(true)}
-                        >
-                          <Upload className="mr-2 h-4 w-4" />
-                          Upload Documents
-                        </Button>
-                        <Button onClick={handleAnalyze} disabled={isAnalyzing}>
-                          <Play className="mr-2 h-4 w-4" />
-                          {isAnalyzing ? "Analyzing..." : "Analyze Project"}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Uploaded Documents Section */}
-            {uploadedDocs.length > 0 && (
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Project Documents ({uploadedDocs.length})
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {uploadedDocs.map((doc) => (
+                    {uploadedDocs.slice(-3).map((doc) => (
                       <div
                         key={doc.id}
-                        className="flex items-center justify-between rounded-lg border border-neutral-200 bg-surface p-3"
+                        className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3"
                       >
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-primary" />
-                          <div>
-                            <p className="text-sm font-medium text-foreground">
-                              {doc.name}
-                            </p>
-                            <p className="text-xs text-neutral-600">
-                              {(doc.size / 1024 / 1024).toFixed(2)} MB
-                            </p>
-                          </div>
+                        <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {doc.name}
+                          </p>
+                          <p className="text-xs text-neutral-600">
+                            {(doc.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
                         </div>
-                        <Button variant="ghost" size="sm">
-                          View
-                        </Button>
                       </div>
                     ))}
+                    {uploadedDocs.length > 3 && (
+                      <p className="text-xs text-neutral-500 text-center pt-2">
+                        +{uploadedDocs.length - 3} more documents
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -974,6 +828,16 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
           onSubmit={handleConfigSubmit}
         />
       )}
+
+      {/* Real-Time Analysis Viewport Modal */}
+      <RealTimeAnalysisViewport
+        isOpen={showAnalysisViewport}
+        onClose={() => setShowAnalysisViewport(false)}
+        progress={analysisProgress}
+        insights={analysisInsights}
+        onCancel={handleCancelAnalysis}
+        analysisResult={analysisResultSummary || undefined}
+      />
     </main>
   );
 }

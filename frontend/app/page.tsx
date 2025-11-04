@@ -6,7 +6,6 @@ import { TopBar } from "./components/layout/top-bar";
 import { ProjectsSidebar } from "./components/layout/projects-sidebar";
 import { AIStudio } from "./components/layout/ai-studio";
 import { ProjectCard, ProjectCardSkeleton } from "./components/data/project-card";
-import { ProjectAnalysisView } from "./components/data/project-analysis-view";
 import { EmptyState } from "./components/ui/empty-state";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import { CreateProjectModal } from "./components/data/create-project-modal";
@@ -22,7 +21,6 @@ import type { Project } from "./lib/types";
 export default function Home() {
   const { isCollapsed, setIsCollapsed, isMobile } = useSidebarState();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"overview" | "analysis">("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -153,7 +151,6 @@ export default function Home() {
 
   const handleProjectSelect = (projectId: string) => {
     setSelectedProjectId(projectId);
-    setViewMode("overview");
     // Auto-collapse sidebar on mobile after selection
     if (isMobile) {
       setIsCollapsed(true);
@@ -326,14 +323,9 @@ export default function Home() {
             )}
           </ProjectsSidebar>
 
-          {/* Right Panel - AI Studio or Analysis View */}
+          {/* Right Panel - AI Studio */}
           <main className="flex-1 overflow-y-auto bg-background p-6">
-            {selectedProject && viewMode === "analysis" ? (
-              <ProjectAnalysisView
-                project={selectedProject}
-                onBack={() => setViewMode("overview")}
-              />
-            ) : selectedProject ? (
+            {selectedProject ? (
               <AIStudio
                 projectId={selectedProjectId || undefined}
                 projectName={selectedProject?.name}

@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MetroTech Corporate Campus - Technical Construction Specifications</title>
+    <style>
+        /* Professional CSS for technical documentation */
+        @page {
+            size: letter;
+            margin: 0.75in;
+            @top-left {
+                content: "Summit Construction Group • CONFIDENTIAL";
+                font-size: 9pt;
+                color: #666;
+            }
+            @top-right {
+                content: "Project: MetroTech Corporate Campus";
+                font-size: 9pt;
+                color: #666;
+            }
+            @bottom-center {
+                content: "Page " counter(page) " of " counter(pages);
+                font-size: 9pt;
+                color: #666;
+            }
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.4;
+            color: #333;
+            font-size: 10pt;
+            background-color: #ffffff;
+            counter-reset: section subsection subsubsection;
+        }
+
+        h1 { 
+            font-size: 22pt; 
+            color: #1a365d; 
+            margin-bottom: 16pt; 
+            font-weight: 700; 
+            border-bottom: 3px solid #2b6cb0; 
+            padding-bottom: 8pt;
+            counter-increment: section;
+            counter-reset: subsection;
+        }
+
+        h1::before {
+            content: counter(section) ". ";
+        }
+
+        h2 {
+            font-size: 14pt;
+            color: #2b6cb0;
+            margin: 18pt 0 10pt 0;
+            font-weight: 600;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 4pt;
+            counter-increment: subsection;
+            counter-reset: subsubsection;
+        }
+
+        h2::before {
+            content: counter(section) "." counter(subsection) " ";
+        }
+
+        h3 {
+            font-size: 12pt;
+            color: #2d3748;
+            margin: 14pt 0 7pt 0;
+            font-weight: 600;
+            counter-increment: subsubsection;
+        }
+
+        h3::before {
+            content: counter(section) "." counter(subsection) "." counter(subsubsection) " ";
+        }
+
+        h4 {
+            font-size: 11pt;
+            color: #4a5568;
+            margin: 12pt 0 6pt 0;
+            font-weight: 600;
+        }
+
+        /* Technical specification blocks */
+        .technical-spec {
+            background-color: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #4299e1;
+            padding: 12pt;
+            margin: 10pt 0;
+            font-size: 9pt;
+        }
+
+        .material-schedule {
+            font-size: 9pt;
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .material-schedule th {
+            background-color: #2d3748;
+            color: white;
+            padding: 6pt;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .material-schedule td {
+            padding: 6pt;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .material-schedule tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .installation-notes {
+            background-color: #fffaf0;
+            border: 1px solid #fbd38d;
+            border-left: 4px solid #ed8936;
+            padding: 10pt;
+            margin: 8pt 0;
+            font-size: 9pt;
+        }
+
+        .testing-protocol {
+            background-color: #f0fff4;
+            border: 1px solid #9ae6b4;
+            border-left: 4px solid #48bb78;
+            padding: 10pt;
+            margin: 8pt 0;
+            font-size: 9pt;
+        }
+
+        .code-compliance {
+            background-color: #faf5ff;
+            border: 1px solid #d6bcfa;
+            border-left: 4px solid #9f7aea;
+            padding: 10pt;
+            margin: 8pt 0;
+            font-size: 9pt;
+        }
+
+        .coordination-notes {
+            background-color: #fff5f5;
+            border: 1px solid #fc8181;
+            border-left: 4px solid #f56565;
+            padding: 10pt;
+            margin: 8pt 0;
+            font-size: 9pt;
+        }
+
+        .page-break {
+            page-break-after: always;
+        }
+
+        .specification-table {
+            width: 100%;
+            font-size: 9pt;
+        }
+
+        .specification-table td {
+            padding: 4pt;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .specification-table td:first-child {
+            font-weight: 600;
+            background-color: #f7fafc;
+            width: 35%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Cover Page -->
+        <div class="section">
+            <div style="text-align: center; margin-top: 2in;">
+                <h1 style="border: none; font-size: 28pt;">METROTECH CORPORATE CAMPUS</h1>
+                <h2 style="border: none; color: #4a5568;">Technical Specifications & Construction Methodology</h2>
+                <div style="margin-top: 1in;">
+                    <p><strong>Project ID:</strong> MTC-CC-2025-TS001</p>
+                    <p><strong>Date:</strong> October 26, 2023</p>
+                    <p><strong>Prepared For:</strong> Global Synergy Partners</p>
+                    <p><strong>Prepared By:</strong> Summit Construction Group</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- 1. SITEWORK & CIVIL SPECIFICATIONS -->
+        <div class="section">
+            <h1>SITEWORK & CIVIL ENGINEERING SPECIFICATIONS</h1>
+            
+            <h2>Earthwork & Grading</h2>
+            
+            <h3>Excavation & Fill Specifications</h3>
+            <div class="technical-spec">
+                <h4>Cut/Fill Operations</h4>
+                <table class="specification-table">
+                    <tr><td>Excavation Depth</td><td>Maximum 15' below existing grade</td></tr>
+                    <tr><td>Fill Material</td><td>Select granular fill, ASTM D2940</td></tr>
+                    <tr><td>Compaction Requirements</td><td>95% Standard Proctor Density per ASTM D698</td></tr>
+                    <tr><td>Slope Stabilization</td><td>3:1 maximum slope ratio with erosion control matting</td></tr>
+                    <tr><td>De-watering</td><td>Wellpoint system with filtration to NPDES standards</td></tr>
+                </table>
+            </div>
+
+            <h3>Subdrainage System</h3>
+            <div class="technical-spec">
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Material Specification</th>
+                            <th>Size/Dimensions</th>
+                            <th>Installation Method</th>
+                            <th>Standard</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Perforated Drain Pipe</td>
+                            <td>HDPE SDR 35, Corrugated</td>
+                            <td>6" Diameter</td>
+                            <td>Minimum 0.5% slope to storm sewer</td>
+                            <td>ASTM F667</td>
+                        </tr>
+                        <tr>
+                            <td>Drainage Aggregate</td>
+                            <td>Washed gravel, 3/4" clean stone</td>
+                            <td>12" bed depth</td>
+                            <td>Wrapped with geotextile fabric</td>
+                            <td>ASTM D448</td>
+                        </tr>
+                        <tr>
+                            <td>Filter Fabric</td>
+                            <td>Non-woven geotextile</td>
+                            <td>6 oz/sq yd</td>
+                            <td>Overlap seams 18" minimum</td>
+                            <td>ASTM D4751</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h2>Utility Trenches & Conduits</h2>
+            <div class="installation-notes">
+                <h4>Underground Electrical Conduit Schedule</h4>
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>Conduit Use</th>
+                            <th>Conduit Type</th>
+                            <th>Size</th>
+                            <th>Depth Below Grade</th>
+                            <th>Bedding Material</th>
+                            <th>Warning Tape</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Primary Electrical</td>
+                            <td>PVC Schedule 40</td>
+                            <td>4" Conduit (Qty: 3)</td>
+                            <td>36" minimum</td>
+                            <td>1/2" pea gravel</td>
+                            <td>Red "Danger Electrical"</td>
+                        </tr>
+                        <tr>
+                            <td>Telecommunications</td>
+                            <td>PVC Schedule 40</td>
+                            <td>2" Conduit (Qty: 6)</td>
+                            <td>24" minimum</td>
+                            <td>Sand bedding</td>
+                            <td>Orange "Communication"</td>
+                        </tr>
+                        <tr>
+                            <td>Fiber Optics</td>
+                            <td>Innerduct HDPE</td>
+                            <td>1.25" Microduct</td>
+                            <td>30" minimum</td>
+                            <td>Sand bedding</td>
+                            <td>Orange "Fiber Optic"</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- 2. STRUCTURAL SPECIFICATIONS -->
+        <div class="section">
+            <h1>STRUCTURAL SYSTEMS SPECIFICATIONS</h1>
+            
+            <h2>Foundation System</h2>
+            
+            <h3>Concrete Mix Designs</h3>
+            <div class="technical-spec">
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>Application</th>
+                            <th>Mix Design</th>
+                            <th>Compressive Strength</th>
+                            <th>Slump</th>
+                            <th>Admixtures</th>
+                            <th>Testing Frequency</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Foundation Walls</td>
+                            <td>4000 psi @ 28 days</td>
+                            <td>5,000 psi design</td>
+                            <td>4" ± 1"</td>
+                            <td>Water reducer, Type D</td>
+                            <td>1 set/50 yd³</td>
+                        </tr>
+                        <tr>
+                            <td>Structural Slab</td>
+                            <td>3500 psi @ 28 days</td>
+                            <td>4,000 psi design</td>
+                            <td>4" ± 1"</td>
+                            <td>Fibers: 1.5 lb/yd³</td>
+                            <td>1 set/100 yd³</td>
+                        </tr>
+                        <tr>
+                            <td>Elevated Decks</td>
+                            <td>5000 psi @ 28 days</td>
+                            <td>6,000 psi design</td>
+                            <td>7" ± 1"</td>
+                            <td>High-range water reducer</td>
+                            <td>1 set/40 yd³</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Reinforcing Steel Schedule</h3>
+            <div class="technical-spec">
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>Location</th>
+                            <th>Bar Size</th>
+                            <th>Grade</th>
+                            <th>Spacing</th>
+                            <th>Lap Splice Length</th>
+                            <th>Standard</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Foundation Mat</td>
+                            <td>#8 (Bottom), #6 (Top)</td>
+                            <td>Grade 60</td>
+                            <td>12" O.C. Each Way</td>
+                            <td>45 diameters</td>
+                            <td>ASTM A615</td>
+                        </tr>
+                        <tr>
+                            <td>Columns</td>
+                            <td>#10 Vertical, #4 Ties</td>
+                            <td>Grade 60</td>
+                            <td>12" O.C. Ties</td>
+                            <td>Class B tension splice</td>
+                            <td>ASTM A615</td>
+                        </tr>
+                        <tr>
+                            <td>Elevated Slabs</td>
+                            <td>#5 Bottom, #4 Top</td>
+                            <td>Grade 60</td>
+                            <td>12" O.C. Each Way</td>
+                            <td>40 diameters</td>
+                            <td>ASTM A615</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h2>Structural Steel</h2>
+            <div class="installation-notes">
+                <h4>Steel Member Schedule</h4>
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>Member Type</th>
+                            <th>Section Size</th>
+                            <th>Grade</th>
+                            <th>Connection Type</th>
+                            <th>Fireproofing</th>
+                            <th>Finish</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Columns</td>
+                            <td>W14x211</td>
+                            <td>A992</td>
+                            <td>Bolted: A325 1"Ø</td>
+                            <td>Spray-applied, 2hr rating</td>
+                            <td>Shop prime only</td>
+                        </tr>
+                        <tr>
+                            <td>Beams</td>
+                            <td>W24x94</td>
+                            <td>A992</td>
+                            <td>Shear tab connections</td>
+                            <td>Spray-applied, 2hr rating</td>
+                            <td>Shop prime only</td>
+                        </tr>
+                        <tr>
+                            <td>Joists</td>
+                            <td>24K10</td>
+                            <td>A36</td>
+                            <td>Welded to ledger angles</td>
+                            <td>Intumescent coating</td>
+                            <td>Shop prime only</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- 3. MECHANICAL (HVAC) SPECIFICATIONS -->
+        <div class="section">
+            <h1>MECHANICAL SYSTEMS SPECIFICATIONS</h1>
+            
+            <h2>HVAC System Components</h2>
+            
+            <h3>VRF System Detailed Specifications</h3>
+            <div class="technical-spec">
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Manufacturer/Model</th>
+                            <th>Capacity</th>
+                            <th>Electrical Characteristics</th>
+                            <th>Refrigerant</th>
+                            <th>Sound Rating</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Outdoor Unit</td>
+                            <td>Daikin VRV IV-S Heat Recovery RXYQ24P8W1B</td>
+                            <td>24 HP (67.2 kBtu/h)</td>
+                            <td>460V/3Ph/60Hz, MCA 98.7A, MOCP 125A</td>
+                            <td>R-32 (GWP 677)</td>
+                            <td>68 dB(A) @ 1m</td>
+                        </tr>
+                        <tr>
+                            <td>Indoor Ceiling Cassette</td>
+                            <td>Daikin FDQ-B Series FDQ100BXVJU</td>
+                            <td>4-way blow, 36 MBH cooling</td>
+                            <td>208-230V/1Ph, 3.2A FLA</td>
+                            <td>R-32</td>
+                            <td>NC 35</td>
+                        </tr>
+                        <tr>
+                            <td>Branch Controller</td>
+                            <td>Daikin REFNET Joint BRC7D62</td>
+                            <td>7 Ports, 2-3/8" main connection</td>
+                            <td>N/A</td>
+                            <td>R-32</td>
+                            <td>N/A</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Refrigerant Piping Details</h3>
+            <div class="installation-notes">
+                <h4>Copper Pipe Specifications</h4>
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>Pipe Type</th>
+                            <th>Material</th>
+                            <th>Size Range</th>
+                            <th>Wall Thickness</th>
+                            <th>Joint Method</th>
+                            <th>Cleaning Procedure</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Main Gas Line</td>
+                            <td>ACR Copper, Type L</td>
+                            <td>2-1/8" to 3-1/8" OD</td>
+                            <td>0.083" min wall</td>
+                            <td>15% Silver Phosphorous Brazing</td>
+                            <td>Nitrogen purge during brazing</td>
+                        </tr>
+                        <tr>
+                            <td>Main Liquid Line</td>
+                            <td>ACR Copper, Type L</td>
+                            <td>3/4" to 1-5/8" OD</td>
+                            <td>0.065" min wall</td>
+                            <td>15% Silver Phosphorous Brazing</td>
+                            <td>Nitrogen purge during brazing</td>
+                        </tr>
+                        <tr>
+                            <td>Branch Connections</td>
+                            <td>ACR Copper, Type L</td>
+                            <td>1/2" to 1-1/8" OD</td>
+                            <td>0.035" min wall</td>
+                            <td>Mechanical flare joints</td>
+                            <td>De-burring after cutting</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Ductwork Specifications</h3>
+            <div class="technical-spec">
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>Duct Type</th>
+                            <th>Material</th>
+                            <th>Gauge/Thickness</th>
+                            <th>Insulation</th>
+                            <th>Sealing Class</th>
+                            <th>Hanger Spacing</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Main Supply/Return</td>
+                            <td>Galvanized Steel</td>
+                            <td>22 ga (0.0336")</td>
+                            <td>2" fiberglass, R-8</td>
+                            <td>Class A (UL 181)</td>
+                            <td>10' maximum</td>
+                        </tr>
+                        <tr>
+                            <td>Branch Ducts</td>
+                            <td>Galvanized Steel</td>
+                            <td>24 ga (0.0276")</td>
+                            <td>1" fiberglass, R-4.2</td>
+                            <td>Class B (UL 181)</td>
+                            <td>8' maximum</td>
+                        </tr>
+                        <tr>
+                            <td>Flex Duct</td>
+                            <td>Insulated Flex</td>
+                            <td>Mylar reinforced</td>
+                            <td>R-6 integral</td>
+                            <td>Pressure independent</td>
+                            <td>4' maximum</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- 4. PLUMBING SPECIFICATIONS -->
+        <div class="section">
+            <h1>PLUMBING SYSTEMS SPECIFICATIONS</h1>
+            
+            <h2>Water Distribution System</h2>
+            
+            <h3>Domestic Water Piping</h3>
+            <div class="technical-spec">
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>System</th>
+                            <th>Pipe Material</th>
+                            <th>Size Range</th>
+                            <th>Pressure Rating</th>
+                            <th>Joint Method</th>
+                            <th>Hanger Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Water Main (Riser)</td>
+                            <td>Type L Copper (ASTM B88)</td>
+                            <td>3" to 4"</td>
+                            <td>300 PSI @ 100°F</td>
+                            <td>Brazed (Sil-Fos 15)</td>
+                            <td>3-bolt Clevis hangers</td>
+                        </tr>
+                        <tr>
+                            <td>Branch Lines</td>
+                            <td>Uponor PEX-A (ASTM F876)</td>
+                            <td>3/4" to 1-1/2"</td>
+                            <td>160 PSI @ 73°F</td>
+                            <td>ProPEX expansion fittings</td>
+                            <td>Plastic J-hooks</td>
+                        </tr>
+                        <tr>
+                            <td>Fixture Supplies</td>
+                            <td>Uponor PEX-A (ASTM F876)</td>
+                            <td>1/2"</td>
+                            <td>160 PSI @ 73°F</td>
+                            <td>ProPEX expansion fittings</td>
+                            <td>Plastic J-hooks</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Plumbing Fixture Detailed Schedule</h3>
+            <div class="installation-notes">
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>Fixture Type</th>
+                            <th>Manufacturer/Model</th>
+                            <th>Rough-in Dimensions</th>
+                            <th>Supply/ Waste Sizes</th>
+                            <th>Trim/Finish</th>
+                            <th>Accessories</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Wall-hung Water Closet</td>
+                            <td>TOTO Nexus EW576SB#01</td>
+                            <td>20-1/2" AFF, 4-1/2" rough-in</td>
+                            <td>1/2" supply, 4" waste</td>
+                            <td>Cotton White, ADA compliant</td>
+                            <td>Sloan EFX-850 flushometer</td>
+                        </tr>
+                        <tr>
+                            <td>Lavatory Faucet</td>
+                            <td>Chicago Faucet 872-315BKSQ</td>
+                            <td>8" center set</td>
+                            <td>1/2" IPS supplies</td>
+                            <td>Matte Black, lever handles</td>
+                            <td>Pop-up drain assembly</td>
+                        </tr>
+                        <tr>
+                            <td>Lab Faucet</td>
+                            <td>Speakman EDF-80 Gooseneck</td>
+                            <td>8" center set</td>
+                            <td>1/2" IPS supplies</td>
+                            <td>Chrome plated brass</td>
+                            <td>Wrist blades, vacuum breaker</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Sanitary Drainage System</h3>
+            <div class="technical-spec">
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Material</th>
+                            <th>Size Range</th>
+                            <th>Slope Requirements</th>
+                            <th>Joint Method</th>
+                            <th>Cleanout Type</td>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Soil/Waste Stacks</td>
+                            <td>No-Hub Cast Iron</td>
+                            <td>4" to 6"</td>
+                            <td>1/4" per foot minimum</td>
+                            <td>No-hub couplings</td>
+                            <td>4" screw-type cleanout</td>
+                        </tr>
+                        <tr>
+                            <td>Branch Drains</td>
+                            <td>Schedule 40 PVC</td>
+                            <td>2" to 3"</td>
+                            <td>1/4" per foot minimum</td>
+                            <td>Solvent cement</td>
+                            <td>4" screw-type cleanout</td>
+                        </tr>
+                        <tr>
+                            <td>Fixture Traps</td>
+                            <td>PVC P-trap</td>
+                            <td>1-1/4" to 2"</td>
+                            <td>N/A</td>
+                            <td>Slip-joint compression</td>
+                            <td>Integral cleanout</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- 5. ELECTRICAL SPECIFICATIONS -->
+        <div class="section">
+            <h1>ELECTRICAL SYSTEMS SPECIFICATIONS</h1>
+            
+            <h2>Power Distribution</h2>
+            
+            <h3>Panelboard Schedule</h3>
+            <div class="technical-spec">
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>Panel Designation</th>
+                            <th>Type/Manufacturer</th>
+                            <th>Voltage/Phases</th>
+                            <th>Main Breaker</th>
+                            <th>Branch Circuits</th>
+                            <th>Enclosure Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>MBP-1 (Main)</td>
+                            <td>Square D I-Line NQOD</td>
+                            <td>277/480V, 3Ph, 4W</td>
+                            <td>1200A, LSIG</td>
+                            <td>(42) 20-100A poles</td>
+                            <td>NEMA 1, Surface Mount</td>
+                        </tr>
+                        <tr>
+                            <td>PP-2 (Power)</td>
+                            <td>Square D I-Line NQOB</td>
+                            <td>277/480V, 3Ph, 4W</td>
+                            <td>400A, LSIG</td>
+                            <td>(42) 20-60A poles</td>
+                            <td>NEMA 1, Flush Mount</td>
+                        </tr>
+                        <tr>
+                            <td>LP-3 (Lighting)</td>
+                            <td>Square D NF Panelboard</td>
+                            <td>277/480V, 3Ph, 4W</td>
+                            <td>225A, Main Lug Only</td>
+                            <td>(42) 20A, 1-pole</td>
+                            <td>NEMA 1, Surface Mount</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Conduit & Raceway Specifications</h3>
+            <div class="installation-notes">
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>Location/Use</th>
+                            <th>Conduit Type</th>
+                            <th>Size Range</th>
+                            <th>Support Spacing</th>
+                            <th>Bending Radius</th>
+                            <th>Box Types</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Above Ceiling</td>
+                            <td>EMT (Electrical Metallic Tubing)</td>
+                            <td>1/2" to 4"</td>
+                            <td>10' maximum</td>
+                            <td>6x conduit diameter</td>
+                            <td>4" square, 1-1/2" deep</td>
+                        </tr>
+                        <tr>
+                            <td>Concrete Slab</td>
+                            <td>PVC Schedule 40</td>
+                            <td>3/4" to 2"</td>
+                            <td>Continuous in concrete</td>
+                            <td>Factory elbows only</td>
+                            <td>Galvanized concrete boxes</td>
+                        </tr>
+                        <tr>
+                            <td>Exposed Areas</td>
+                            <td>Galvanized RMC</td>
+                            <td>1/2" to 2"</td>
+                            <td>8' maximum</td>
+                            <td>6x conduit diameter</td>
+                            <td>Cast device boxes</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Lighting Fixture Schedule</h3>
+            <div class="technical-spec">
+                <table class="material-schedule">
+                    <thead>
+                        <tr>
+                            <th>Fixture Type</th>
+                            <th>Manufacturer/Model</th>
+                            <th>Light Source</th>
+                            <th>Wattage</th>
+                            <th>Mounting</th>
+                            <th>Controls Integration</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>2x4 LED Troffer</td>
+                            <td>Lithonia RT5 2X4 40K 80CRI</td>
+                            <td>Integrated LED</td>
+                            <td>40W</td>
+                            <td>Lay-in T-bar</td>
+                            <td>DALI dimming, 0-10V</td>
+                        </tr>
+                        <tr>
+                            <td>LED Downlight</td>
+                            <td>Cooper ECDR4 40K 80CRI</td>
+                            <td>Integrated LED</td>
+                            <td>15W</td>
+                            <td>Recessed 4" aperture</td>
+                            <td>DALI dimming, 0-10V</td>
+                        </tr>
+                        <tr>
+                            <td>Emergency Lighting</td>
+                            <td>Dual-Lite EBRD Series</td>
+                            <td>LED, battery backup</td>
+                            <td>20W normal/8W emergency</td>
+                            <td>Surface/wall mount</td>
+                            <td>Self-testing per NFPA 101</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- 6. TESTING & COMMISSIONING -->
+        <div class="section">
+            <h1>TESTING & COMMISSIONING PROTOCOLS</h1>
+            
+            <h2>Mechanical System Testing</h2>
+            
+            <h3>HVAC Commissioning Sequence</h3>
+            <div class="testing-protocol">
+                <h4>VRF System Startup Procedure</h4>
+                <table class="specification-table">
+                    <tr><td>Pressure Testing</td><td>625 PSIG nitrogen, 24-hour hold, < 1% drop acceptable</td></tr>
+                    <tr><td>Vacuum Dehydration</td><td>Triple evacuation to 250 microns maximum</td></tr>
+                    <tr><td>Refrigerant Charge</td><td>Weighed-in per manufacturer's calculation</td></tr>
+                    <tr><td>Electrical Verification</td><td>Phase rotation, voltage balance within 2%</td></tr>
+                    <tr><td>Control Calibration</td><td>Temperature sensors ±0.5°F, pressure ±2%</td></tr>
+                </table>
+            </div>
+
+            <h3>Duct System Testing</h3>
+            <div class="testing-protocol">
+                <table class="specification-table">
+                    <tr><td>Leakage Testing</td><td>Class A: 2% maximum leakage at 2" w.g.</td></tr>
+                    <tr><td>Air Balance</td><td>NEBB standards: ±10% of design airflow</td></tr>
+                    <tr><td>Sound Testing</td><td>NC 35 in offices, NC 40 in mechanical rooms</td></tr>
+                    <tr><td>VAV Box Calibration</td><td>Flow measurement ±5% of setpoint</td></tr>
+                </table>
+            </div>
+
+            <h2>Plumbing System Testing</h2>
+            <div class="testing-protocol">
+                <h4>Pressure & Flow Testing</h4>
+                <table class="specification-table">
+                    <tr><td>Water Supply Test</td><td>150 PSI for 2 hours, < 5 PSI drop acceptable</td></tr>
+                    <tr><td>Drainage Test</td><td>10' head for 15 minutes, no visible leakage</td></tr>
+                    <tr><td>Fixture Flow Rates</td><td>Verify 1.2 GPM faucets, 1.28 GPF toilets</td></tr>
+                    <tr><td>Backflow Prevention</td><td>Annual test certification, reduced pressure zone</td></tr>
+                </table>
+            </div>
+
+            <h2>Electrical System Testing</h2>
+            <div class="testing-protocol">
+                <h4>Electrical Verification</h4>
+                <table class="specification-table">
+                    <tr><td>Insulation Resistance</td><td>100 MΩ minimum, 1000V megger test</td></tr>
+                    <tr><td>Ground Continuity</td><td>< 1.0 ohm resistance to ground</td></tr>
+                    <tr><td>Circuit Verification</td><td>Point-to-point verification of all circuits</td></tr>
+                    <tr><td>Lighting Control</td><td>DALI address verification, scene programming</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
