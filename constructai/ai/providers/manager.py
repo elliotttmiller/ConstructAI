@@ -38,11 +38,20 @@ class AIModelManager:
     Integrates advanced prompt engineering system.
     """
     
-    # Fallback expert system prompt (if prompts module unavailable)
+    # Enhanced expert system prompt with division-specific intelligence
     FALLBACK_EXPERT_PROMPT = (
         "You are ConstructAI, a world-class expert in construction specifications, compliance, risk management, and project optimization. "
-        "Your role is to analyze documents, extract clauses, classify sections, identify risks, and provide actionable recommendations with precision and clarity. "
-        "Always use industry best practices, reference standards (CSI MasterFormat, AIA, OSHA, etc.), and communicate in a professional, concise, and authoritative manner. "
+        "Your expertise covers all CSI MasterFormat divisions including: "
+        "\n- Division 26 (Electrical): NEC compliance, power distribution, lighting systems"
+        "\n- Division 22 (Plumbing): IPC/UPC codes, fixtures, piping systems"
+        "\n- Division 23 (HVAC): ASHRAE standards, HVAC equipment and controls"
+        "\n- Division 21 (Fire Suppression): NFPA standards, sprinkler systems"
+        "\n- Division 03 (Concrete): ACI standards, mix designs, reinforcement"
+        "\n- Division 05 (Metals): AISC standards, structural steel, connections"
+        "\n- Division 09 (Finishes): ASTM standards, interior/exterior finishes"
+        "\n\nYour role is to analyze documents, extract clauses, classify sections, identify risks, and provide actionable recommendations with precision and clarity. "
+        "Always use industry best practices, reference standards (CSI MasterFormat, NEC, IPC/UPC, ASHRAE, NFPA, ACI, AISC, ASTM, etc.), "
+        "and communicate in a professional, concise, and authoritative manner. "
         "When asked to analyze, audit, or optimize, provide detailed reasoning, cite relevant standards, and suggest practical improvements. "
         "If ambiguity or missing information is detected, highlight it and recommend mitigation strategies. "
         "Your responses should be structured, actionable, and tailored for construction professionals."
@@ -118,6 +127,61 @@ class AIModelManager:
         Args:
             provider_name: Name of provider (e.g., 'openai', 'anthropic')
             
+        Returns:
+            AIProvider instance
+            
+        Raises:
+            ValueError: If provider not found
+        """
+        if provider_name:
+            if provider_name not in self.providers:
+                raise ValueError(f"Provider '{provider_name}' not available")
+            return self.providers[provider_name]
+        
+        if not self.primary_provider:
+            raise ValueError("No providers configured")
+        
+        return self.providers[self.primary_provider]
+    
+    def enhance_prompt_with_division_knowledge(
+        self,
+        system_prompt: str,
+        detected_divisions: List[str]
+    ) -> str:
+        """
+        Enhance system prompt with division-specific expertise.
+        
+        Args:
+            system_prompt: Base system prompt
+            detected_divisions: List of detected CSI division codes
+            
+        Returns:
+            Enhanced system prompt with division-specific knowledge
+        """
+        try:
+            from ..construction_ontology import DivisionSpecificKnowledge
+            
+            if not detected_divisions:
+                return system_prompt
+            
+            # Get division-specific expertise
+            division_expertise = []
+            for division in detected_divisions:
+                expertise = DivisionSpecificKnowledge.get_division_expertise(division)
+                if expertise and expertise != "General construction expertise with industry best practices":
+                    division_expertise.append(f"\n### Division {division} Expertise:\n{expertise}")
+            
+            if division_expertise:
+                enhanced_prompt = system_prompt + "\n\n" + "\n".join(division_expertise)
+                logger.info(f"Enhanced prompt with {len(detected_divisions)} division-specific expertise sections")
+                return enhanced_prompt
+            
+        except Exception as e:
+            logger.warning(f"Could not enhance prompt with division knowledge: {e}")
+        
+        return system_prompt
+    
+    def generate(
         Returns:
             AIProvider instance
             

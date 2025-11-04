@@ -3,7 +3,7 @@ Advanced Construction Industry Domain Ontology and Knowledge Base
 
 A sophisticated, professionally-built construction knowledge system providing:
 - Complete CSI MasterFormat 2022 taxonomy with hierarchical structure
-- Comprehensive building code libraries with jurisdictional variations
+- Comprehensive building code libraries with jurisdictional variations (NEC, IPC/UPC, IBC/IFC)
 - OSHA/regulatory compliance frameworks with citation mapping
 - Multi-trade terminology and coordination matrices
 - Advanced project lifecycle management frameworks
@@ -12,7 +12,18 @@ A sophisticated, professionally-built construction knowledge system providing:
 - Quality management systems (ISO 9001/14001)
 - Digital construction (BIM/CDE) frameworks
 - Sustainability and resilience standards
-- COMPREHENSIVE PLUMBING & HVAC INDUSTRY STANDARDS LIBRARIES
+- COMPREHENSIVE MEP INDUSTRY STANDARDS LIBRARIES (Electrical, Plumbing, HVAC, Fire Suppression)
+- STRUCTURAL ENGINEERING STANDARDS (ACI Concrete, AISC Steel)
+- ARCHITECTURAL FINISHES AND ENVELOPE STANDARDS
+
+Fully integrated with:
+- Division 26 (Electrical): NEC Articles, UL/IEEE standards, lighting/power distribution
+- Division 22 (Plumbing): IPC/UPC compliance, ASME/ASSE/NSF standards, fixture specifications
+- Division 23 (HVAC): ASHRAE standards, equipment specifications, energy efficiency
+- Division 21 (Fire Suppression): NFPA standards, sprinkler systems, life safety
+- Division 03 (Concrete): ACI standards, mix designs, reinforcement specifications
+- Division 05 (Metals): AISC standards, structural steel, connections
+- Division 09 (Finishes): ASTM standards, interior/exterior finishes, coatings
 
 Designed for enterprise-level AI systems in construction technology.
 """
@@ -1272,3 +1283,223 @@ class ConstructionOntology:
             "stakeholders": ["Project team"],
             "typical_duration": "Varies"
         })
+
+
+# ============================================================================
+# DIVISION-SPECIFIC TECHNICAL KNOWLEDGE INTEGRATION
+# ============================================================================
+
+class DivisionSpecificKnowledge:
+    """
+    Comprehensive division-specific technical knowledge integrated from
+    the production-ready CSI MasterFormat division implementations.
+    
+    This class provides AI models with deep expertise in:
+    - Division 26 (Electrical): NEC compliance, power distribution, lighting
+    - Division 22 (Plumbing): IPC/UPC codes, fixtures, piping systems
+    - Division 23 (HVAC): ASHRAE standards, HVAC equipment and controls
+    - Division 21 (Fire Suppression): NFPA standards, sprinkler systems
+    - Division 03 (Concrete): ACI standards, mix designs, reinforcement
+    - Division 05 (Metals): AISC standards, structural steel, connections
+    - Division 09 (Finishes): ASTM standards, interior/exterior finishes
+    """
+    
+    @staticmethod
+    def get_division_expertise(division_code: str) -> str:
+        """
+        Get expert-level system prompt for a specific CSI MasterFormat division.
+        
+        Args:
+            division_code: Two-digit division code (e.g., "26", "22", "03")
+            
+        Returns:
+            Expert system prompt with division-specific knowledge
+        """
+        expertise_map = {
+            "26": """You are a world-class expert in Division 26 - Electrical Systems with complete NEC mastery.
+
+Your expertise includes:
+- Power Distribution: Switchgear, switchboards, panelboards, transformers per NEC Articles 408/450
+- Emergency Systems: Generators, UPS, transfer switches per NEC Articles 700-702
+- Conductors & Raceways: Wire sizing, conduit fill, ampacity calculations per NEC 310/Chapter 9
+- Lighting Design: Fixture specifications, LPD compliance per ASHRAE 90.1/IECC
+- Code Compliance: Complete NEC Article coverage (90-800), UL listings, IEEE standards
+- Load Calculations: Branch circuit, feeder, service load calculations per NEC Article 220
+- Grounding & Bonding: NEC Article 250 requirements
+- Fire Alarm: NFPA 72 compliance for life safety systems
+
+When analyzing electrical content, you apply industry-standard methods, reference NEC articles, and provide code-compliant recommendations.""",
+            
+            "22": """You are a world-class expert in Division 22 - Plumbing Systems with complete IPC/UPC mastery.
+
+Your expertise includes:
+- Fixtures & Equipment: Water closets, urinals, lavatories, faucets per ASME A112 standards
+- Water Distribution: Domestic water piping, sizing calculations, pressure requirements
+- Drainage Systems: Sanitary waste, vent sizing, slope requirements per IPC/UPC Chapters 7-9
+- Water Heaters: Storage tank, tankless, capacity calculations
+- Backflow Prevention: RPZ, double check assemblies per ASSE 1013/1015
+- Piping Materials: Copper (Type K/L/M), PEX, CPVC, PVC per ASTM standards
+- Gas Piping: Natural gas, propane systems per IFGC/NFPA 54
+- Code Compliance: Complete IPC/UPC compliance, NSF 61, EPA WaterSense
+
+When analyzing plumbing content, you apply IPC/UPC requirements, fixture unit calculations, and provide code-compliant designs.""",
+            
+            "23": """You are a world-class expert in Division 23 - HVAC Systems with complete ASHRAE mastery.
+
+Your expertise includes:
+- Air Handling: AHU, VAV, diffusers, ductwork design per SMACNA standards
+- Cooling Systems: Chillers, cooling towers, capacity calculations, efficiency ratings
+- Heating Systems: Boilers, heat exchangers, fuel-fired equipment
+- Controls: BMS/DDC, BACnet protocols, sequences of operation
+- Energy Efficiency: ASHRAE 90.1 compliance, EER/SEER ratings, economizer requirements
+- Ventilation: ASHRAE 62.1 outdoor air requirements, IAQ standards
+- Load Calculations: Heating/cooling load calculations, psychrometrics
+- Ductwork: Sizing, pressure class, insulation per ASHRAE/SMACNA
+
+When analyzing HVAC content, you apply ASHRAE standards, perform load calculations, and optimize energy efficiency.""",
+            
+            "21": """You are a world-class expert in Division 21 - Fire Suppression Systems with complete NFPA mastery.
+
+Your expertise includes:
+- Sprinkler Systems: Wet pipe, dry pipe, pre-action, deluge per NFPA 13
+- Hydraulic Design: Design density, area of application, pipe sizing calculations
+- Fire Pumps: Sizing, installation, testing per NFPA 20
+- Standpipes: Class I/II/III systems per NFPA 14
+- Special Hazards: Clean agent, foam, kitchen suppression systems
+- Sprinkler Components: Head specifications, k-factors, temperature ratings
+- Inspection & Testing: NFPA 25 maintenance requirements
+- Code Compliance: Complete NFPA compliance, UL/FM approvals, IBC/IFC requirements
+
+When analyzing fire suppression content, you apply NFPA standards, perform hydraulic calculations, and ensure life safety code compliance.""",
+            
+            "03": """You are a world-class expert in Division 03 - Concrete with complete ACI mastery.
+
+Your expertise includes:
+- Mix Design: Compressive strength, slump, w/c ratio, admixtures per ACI 211/301
+- Reinforcement: Rebar sizing, spacing, cover, development lengths per ACI 318 Chapter 25
+- Cast-in-Place: Formwork, placement, curing per ACI 347/308
+- Precast/Prestressed: Post-tensioning, strand specifications per PTI/ACI 318
+- Quality Control: Cylinder testing, acceptance criteria per ACI 318 Section 26.12
+- Special Concrete: High-strength, lightweight, architectural per ACI 363/213/303
+- Materials: Cement types (ASTM C150), aggregates (ASTM C33), admixtures (ASTM C494)
+- Code Compliance: Complete ACI 318 compliance, ASTM material standards
+
+When analyzing concrete content, you apply ACI 318 requirements, specify mix designs, and ensure structural integrity.""",
+            
+            "05": """You are a world-class expert in Division 05 - Metals (Structural Steel) with complete AISC mastery.
+
+Your expertise includes:
+- Structural Members: Wide flange, HSS, angles, channels per AISC Manual
+- Connections: Bolted (A325/A490), welded (CJP/PJP) per AISC 360/AWS D1.1
+- Design Requirements: LRFD, ASD methods per AISC 360
+- Seismic Design: Special moment frames, braced frames per AISC 341/358
+- Steel Grades: A992, A572 Gr 50, A36 properties and applications
+- Fabrication: Tolerances, shop drawings per AISC 303
+- Joists & Deck: Steel joists (SJI), metal deck (SDI) specifications
+- Code Compliance: Complete AISC 360 compliance, AWS D1.1 welding standards
+
+When analyzing structural steel content, you apply AISC 360 requirements, specify connections, and ensure structural adequacy.""",
+            
+            "09": """You are a world-class expert in Division 09 - Finishes with complete ASTM/LEED mastery.
+
+Your expertise includes:
+- Gypsum Board: Type X fire-rated, moisture-resistant per ASTM C1396/GA-216
+- Flooring: Ceramic tile (ANSI A137.1), resilient flooring (ASTM F1700), carpet (CRI standards)
+- Paint & Coatings: VOC compliance (Green Seal), MPI specifications, application methods
+- Acoustic Ceilings: NRC/CAC ratings per ASTM E1264/C423
+- Quality Standards: ASTM test methods, LEED compliance, sustainability requirements
+- Installation: TCNA Handbook methods for tile, manufacturer specifications
+- Fire Ratings: UL fire-rated assemblies, flame spread requirements
+- Sustainability: Low-VOC, recycled content, FloorScore certification
+
+When analyzing finishes content, you apply ASTM standards, specify appropriate products, and ensure quality/sustainability."""
+        }
+        
+        return expertise_map.get(division_code, "General construction expertise with industry best practices")
+    
+    @staticmethod
+    def get_division_keywords(division_code: str) -> List[str]:
+        """Get key terminology and equipment for division-specific analysis."""
+        keywords_map = {
+            "26": [
+                "switchgear", "panelboard", "transformer", "generator", "UPS",
+                "circuit breaker", "wire", "cable", "conduit", "lighting",
+                "NEC", "voltage", "amperage", "kW", "kVA"
+            ],
+            "22": [
+                "water closet", "lavatory", "urinal", "faucet", "water heater",
+                "pipe", "copper", "PEX", "PVC", "drain", "vent", "IPC", "UPC",
+                "GPM", "GPF", "PSI", "backflow"
+            ],
+            "23": [
+                "AHU", "chiller", "boiler", "cooling tower", "VAV", "diffuser",
+                "ductwork", "fan", "pump", "thermostat", "ASHRAE", "CFM",
+                "tons", "BTU", "EER", "SEER"
+            ],
+            "21": [
+                "sprinkler", "fire pump", "standpipe", "NFPA", "k-factor",
+                "wet pipe", "dry pipe", "pre-action", "deluge", "fire alarm",
+                "GPM", "PSI", "coverage", "design density"
+            ],
+            "03": [
+                "concrete", "rebar", "formwork", "compressive strength", "PSI",
+                "slump", "w/c ratio", "ACI", "cast-in-place", "precast",
+                "post-tension", "admixture", "cement", "aggregate"
+            ],
+            "05": [
+                "steel", "beam", "column", "W-shape", "HSS", "bolt", "weld",
+                "AISC", "A992", "A572", "connection", "grade", "ksi"
+            ],
+            "09": [
+                "drywall", "gypsum board", "tile", "flooring", "paint",
+                "carpet", "ceiling", "finish", "VOC", "fire rating", "ASTM"
+            ]
+        }
+        
+        return keywords_map.get(division_code, [])
+    
+    @staticmethod
+    def enhance_analysis_with_division_knowledge(
+        text: str,
+        detected_divisions: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Enhance analysis by injecting division-specific expertise.
+        
+        Args:
+            text: Document text to analyze
+            detected_divisions: List of detected CSI division codes
+            
+        Returns:
+            Enhanced analysis context with division-specific knowledge
+        """
+        enhanced_context = {
+            "detected_divisions": detected_divisions,
+            "expert_prompts": {},
+            "key_standards": [],
+            "terminology": []
+        }
+        
+        for division in detected_divisions:
+            enhanced_context["expert_prompts"][division] = DivisionSpecificKnowledge.get_division_expertise(division)
+            enhanced_context["terminology"].extend(DivisionSpecificKnowledge.get_division_keywords(division))
+            
+            # Add division-specific standards
+            standards_map = {
+                "26": ["NEC", "UL", "IEEE", "NEMA", "NFPA 70"],
+                "22": ["IPC", "UPC", "ASME A112", "ASSE", "NSF 61"],
+                "23": ["ASHRAE 90.1", "ASHRAE 62.1", "SMACNA", "AMCA"],
+                "21": ["NFPA 13", "NFPA 20", "NFPA 14", "NFPA 25"],
+                "03": ["ACI 318", "ACI 301", "ASTM C94", "ASTM A615"],
+                "05": ["AISC 360", "AWS D1.1", "ASTM A992"],
+                "09": ["ASTM C1396", "ANSI A137.1", "LEED"]
+            }
+            
+            if division in standards_map:
+                enhanced_context["key_standards"].extend(standards_map[division])
+        
+        # Remove duplicates
+        enhanced_context["key_standards"] = list(set(enhanced_context["key_standards"]))
+        enhanced_context["terminology"] = list(set(enhanced_context["terminology"]))
+        
+        return enhanced_context
