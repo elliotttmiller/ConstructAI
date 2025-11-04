@@ -2279,7 +2279,534 @@ Total Clauses: {len(all_clauses)}
             logger.error(f"Error in comprehensive AI analysis: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Comprehensive analysis failed: {str(e)}")
     
-    logger.info("FastAPI app created successfully with enhanced AI capabilities")
+    # ======================================================================
+    # SINGLE-USER ENTERPRISE INTELLIGENCE ENDPOINTS
+    # ======================================================================
+    
+    @app.get("/api/intelligence/inventory/health")
+    async def get_inventory_health():
+        """
+        Get inventory system health metrics.
+        
+        Returns overall status and key metrics for inventory intelligence system.
+        """
+        try:
+            from ..intelligence import InventoryIntelligence
+            
+            inventory_intel = InventoryIntelligence()
+            inventory_intel.sync_inventory()
+            
+            health = inventory_intel.get_inventory_health()
+            
+            return {
+                "status": "success",
+                "health": health
+            }
+        except Exception as e:
+            logger.error(f"Error getting inventory health: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/intelligence/inventory/match")
+    async def match_components(specification: Dict[str, Any]):
+        """
+        Find matching inventory components for a specification.
+        
+        Request body:
+        {
+            "component_name": "Structural Steel Beam",
+            "specifications": {
+                "length_ft": 20,
+                "weight_lb_ft": 45,
+                "grade": "A992"
+            },
+            "tolerance": 0.1,
+            "min_confidence": 0.7
+        }
+        """
+        try:
+            from ..intelligence import InventoryIntelligence
+            
+            inventory_intel = InventoryIntelligence()
+            inventory_intel.sync_inventory()
+            
+            matches = inventory_intel.find_matching_components(
+                specification=specification.get("specifications", {}),
+                tolerance=specification.get("tolerance", 0.1),
+                min_confidence=specification.get("min_confidence", 0.7)
+            )
+            
+            return {
+                "status": "success",
+                "component_name": specification.get("component_name", ""),
+                "matches_found": len(matches),
+                "matches": [
+                    {
+                        "item_id": item.item_id,
+                        "name": item.name,
+                        "manufacturer": item.manufacturer,
+                        "model": item.model_number,
+                        "confidence": round(confidence, 3),
+                        "quantity_available": item.quantity_available,
+                        "location": item.location,
+                        "unit_cost": item.unit_cost,
+                        "lead_time_days": item.lead_time_days
+                    }
+                    for item, confidence in matches
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Error matching components: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/intelligence/inventory/availability")
+    async def analyze_availability(request: Dict[str, Any]):
+        """
+        Analyze component availability comprehensively.
+        
+        Request body:
+        {
+            "component_name": "Structural Steel Beam",
+            "required_quantity": 50,
+            "specifications": {...},
+            "required_date": "2024-12-15T00:00:00"
+        }
+        """
+        try:
+            from ..intelligence import InventoryIntelligence
+            from datetime import datetime
+            
+            inventory_intel = InventoryIntelligence()
+            inventory_intel.sync_inventory()
+            
+            required_date = None
+            if request.get("required_date"):
+                required_date = datetime.fromisoformat(request["required_date"].replace("Z", "+00:00"))
+            
+            analysis = inventory_intel.analyze_availability(
+                component_name=request["component_name"],
+                required_quantity=request["required_quantity"],
+                specifications=request["specifications"],
+                required_date=required_date
+            )
+            
+            return {
+                "status": "success",
+                "analysis": {
+                    "component_name": analysis.component_name,
+                    "required_quantity": analysis.required_quantity,
+                    "available_quantity": analysis.available_quantity,
+                    "is_available": analysis.is_available,
+                    "locations": analysis.availability_locations,
+                    "estimated_delivery": analysis.estimated_delivery.isoformat(),
+                    "procurement_urgency": analysis.procurement_urgency,
+                    "alternatives_count": len(analysis.alternative_items),
+                    "cost_analysis": analysis.cost_analysis,
+                    "risk_assessment": analysis.risk_assessment
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error analyzing availability: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/intelligence/procurement/assess-criticality")
+    async def assess_component_criticality(request: Dict[str, Any]):
+        """
+        Assess criticality of a component to project timeline.
+        
+        Request body:
+        {
+            "component": "component_id",
+            "project_timeline": {...},
+            "dependencies": ["task1", "task2"]
+        }
+        """
+        try:
+            from ..intelligence import ProcurementIntelligence
+            
+            procurement = ProcurementIntelligence()
+            
+            criticality = procurement.assess_component_criticality(
+                component=request["component"],
+                project_timeline=request.get("project_timeline", {}),
+                dependencies=request.get("dependencies", [])
+            )
+            
+            return {
+                "status": "success",
+                "component": request["component"],
+                "criticality": criticality.value,
+                "description": {
+                    "blocking": "Component blocks multiple dependent tasks",
+                    "critical_path": "Component is on project critical path",
+                    "important": "Component is needed but not blocking",
+                    "optional": "Component is optional"
+                }.get(criticality.value, "Unknown")
+            }
+        except Exception as e:
+            logger.error(f"Error assessing criticality: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/intelligence/procurement/build-readiness")
+    async def assess_build_readiness(request: Dict[str, Any]):
+        """
+        Assess complete build readiness for a project.
+        
+        Request body:
+        {
+            "project_id": "proj-123",
+            "required_components": [...],
+            "availability_data": {...},
+            "project_start_date": "2024-12-01T00:00:00"
+        }
+        """
+        try:
+            from ..intelligence import ProcurementIntelligence
+            from datetime import datetime
+            
+            procurement = ProcurementIntelligence()
+            
+            start_date = datetime.fromisoformat(request["project_start_date"].replace("Z", "+00:00"))
+            
+            assessment = procurement.assess_build_readiness(
+                project_id=request["project_id"],
+                required_components=request["required_components"],
+                availability_data=request.get("availability_data", {}),
+                project_start_date=start_date
+            )
+            
+            return {
+                "status": "success",
+                "assessment": {
+                    "project_id": assessment.project_id,
+                    "readiness_score": assessment.readiness_score,
+                    "status": assessment.status,
+                    "components_ready": assessment.components_ready,
+                    "components_pending": assessment.components_pending,
+                    "components_at_risk": assessment.components_at_risk,
+                    "critical_path_status": assessment.critical_path_status,
+                    "estimated_start_date": assessment.estimated_start_date.isoformat(),
+                    "risk_factors": assessment.risk_factors,
+                    "recommendations": assessment.recommendations,
+                    "procurement_timeline": assessment.procurement_timeline,
+                    "cost_summary": assessment.cost_summary
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error assessing build readiness: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/intelligence/procurement/generate-po")
+    async def generate_purchase_order(request: Dict[str, Any]):
+        """
+        Generate automated purchase order.
+        
+        Request body:
+        {
+            "component_name": "...",
+            "specification": {...},
+            "quantity": 50,
+            "required_date": "...",
+            "criticality": "critical_path",
+            "estimated_cost": 850.00,
+            "lead_time_days": 14,
+            "supplier_id": "SUP-001",
+            "user_details": {
+                "company_name": "...",
+                "contact": "..."
+            }
+        }
+        """
+        try:
+            from ..intelligence.procurement_intelligence import (
+                ProcurementIntelligence,
+                ProcurementItem,
+                ComponentCriticality
+            )
+            from datetime import datetime
+            
+            procurement = ProcurementIntelligence()
+            
+            # Create procurement item
+            criticality_map = {
+                "blocking": ComponentCriticality.BLOCKING,
+                "critical_path": ComponentCriticality.CRITICAL_PATH,
+                "important": ComponentCriticality.IMPORTANT,
+                "optional": ComponentCriticality.OPTIONAL
+            }
+            
+            item = ProcurementItem(
+                component_name=request["component_name"],
+                specification=request["specification"],
+                required_quantity=request["quantity"],
+                required_date=datetime.fromisoformat(request["required_date"].replace("Z", "+00:00")),
+                criticality=criticality_map.get(request.get("criticality", "important"), ComponentCriticality.IMPORTANT),
+                estimated_cost=request["estimated_cost"],
+                lead_time_days=request["lead_time_days"],
+                supplier_options=[],
+                priority=procurement.calculate_procurement_priority(
+                    criticality_map.get(request.get("criticality", "important"), ComponentCriticality.IMPORTANT),
+                    datetime.fromisoformat(request["required_date"].replace("Z", "+00:00")),
+                    request["lead_time_days"],
+                    request.get("availability_risk", "low")
+                ),
+                risk_score=0.3
+            )
+            
+            po = procurement.generate_purchase_order(
+                item=item,
+                supplier_id=request["supplier_id"],
+                user_details=request.get("user_details", {})
+            )
+            
+            return {
+                "status": "success",
+                "purchase_order": po
+            }
+        except Exception as e:
+            logger.error(f"Error generating purchase order: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.get("/api/intelligence/procurement/suppliers")
+    async def get_suppliers():
+        """Get all available suppliers with performance metrics."""
+        try:
+            from ..intelligence import ProcurementIntelligence
+            
+            procurement = ProcurementIntelligence()
+            
+            suppliers = [
+                {
+                    "supplier_id": perf.supplier_id,
+                    "name": perf.supplier_name,
+                    "on_time_delivery_rate": perf.on_time_delivery_rate,
+                    "quality_score": perf.quality_score,
+                    "cost_competitiveness": perf.cost_competitiveness,
+                    "reliability_score": perf.reliability_score,
+                    "total_orders": perf.total_orders,
+                    "recent_issues": perf.recent_issues
+                }
+                for perf in procurement.supplier_database.values()
+            ]
+            
+            return {
+                "status": "success",
+                "suppliers_count": len(suppliers),
+                "suppliers": suppliers
+            }
+        except Exception as e:
+            logger.error(f"Error getting suppliers: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/intelligence/procurement/recommend-supplier")
+    async def recommend_supplier(request: Dict[str, Any]):
+        """
+        Get supplier recommendations for a component.
+        
+        Request body:
+        {
+            "component": "Structural Steel Beam",
+            "requirements": {
+                "criticality": "critical_path",
+                "budget": 50000
+            }
+        }
+        """
+        try:
+            from ..intelligence import ProcurementIntelligence
+            
+            procurement = ProcurementIntelligence()
+            
+            recommendations = procurement.recommend_supplier(
+                component=request["component"],
+                requirements=request.get("requirements", {})
+            )
+            
+            return {
+                "status": "success",
+                "component": request["component"],
+                "recommendations": [
+                    {
+                        "supplier_id": supplier_id,
+                        "score": round(score, 3),
+                        "supplier_name": procurement.supplier_database[supplier_id].supplier_name
+                    }
+                    for supplier_id, score in recommendations
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Error recommending supplier: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/intelligence/specifications/extract")
+    async def extract_specifications(request: Dict[str, Any]):
+        """
+        Extract specifications from text using multi-layered approach.
+        
+        Request body:
+        {
+            "text": "Structural steel shall be ASTM A992 grade...",
+            "context": "structural_specifications"
+        }
+        """
+        try:
+            from ..intelligence import SpecificationIntelligence
+            
+            spec_intel = SpecificationIntelligence()
+            
+            specifications = spec_intel.extract_specifications(
+                text=request["text"],
+                context=request.get("context")
+            )
+            
+            return {
+                "status": "success",
+                "specifications_found": len(specifications),
+                "specifications": [spec.to_dict() for spec in specifications]
+            }
+        except Exception as e:
+            logger.error(f"Error extracting specifications: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/intelligence/specifications/validate")
+    async def validate_specification(request: Dict[str, Any]):
+        """
+        Validate a specification for completeness and compliance.
+        
+        Request body should match ExtractedSpecification structure.
+        """
+        try:
+            from ..intelligence.specification_intelligence import (
+                SpecificationIntelligence,
+                ExtractedSpecification
+            )
+            
+            spec_intel = SpecificationIntelligence()
+            
+            # Convert request to ExtractedSpecification
+            spec = ExtractedSpecification(
+                spec_id=request.get("spec_id", "TEMP-001"),
+                text=request["text"],
+                category=request.get("category", ""),
+                components=request.get("components", []),
+                materials=request.get("materials", []),
+                dimensions=request.get("dimensions", {}),
+                standards=request.get("standards", []),
+                performance_criteria=request.get("performance_criteria", {}),
+                confidence_score=request.get("confidence_score", 0.5),
+                extraction_method=request.get("extraction_method", "manual"),
+                validation_status="pending",
+                ambiguities=request.get("ambiguities", []),
+                alternatives=request.get("alternatives", [])
+            )
+            
+            is_valid, issues = spec_intel.validate_specification(spec)
+            
+            return {
+                "status": "success",
+                "is_valid": is_valid,
+                "issues": issues,
+                "validation_passed": is_valid
+            }
+        except Exception as e:
+            logger.error(f"Error validating specification: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/intelligence/specifications/assess-completeness")
+    async def assess_specification_completeness(request: Dict[str, Any]):
+        """
+        Assess completeness of specifications for a component type.
+        
+        Request body:
+        {
+            "specifications": [...],
+            "component_type": "structural_steel"
+        }
+        """
+        try:
+            from ..intelligence.specification_intelligence import (
+                SpecificationIntelligence,
+                ExtractedSpecification
+            )
+            
+            spec_intel = SpecificationIntelligence()
+            
+            # Convert specifications
+            specs = []
+            for spec_data in request.get("specifications", []):
+                specs.append(ExtractedSpecification(
+                    spec_id=spec_data.get("spec_id", f"SPEC-{len(specs)}"),
+                    text=spec_data.get("text", ""),
+                    category=spec_data.get("category", ""),
+                    components=spec_data.get("components", []),
+                    materials=spec_data.get("materials", []),
+                    dimensions=spec_data.get("dimensions", {}),
+                    standards=spec_data.get("standards", []),
+                    performance_criteria=spec_data.get("performance_criteria", {}),
+                    confidence_score=spec_data.get("confidence_score", 0.5),
+                    extraction_method=spec_data.get("extraction_method", "auto"),
+                    validation_status="pending"
+                ))
+            
+            assessment = spec_intel.assess_completeness(
+                specifications=specs,
+                component_type=request["component_type"]
+            )
+            
+            return {
+                "status": "success",
+                "component_type": request["component_type"],
+                "assessment": assessment
+            }
+        except Exception as e:
+            logger.error(f"Error assessing completeness: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/intelligence/components/match")
+    async def match_components_advanced(request: Dict[str, Any]):
+        """
+        Advanced component matching with fuzzy logic and alternatives.
+        
+        Request body:
+        {
+            "required_component": {...},
+            "available_components": [...],
+            "tolerance": 0.1,
+            "include_alternatives": true
+        }
+        """
+        try:
+            from ..intelligence import ComponentMatcher
+            
+            matcher = ComponentMatcher()
+            
+            matches = matcher.find_matches(
+                required_component=request["required_component"],
+                available_components=request["available_components"],
+                tolerance=request.get("tolerance", 0.1),
+                include_alternatives=request.get("include_alternatives", True)
+            )
+            
+            return {
+                "status": "success",
+                "matches_found": len(matches),
+                "matches": [
+                    {
+                        "component_id": match.component_id,
+                        "component_name": match.component_name,
+                        "match_score": round(match.match_score, 3),
+                        "match_type": match.match_type,
+                        "compatibility": match.compatibility,
+                        "differences": match.differences,
+                        "recommendations": match.recommendations
+                    }
+                    for match in matches
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Error matching components: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    logger.info("FastAPI app created successfully with Enterprise Intelligence capabilities")
     return app
 
 
