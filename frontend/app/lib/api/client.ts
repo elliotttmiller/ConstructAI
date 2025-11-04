@@ -9,7 +9,6 @@ import type {
   AuditResult,
   OptimizationResult,
   APIError,
-  AutonomousUploadResult,
 } from "../types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -396,7 +395,7 @@ class APIClient {
       // Send request
       xhr.open(
         "POST",
-        `${this.baseURL}/api/projects/${projectId}/documents/upload-simple`
+        `${this.baseURL}/api/projects/${projectId}/documents/upload`
       );
       xhr.send(formData);
     });
@@ -409,7 +408,7 @@ class APIClient {
   async analyzeDocument(
     projectId: string,
     documentId: string
-  ): Promise<AutonomousUploadResult> {
+  ): Promise<{ status: string; message: string; analysis_id: string }> {
     const response = await fetch(
       `${this.baseURL}/api/projects/${projectId}/documents/${documentId}/analyze`,
       {
@@ -505,49 +504,6 @@ class APIClient {
     return {
       close: () => eventSource.close()
     };
-  }
-
-  /**
-   * 📤🤖 COMBINED: Upload AND analyze in one call (convenience method)
-   * Uses the two-step workflow internally for proper separation of concerns
-   * 
-   * @param projectId - The project ID to upload to
-   * @param file - The document file to analyze
-   * @param onProgress - Optional callback for upload progress (0-100)
-   * @param onUploadComplete - Optional callback when upload completes (before analysis)
-   * @returns Complete AI analysis with quality metrics
-   */
-  async uploadAndAnalyzeDocument(
-    projectId: string,
-    file: File,
-    onProgress?: (progress: number) => void,
-    onUploadComplete?: (documentId: string) => void
-  ): Promise<AutonomousUploadResult> {
-    // Step 1: Upload document (fast)
-    const uploadResult = await this.uploadDocument(projectId, file, onProgress);
-    
-    // Notify that upload is complete, analysis starting
-    if (onUploadComplete) {
-      onUploadComplete(uploadResult.document_id);
-    }
-    
-    // Step 2: Trigger AI analysis (comprehensive)
-    const analysisResult = await this.analyzeDocument(projectId, uploadResult.document_id);
-    
-    return analysisResult;
-  }
-
-  /**
-   * @deprecated Use uploadAndAnalyzeDocument() for new code
-   * Legacy method kept for backwards compatibility
-   */
-  async uploadDocumentAutonomous(
-    projectId: string,
-    file: File,
-    onProgress?: (progress: number) => void
-  ): Promise<AutonomousUploadResult> {
-    // Use new two-step workflow internally
-    return this.uploadAndAnalyzeDocument(projectId, file, onProgress);
   }
 }
 

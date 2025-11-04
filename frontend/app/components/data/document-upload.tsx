@@ -6,8 +6,7 @@ import { Upload, X, FileText, CheckCircle, AlertCircle, Sparkles } from "lucide-
 import { Button } from "../ui/button";
 import { cn } from "@/app/lib/utils";
 import { apiClient } from "@/app/lib/api/client";
-import type { AutonomousUploadResult, QualityMetrics, APIError } from "@/app/lib/types";
-import { AutonomousErrorHandler, useErrorHandler } from "./autonomous-error-handler";
+import type { APIError } from "@/app/lib/types";
 
 interface DocumentAnalysis {
   sections: number;
@@ -25,8 +24,6 @@ interface UploadedFile {
   error?: string;
   documentId?: string;
   analysis?: DocumentAnalysis;
-  autonomousResult?: AutonomousUploadResult;
-  qualityMetrics?: QualityMetrics;
 }
 
 interface DocumentUploadProps {
@@ -34,7 +31,7 @@ interface DocumentUploadProps {
   onUploadComplete?: (
     documentId: string,
     analysis?: DocumentAnalysis,
-    uploadResult?: AutonomousUploadResult | { file_size?: number; filename?: string }
+    uploadResult?: { file_size?: number; filename?: string }
   ) => void;
   maxFiles?: number;
   maxSizeInMB?: number;
@@ -50,8 +47,16 @@ export function DocumentUpload({
 }: DocumentUploadProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [error, setError] = useState<APIError | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { error, handleError, clearError } = useErrorHandler();
+
+  const handleError = useCallback((apiError: APIError) => {
+    setError(apiError);
+  }, []);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
 
   const validateFile = useCallback(
     (file: File): string | null => {
@@ -110,8 +115,6 @@ export function DocumentUpload({
                   status: "success",
                   progress: 100,
                   documentId: result.document_id,
-                  autonomousResult: undefined,
-                  qualityMetrics: undefined,
                   analysis: undefined,
                 }
               : f
@@ -244,17 +247,22 @@ export function DocumentUpload({
     <div className="space-y-4">
       {/* Error Display */}
       {error && (
-        <div className="animate-fade-in-down">
-          <AutonomousErrorHandler
-            error={error}
-            context="upload"
-            onDismiss={clearError}
-            onRetry={() => {
-              clearError();
-              const failedFiles = files.filter((f) => f.status === "error");
-              failedFiles.forEach((file) => uploadFile(file));
-            }}
-          />
+        <div className="animate-fade-in-down bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-red-900">Upload Error</h4>
+              <p className="text-sm text-red-700 mt-1">{error.message}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearError}
+              className="text-red-600 hover:text-red-700"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       )}
 
@@ -412,24 +420,6 @@ export function DocumentUpload({
                           className="h-full bg-linear-to-r from-primary to-primary/80 transition-all duration-300 ease-out animate-progress"
                           style={{ width: `${file.progress}%` }}
                         />
-                      </div>
-                    )}
-
-                    {/* Quality Metrics */}
-                    {file.status === "success" && file.qualityMetrics && (
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium hover-scale-sm">
-                          <div className="status-dot status-dot-info" />
-                          {file.qualityMetrics.ai_iterations} AI Iterations
-                        </div>
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-success/10 text-success text-xs font-medium hover-scale-sm">
-                          <div className="status-dot status-dot-success" />
-                          {file.qualityMetrics.ai_decisions_made} Decisions
-                        </div>
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-info/10 text-info text-xs font-medium hover-scale-sm">
-                          <div className="status-dot status-dot-info" />
-                          {Math.round(file.qualityMetrics.completeness_score * 100)}% Complete
-                        </div>
                       </div>
                     )}
                   </div>
