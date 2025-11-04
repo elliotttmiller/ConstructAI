@@ -73,9 +73,37 @@ class MasterFormatClassifier:
         "12": ["furnishings", "furniture", "window", "treatments"],
         "13": ["special", "construction", "pools", "fountains"],
         "14": ["elevator", "escalator", "lift", "conveying"],
-        "21": ["fire", "suppression", "sprinkler", "standpipe"],
-        "22": ["plumbing", "piping", "fixtures", "water", "drainage"],
-        "23": ["hvac", "heating", "ventilating", "air conditioning", "ductwork"],
+        "21": ["fire", "suppression", "sprinkler", "standpipe", "fire protection", "extinguisher"],
+        "22": [
+            # Plumbing fixtures (IPC Chapter 4)
+            "plumbing", "piping", "fixtures", "water closet", "lavatory", "urinal", "toilet",
+            "sink", "shower", "bathtub", "drinking fountain", "water heater",
+            # Pipe materials (IPC Chapter 6)
+            "PVC pipe", "CPVC", "PEX", "copper pipe", "cast iron", "galvanized pipe",
+            # Plumbing systems
+            "water supply", "drainage", "sanitary sewer", "storm drain", "domestic water",
+            "hot water", "cold water", "waste pipe", "vent pipe", "cleanout",
+            # Flow/Pressure specs
+            "GPM", "PSI", "water pressure", "flow rate", "fixture units",
+            # Standards
+            "IPC", "UPC", "uniform plumbing code", "international plumbing code"
+        ],
+        "23": [
+            # HVAC equipment (ASHRAE standards)
+            "hvac", "heating", "ventilating", "air conditioning", "ductwork",
+            "air handler", "AHU", "rooftop unit", "RTU", "fan coil", "FCU",
+            "VAV", "variable air volume", "heat pump", "chiller", "boiler",
+            "cooling tower", "exhaust fan", "supply fan", "return fan",
+            # HVAC systems
+            "mechanical system", "ventilation", "climate control", "temperature control",
+            # Ductwork
+            "duct", "supply duct", "return duct", "flex duct", "rigid duct",
+            "galvanized duct", "rectangular duct", "round duct",
+            # Capacity/Efficiency
+            "tons", "CFM", "BTU", "SEER", "EER", "COP", "AFUE",
+            # Standards
+            "ASHRAE", "SMACNA", "IMC", "international mechanical code"
+        ],
         "25": ["automation", "controls", "building management"],
         "26": ["electrical", "power", "lighting", "wiring"],
         "27": ["communications", "data", "telephone", "intercom"],

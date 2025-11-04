@@ -10,9 +10,16 @@ from enum import Enum
 
 from .base import AIProvider, ModelConfig, GenerationResponse, ModelCapability
 from .openai_provider import OpenAIProvider
-from .anthropic_provider import AnthropicProvider
 
 logger = logging.getLogger(__name__)
+
+# Import prompt engineering system
+try:
+    from ..prompts import get_prompt_engineer, TaskType
+    PROMPTS_AVAILABLE = True
+except ImportError:
+    PROMPTS_AVAILABLE = False
+    logger.warning("Advanced prompt engineering system not available")
 
 
 class ProviderType(str, Enum):
@@ -28,8 +35,19 @@ class AIModelManager:
     """
     Manages AI model providers and handles intelligent routing.
     Supports automatic fallback and provider switching.
+    Integrates advanced prompt engineering system.
     """
     
+    # Fallback expert system prompt (if prompts module unavailable)
+    FALLBACK_EXPERT_PROMPT = (
+        "You are ConstructAI, a world-class expert in construction specifications, compliance, risk management, and project optimization. "
+        "Your role is to analyze documents, extract clauses, classify sections, identify risks, and provide actionable recommendations with precision and clarity. "
+        "Always use industry best practices, reference standards (CSI MasterFormat, AIA, OSHA, etc.), and communicate in a professional, concise, and authoritative manner. "
+        "When asked to analyze, audit, or optimize, provide detailed reasoning, cite relevant standards, and suggest practical improvements. "
+        "If ambiguity or missing information is detected, highlight it and recommend mitigation strategies. "
+        "Your responses should be structured, actionable, and tailored for construction professionals."
+    )
+
     def __init__(self, config_source: str = "env"):
         """
         Initialize AI Model Manager.
@@ -40,11 +58,14 @@ class AIModelManager:
         self.providers: Dict[str, AIProvider] = {}
         self.primary_provider: Optional[str] = None
         self.fallback_order: List[str] = []
+        self.prompt_engineer = get_prompt_engineer() if PROMPTS_AVAILABLE else None
         
         if config_source == "env":
             self._load_from_env()
         
         logger.info(f"AI Model Manager initialized with {len(self.providers)} provider(s)")
+        if self.prompt_engineer:
+            logger.info("Advanced prompt engineering system enabled")
     
     def _load_from_env(self):
         """Load provider configurations from environment variables."""
@@ -75,28 +96,6 @@ class AIModelManager:
             except Exception as e:
                 logger.error(f"Failed to initialize OpenAI provider: {e}")
         
-        # Anthropic Configuration
-        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-        anthropic_model = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
-        
-        if anthropic_key and anthropic_key != "your-api-key-here":
-            try:
-                config = ModelConfig(
-                    provider="anthropic",
-                    model_name=anthropic_model,
-                    api_key=anthropic_key,
-                    max_tokens=int(os.getenv("ANTHROPIC_MAX_TOKENS", "4096")),
-                    temperature=float(os.getenv("ANTHROPIC_TEMPERATURE", "0.7")),
-                    capabilities=[
-                        ModelCapability.TEXT_GENERATION,
-                        ModelCapability.CHAT,
-                    ]
-                )
-                self.providers["anthropic"] = AnthropicProvider(config)
-                logger.info(f"Anthropic provider registered: {anthropic_model}")
-            except Exception as e:
-                logger.error(f"Failed to initialize Anthropic provider: {e}")
-        
         # Set primary provider
         primary = os.getenv("AI_PRIMARY_PROVIDER", "openai").lower()
         if primary in self.providers:
@@ -108,7 +107,7 @@ class AIModelManager:
             logger.warning(f"Primary provider '{primary}' not available, using: {self.primary_provider}")
         
         # Set fallback order
-        fallback_str = os.getenv("AI_FALLBACK_PROVIDERS", "anthropic,openai")
+        fallback_str = os.getenv("AI_FALLBACK_PROVIDERS", "openai")
         self.fallback_order = [p.strip().lower() for p in fallback_str.split(",") if p.strip()]
         logger.info(f"Fallback order: {self.fallback_order}")
     
@@ -146,6 +145,8 @@ class AIModelManager:
         system_prompt: Optional[str] = None,
         provider: Optional[str] = None,
         use_fallback: bool = True,
+        task_type: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> GenerationResponse:
         """
@@ -153,49 +154,75 @@ class AIModelManager:
         
         Args:
             prompt: User prompt
-            system_prompt: Optional system prompt
+            system_prompt: Optional system prompt (overrides task-specific prompt)
             provider: Specific provider to use (or None for primary)
             use_fallback: Whether to try fallback providers on failure
+            task_type: Optional task type for specialized prompt (e.g., "risk_prediction")
+            context: Optional context for prompt engineering
             **kwargs: Additional provider-specific parameters
             
         Returns:
             GenerationResponse
         """
         providers_to_try = []
-        
+
         # Build provider list
         if provider:
             providers_to_try.append(provider)
         elif self.primary_provider:
             providers_to_try.append(self.primary_provider)
-        
+
         if use_fallback:
             providers_to_try.extend([
                 p for p in self.fallback_order 
                 if p not in providers_to_try and p in self.providers
             ])
-        
+
         last_error = None
-        
+
+        # Use advanced prompt engineering if available
+        effective_system_prompt = system_prompt
+        if not effective_system_prompt and self.prompt_engineer and task_type:
+            try:
+                # Get task-specific optimized prompt
+                task_enum = TaskType(task_type)
+                prompt_data = self.prompt_engineer.get_prompt(task_enum, context)
+                effective_system_prompt = prompt_data["system_prompt"]
+                # Use engineered user prompt if no prompt provided
+                if not prompt or prompt == "":
+                    prompt = prompt_data["user_prompt"]
+                # Apply optimal parameters
+                if "temperature" not in kwargs:
+                    kwargs["temperature"] = prompt_data["temperature"]
+                if "max_tokens" not in kwargs:
+                    kwargs["max_tokens"] = prompt_data["max_tokens"]
+                logger.info(f"Using optimized prompt for task: {task_type}")
+            except (ValueError, KeyError) as e:
+                logger.warning(f"Could not load specialized prompt for {task_type}: {e}")
+                effective_system_prompt = self.FALLBACK_EXPERT_PROMPT
+        elif not effective_system_prompt:
+            # Use fallback expert prompt
+            effective_system_prompt = self.FALLBACK_EXPERT_PROMPT
+
         for provider_name in providers_to_try:
             try:
                 provider_obj = self.get_provider(provider_name)
                 logger.info(f"Attempting generation with provider: {provider_name}")
-                
+
                 response = provider_obj.generate(
                     prompt=prompt,
-                    system_prompt=system_prompt,
+                    system_prompt=effective_system_prompt,
                     **kwargs
                 )
-                
+
                 logger.info(f"Generation successful with {provider_name}")
                 return response
-                
+
             except Exception as e:
                 logger.warning(f"Provider {provider_name} failed: {e}")
                 last_error = e
                 continue
-        
+
         # All providers failed
         raise RuntimeError(f"All providers failed. Last error: {last_error}")
     
@@ -206,6 +233,8 @@ class AIModelManager:
         system_prompt: Optional[str] = None,
         provider: Optional[str] = None,
         use_fallback: bool = True,
+        task_type: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -217,6 +246,8 @@ class AIModelManager:
             system_prompt: Optional system prompt
             provider: Specific provider to use
             use_fallback: Whether to use fallback providers
+            task_type: Optional task type for specialized prompt
+            context: Optional context for prompt engineering
             **kwargs: Additional parameters
             
         Returns:
@@ -237,6 +268,22 @@ class AIModelManager:
         
         last_error = None
         
+        # Use advanced prompt engineering if available
+        effective_system_prompt = system_prompt
+        if not effective_system_prompt and self.prompt_engineer and task_type:
+            try:
+                task_enum = TaskType(task_type)
+                prompt_data = self.prompt_engineer.get_prompt(task_enum, context)
+                effective_system_prompt = prompt_data["system_prompt"]
+                if not prompt:
+                    prompt = prompt_data["user_prompt"]
+                logger.info(f"Using optimized structured prompt for task: {task_type}")
+            except (ValueError, KeyError) as e:
+                logger.warning(f"Could not load specialized prompt: {e}")
+                effective_system_prompt = self.FALLBACK_EXPERT_PROMPT
+        elif not effective_system_prompt:
+            effective_system_prompt = self.FALLBACK_EXPERT_PROMPT
+        
         for provider_name in providers_to_try:
             try:
                 provider_obj = self.get_provider(provider_name)
@@ -244,7 +291,7 @@ class AIModelManager:
                 result = provider_obj.generate_structured(
                     prompt=prompt,
                     schema=schema,
-                    system_prompt=system_prompt,
+                    system_prompt=effective_system_prompt,
                     **kwargs
                 )
                 

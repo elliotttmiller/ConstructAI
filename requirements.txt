@@ -9,6 +9,7 @@ python-docx
 pytesseract
 pdf2image
 pillow
+reportlab  # PDF generation
 
 # NLP & AI/ML
 transformers
@@ -17,9 +18,7 @@ spacy
 sentence-transformers
 
 # AI Model Providers
-openai>=1.0.0  # OpenAI GPT models
-anthropic>=0.18.0  # Anthropic Claude models
-google-generativeai  # Google Gemini models (optional)
+openai  # OpenAI GPT models
 # For Azure OpenAI, use openai with azure endpoint
 
 # Graph Database
@@ -32,12 +31,12 @@ pinecone-client
 # Web Framework
 fastapi
 uvicorn
-pydantic>=2.0.0  # Required for FastAPI compatibility
+pydantic  # Required for FastAPI compatibility
 pydantic-settings  # For settings management
 python-multipart  # Required for file uploads
 
 # Database
-sqlalchemy>=2.0.0
+sqlalchemy
 alembic  # Database migrations
 
 # Additional utilities

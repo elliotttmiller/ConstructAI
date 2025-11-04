@@ -79,7 +79,7 @@ class ProjectDataHandler:
             "start_date": project.start_date.isoformat() if project.start_date else None,
             "target_end_date": project.target_end_date.isoformat() if project.target_end_date else None,
             "budget": project.budget,
-            "metadata": project.metadata,
+            "project_metadata": project.project_metadata,
             "tasks": [
                 {
                     "id": task.id,
@@ -124,7 +124,7 @@ class ProjectDataHandler:
             start_date=datetime.fromisoformat(data["start_date"]),
             target_end_date=datetime.fromisoformat(data["target_end_date"]) if data.get("target_end_date") else None,
             budget=data.get("budget", 0.0),
-            metadata=data.get("metadata", {})
+            project_metadata=data.get("project_metadata", {})
         )
         
         for task_data in data.get("tasks", []):

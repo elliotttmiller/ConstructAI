@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>North Park Office Plaza - Comprehensive Construction Proposal</title>
+    <style>
+        /* Enhanced CSS with additional styling elements */
+        @page {
+            size: letter;
+            margin: 0.75in;
+            @top-left {
+                content: "Summit Construction Group • CONFIDENTIAL";
+                font-size: 9pt;
+                color: #666;
+            }
+            @top-right {
+                content: "Project: North Park Office Plaza";
+                font-size: 9pt;
+                color: #666;
+            }
+            @bottom-center {
+                content: "Page " counter(page) " of " counter(pages);
+                font-size: 9pt;
+                color: #666;
+            }
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.4;
+            color: #333;
+            font-size: 10pt;
+            background-color: #ffffff;
+            counter-reset: section subsection figure table;
+        }
+
+        h1 { 
+            font-size: 22pt; 
+            color: #1a365d; 
+            margin-bottom: 16pt; 
+            font-weight: 700; 
+            border-bottom: 3px solid #2b6cb0; 
+            padding-bottom: 8pt;
+            counter-increment: section;
+            counter-reset: subsection;
+        }
+
+        h1::before {
+            content: counter(section) ". ";
+        }
+
+        h2 {
+            font-size: 14pt;
+            color: #2b6cb0;
+            margin: 18pt 0 10pt 0;
+            font-weight: 600;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 4pt;
+            counter-increment: subsection;
+            counter-reset: subsubsection;
+        }
+
+        h2::before {
+            content: counter(section) "." counter(subsection) " ";
+        }
+
+        h3 {
+            font-size: 12pt;
+            color: #2d3748;
+            margin: 14pt 0 7pt 0;
+            font-weight: 600;
+            counter-increment: subsubsection;
+        }
+
+        h3::before {
+            content: counter(section) "." counter(subsection) "." counter(subsubsection) " ";
+        }
+
+        /* Enhanced table styles */
+        .compliance-table {
+            font-size: 9pt;
+            background-color: #f8f9fa;
+        }
+
+        .compliance-table th {
+            background-color: #4a5568;
+        }
+
+        .specification-table td:first-child {
+            font-weight: 600;
+            background-color: #f7fafc;
+            width: 30%;
+        }
+
+        /* New component styles */
+        .code-reference {
+            background-color: #e6fffa;
+            border-left: 4px solid #38b2ac;
+            padding: 8pt;
+            margin: 6pt 0;
+            font-size: 9pt;
+        }
+
+        .performance-metrics {
+            background: linear-gradient(135deg, #f0fff4 0%, #e6fffa 100%);
+            border: 1px solid #9ae6b4;
+            border-radius: 4px;
+            padding: 12pt;
+            margin: 10pt 0;
+        }
+
+        .risk-matrix {
+            background-color: #fffaf0;
+            border: 1px solid #fbd38d;
+            padding: 10pt;
+            margin: 8pt 0;
+        }
+
+        .testing-protocol {
+            background-color: #f0f4ff;
+            border: 1px solid #a3bffa;
+            padding: 10pt;
+            margin: 8pt 0;
+        }
+
+        .warranty-box {
+            background-color: #f0fff4;
+            border: 2px solid #48bb78;
+            border-radius: 6px;
+            padding: 12pt;
+            margin: 10pt 0;
+        }
+
+        .coordination-checklist {
+            background-color: #faf5ff;
+            border: 1px solid #d6bcfa;
+            padding: 10pt;
+            margin: 8pt 0;
+        }
+
+        .critical-path {
+            background-color: #fff5f5;
+            border: 1px solid #fc8181;
+            padding: 10pt;
+            margin: 8pt 0;
+        }
+
+        .material-schedule {
+            font-size: 9pt;
+        }
+
+        .submittal-log {
+            font-size: 9pt;
+        }
+
+        .qa-qc-checklist {
+            font-size: 9pt;
+        }
+
+        /* Enhanced numbering for lists */
+        .roman-list {
+            list-style-type: upper-roman;
+            margin-left: 20pt;
+        }
+
+        .alpha-list {
+            list-style-type: upper-alpha;
+            margin-left: 20pt;
+        }
+
+        .decimal-list {
+            list-style-type: decimal;
+            margin-left: 20pt;
+        }
+
+        /* Figure and table captions */
+        .figure-caption {
+            text-align: center;
+            font-style: italic;
+            font-size: 9pt;
+            margin-top: 4pt;
+        }
+
+        .table-caption {
+            text-align: center;
+            font-weight: 600;
+            font-size: 10pt;
+            margin-bottom: 6pt;
+        }
+
+        /* Enhanced utility classes */
+        .border-left-success { border-left: 4px solid #48bb78; }
+        .border-left-warning { border-left: 4px solid #ed8936; }
+        .border-left-danger { border-left: 4px solid #f56565; }
+        .border-left-info { border-left: 4px solid #4299e1; }
+
+        .text-success { color: #48bb78; }
+        .text-warning { color: #ed8936; }
+        .text-danger { color: #f56565; }
+        .text-info { color: #4299e1; }
+
+        .badge {
+            display: inline-block;
+            padding: 2pt 6pt;
+            border-radius: 12pt;
+            font-size: 8pt;
+            font-weight: 600;
+            margin: 0 2pt;
+        }
+
+        .badge-success { background-color: #48bb78; color: white; }
+        .badge-warning { background-color: #ed8936; color: white; }
+        .badge-danger { background-color: #f56565; color: white; }
+        .badge-info { background-color: #4299e1; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Enhanced Cover Letter with Project ID -->
+        <div class="section cover-letter">
+            <div class="header">
+                <div class="logo">Summit Construction Group</div>
+                <div class="company-info">
+                    123 Main Street, Suite 400 | Anytown, USA 12345 | (555) 123-4567 | www.summitconstructiongroup.com<br>
+                    State License #: ABC-123456 | Bonding Capacity: $25 Million
+                </div>
+            </div>
+
+            <div class="text-right mb-4">
+                <strong>Project ID:</strong> NPOP-2025-001<br>
+                <strong>Date:</strong> November 4, 2025<br>
+                <strong>Proposal Valid Until:</strong> January 4, 2026
+            </div>
+
+            <!-- Existing cover letter content remains, but enhanced with project ID -->
+        </div>
+
+        <!-- NEW SECTION: Regulatory Compliance Summary -->
+        <div class="page-break"></div>
+        <div class="section">
+            <h1>REGULATORY COMPLIANCE & PERMITTING</h1>
+            
+            <h2>Building Code Compliance</h2>
+            <div class="compliance-table">
+                <div class="table-caption">Table 1: Building Code Compliance Summary</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Code/Standard</th>
+                            <th>Version</th>
+                            <th>Applicable Sections</th>
+                            <th>Compliance Method</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>International Building Code (IBC)</td>
+                            <td>2021</td>
+                            <td>Chapters 3-8, 16, 17</td>
+                            <td>Structural calculations, fire ratings</td>
+                        </tr>
+                        <tr>
+                            <td>International Mechanical Code (IMC)</td>
+                            <td>2021</td>
+                            <td>Chapters 4, 5, 6, 7</td>
+                            <td>Equipment sizing, duct design</td>
+                        </tr>
+                        <tr>
+                            <td>International Plumbing Code (IPC)</td>
+                            <td>2021</td>
+                            <td>Chapters 3, 4, 5, 6</td>
+                            <td>Fixture counts, pipe sizing</td>
+                        </tr>
+                        <tr>
+                            <td>International Energy Conservation Code (IECC)</td>
+                            <td>2021</td>
+                            <td>Commercial Provisions</td>
+                            <td>Energy modeling, insulation values</td>
+                        </tr>
+                        <tr>
+                            <td>ASHRAE 90.1</td>
+                            <td>2022</td>
+                            <td>Sections 5-10</td>
+                            <td>Energy efficiency compliance</td>
+                        </tr>
+                        <tr>
+                            <td>ASHRAE 62.1</td>
+                            <td>2022</td>
+                            <td>Ventilation Rate Procedure</td>
+                            <td>Ventilation system design</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h2>Permitting Strategy</h2>
+            <div class="coordination-checklist">
+                <h4>Permit Sequencing & Dependencies</h4>
+                <ul class="decimal-list">
+                    <li><strong>Site Development Permit</strong> - Required before any earthwork</li>
+                    <li><strong>Building Permit</strong> - Foundation and structural work</li>
+                    <li><strong>Mechanical Permit</strong> - HVAC system installation</li>
+                    <li><strong>Plumbing Permit</strong> - All plumbing systems</li>
+                    <li><strong>Electrical Permit</strong> - Power and lighting systems</li>
+                    <li><strong>Fire Protection Permit</strong> - Sprinkler and alarm systems</li>
+                </ul>
+            </div>
+
+            <h2>Environmental Compliance</h2>
+            <div class="code-reference">
+                <h4>EPA & Environmental Regulations</h4>
+                <ul>
+                    <li><strong>NPDES Stormwater Permit:</strong> SWPPP implementation and monitoring</li>
+                    <li><strong>Lead Paint Management:</strong> EPA RRP Rule 40 CFR 745</li>
+                    <li><strong>Refrigerant Management:</strong> EPA Section 608 Compliance</li>
+                    <li><strong>Asbestos Survey:</strong> Completed September 15, 2025 - No ACM found</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ENHANCED HVAC SECTION -->
+        <div class="page-break"></div>
+        <div class="section">
+            <h1>HVAC SYSTEM DETAILED SPECIFICATIONS</h1>
+            
+            <h2>System Performance Requirements</h2>
+            <div class="performance-metrics">
+                <h4>Design Conditions & Performance Metrics</h4>
+                <table class="specification-table">
+                    <tr><td>Outdoor Design Temperature (Winter)</td><td>15°F DB / 10°F WB</td></tr>
+                    <tr><td>Outdoor Design Temperature (Summer)</td><td>95°F DB / 75°F WB</td></tr>
+                    <tr><td>Indoor Design Conditions</td><td>72-76°F DB / 40-60% RH</td></tr>
+                    <tr><td>System Efficiency Requirement</td><td>Minimum SEER 16 / EER 12.5</td></tr>
+                    <tr><td>Sound Performance (NC Levels)</td><td>NC 35 (Open Office), NC 40 (Mechanical Rooms)</td></tr>
+                    <tr><td>Ventilation Rates</td><td>ASHRAE 62.1-2022, Table 6.2.2.1</td></tr>
+                </table>
+            </div>
+
+            <h2>Equipment Specifications</h2>
+            <h3>VRF Outdoor Units</h3>
+            <table class="material-schedule">
+                <thead>
+                    <tr>
+                        <th>Qty</th>
+                        <th>Model Number</th>
+                        <th>Capacity (Tons)</th>
+                        <th>Electrical Data</th>
+                        <th>Sound Level dB(A)</th>
+                        <th>Refrigerant</th>
+                        <th>Dimensions (LxWxH)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>6</td>
+                        <td>Mitsubishi PUMY-P96NKMU4</td>
+                        <td>16.0</td>
+                        <td>208-230V/3Ph/60Hz, 68.5A MCA</td>
+                        <td>65</td>
+                        <td>R410A (GWP 2088)</td>
+                        <td>55.1" x 35.4" x 49.2"</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Refrigerant Piping Specifications</h3>
+            <div class="technical-spec">
+                <h4>Pipe Sizing & Installation Requirements</h4>
+                <table class="specification-table">
+                    <tr><td>Main Line Size (Gas)</td><td>3-1/8" OD ACR Copper, Type L</td></tr>
+                    <tr><td>Main Line Size (Liquid)</td><td>1-5/8" OD ACR Copper, Type L</td></tr>
+                    <tr><td>Branch Line Sizes</td><td>1-1/8" to 2-1/8" OD based on load</td></tr>
+                    <tr><td>Pipe Insulation</td><td>Aeroflex EPDM, 1/2" wall, 25/50 rating</td></tr>
+                    <tr><td>Joint Construction</td><td>Silver brazing, 15% silver content</td></tr>
+                    <tr><td>Pressure Testing</td><td>550 PSIG nitrogen, 24-hour hold</td></tr>
+                    <tr><td>Vacuum Dehydration</td><td>500 microns maximum, triple evacuation</td></tr>
+                </table>
+            </div>
+
+            <h2>Building Automation System (BAS)</h2>
+            <div class="technical-spec">
+                <h4>Siemens Desigo CC Platform</h4>
+                <ul class="decimal-list">
+                    <li><strong>System Architecture:</strong> IP-based, BACnet IP/MS-TP</li>
+                    <li><strong>Controller:</strong> PXC Modular with 64 points capacity</li>
+                    <li><strong>Sensors:</strong> RDF300 series, ±0.5°F accuracy</li>
+                    <li><strong>Actuators:</strong> GDB...E series, 35 lb-in torque</li>
+                    <li><strong>Integration:</strong> VRF controllers via BACnet gateway</li>
+                    <li><strong>Alarm Management:</strong> Email/SMS notification system</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ENHANCED PLUMBING SECTION -->
+        <div class="page-break"></div>
+        <div class="section">
+            <h1>PLUMBING SYSTEM DETAILED SPECIFICATIONS</h1>
+            
+            <h2>Water Supply System</h2>
+            <div class="performance-metrics">
+                <h4>System Design Parameters</h4>
+                <table class="specification-table">
+                    <tr><td>Water Source & Pressure</td><td>Municipal supply, 65 PSI static</td></tr>
+                    <tr><td>Peak Demand Flow Rate</td><td>125 GPM @ 45 PSI residual</td></tr>
+                    <tr><td>Water Quality Standards</td><td>EPA National Primary Drinking Water Regulations</td></tr>
+                    <tr><td>Water Efficiency Target</td><td>LEED v4.1, 40% reduction from baseline</td></tr>
+                    <tr><td>Recirculation System</td><td>0.5 GPM minimum flow at furthest fixture</td></tr>
+                </table>
+            </div>
+
+            <h2>Pipe & Fitting Specifications</h2>
+            <table class="material-schedule">
+                <thead>
+                    <tr>
+                        <th>System</th>
+                        <th>Pipe Material</th>
+                        <th>Standard</th>
+                        <th>Pressure Rating</th>
+                        <th>Joint Method</th>
+                        <th>Insulation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Domestic Water Main</td>
+                        <td>Type K Copper</td>
+                        <td>ASTM B88</td>
+                        <td>300 PSI @ 100°F</td>
+                        <td>Brazed (Sil-Fos 15)</td>
+                        <td>Armacell Tubolit, 1/2"</td>
+                    </tr>
+                    <tr>
+                        <td>Domestic Water Branch</td>
+                        <td>PEX-A</td>
+                        <td>ASTM F876/F877</td>
+                        <td>160 PSI @ 73°F</td>
+                        <td>Expansion (ProPEX)</td>
+                        <td>Armacell Tubolit, 3/8"</td>
+                    </tr>
+                    <tr>
+                        <td>Sanitary Drainage</td>
+                        <td>Schedule 40 PVC</td>
+                        <td>ASTM D1785</td>
+                        <td>---</td>
+                        <td>Solvent Cement</td>
+                        <td>---</td>
+                    </tr>
+                    <tr>
+                        <td>Vent System</td>
+                        <td>Schedule 40 PVC</td>
+                        <td>ASTM D1785</td>
+                        <td>---</td>
+                        <td>Solvent Cement</td>
+                        <td>---</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>Fixture Schedule</h2>
+            <table class="material-schedule">
+                <thead>
+                    <tr>
+                        <th>Fixture Type</th>
+                        <th>Manufacturer/Model</th>
+                        <th>Flow Rate</th>
+                        <th>Finish</th>
+                        <th>ADA Compliance</th>
+                        <th>WaterSense</th>
+                        <th>Qty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Water Closet</td>
+                        <td>TOTO UltraMax II MS604114CEFG</td>
+                        <td>1.28 GPF</td>
+                        <td>Cotton White</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>24</td>
+                    </tr>
+                    <tr>
+                        <td>Lavatory Faucet</td>
+                        <td>Delta Lahara 3590-LH-DST</td>
+                        <td>1.2 GPM</td>
+                        <td>Chrome</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>28</td>
+                    </tr>
+                    <tr>
+                        <td>Urinal</td>
+                        <td>Sloan Waterfree U-111-T-24</td>
+                        <td>0.0 GPF</td>
+                        <td>White</td>
+                        <td>Yes</td>
+                        <td>N/A</td>
+                        <td>12</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- NEW SECTION: Quality Assurance & Commissioning -->
+        <div class="page-break"></div>
+        <div class="section">
+            <h1>QUALITY ASSURANCE & COMMISSIONING</h1>
+            
+            <h2>Testing & Balancing Requirements</h2>
+            <div class="testing-protocol">
+                <h4>HVAC System Commissioning</h4>
+                <ul class="roman-list">
+                    <li><strong>Air Balancing</strong> - NEBB Certified, ±10% of design airflow</li>
+                    <li><strong>Hydronic Balancing</strong> - Caleffi setters, ±5% flow tolerance</li>
+                    <li><strong>System Performance Verification</strong> - Full load testing</li>
+                    <li><strong>Control System Calibration</strong> - Point-to-point verification</li>
+                </ul>
+            </div>
+
+            <h2>Quality Control Checklists</h2>
+            <div class="qa-qc-checklist">
+                <h4>Plumbing System Inspection Points</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Inspection Phase</th>
+                            <th>Test Method</th>
+                            <th>Acceptance Criteria</th>
+                            <th>Documentation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Underground Rough-in</td>
+                            <td>10' head test, 15 min</td>
+                            <td>No visible leakage</td>
+                            <td>Form PL-1</td>
+                        </tr>
+                        <tr>
+                            <td>Above-ground DWV</td>
+                            <td>5' head test, 15 min</td>
+                            <td>No pressure drop</td>
+                            <td>Form PL-2</td>
+                        </tr>
+                        <tr>
+                            <td>Water Supply</td>
+                            <td>150 PSI, 2 hours</td>
+                            <td>< 5 PSI drop</td>
+                            <td>Form PL-3</td>
+                        </tr>
+                        <tr>
+                            <td>Final Fixture Test</td>
+                            <td>Flow rate verification</td>
+                            <td>Meets design specs</td>
+                            <td>Form PL-4</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h2>Warranties & Guarantees</h2>
+            <div class="warranty-box">
+                <h4>System Warranties</h4>
+                <table class="specification-table">
+                    <tr><td>HVAC Equipment</td><td>10 years parts, 5 years labor</td></tr>
+                    <tr><td>Building Automation System</td><td>3 years comprehensive</td></tr>
+                    <tr><td>Plumbing Fixtures</td><td>Manufacturer's lifetime warranty</td></tr>
+                    <tr><td>Piping Systems</td><td>5 years against defects</td></tr>
+                    <tr><td>Workmanship</td><td>2 years from substantial completion</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- NEW SECTION: Risk Management -->
+        <div class="page-break"></div>
+        <div class="section">
+            <h1>RISK MANAGEMENT & MITIGATION</h1>
+            
+            <h2>Project Risk Assessment</h2>
+            <div class="risk-matrix">
+                <h4>Identified Risks & Mitigation Strategies</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Risk Category</th>
+                            <th>Specific Risk</th>
+                            <th>Probability</th>
+                            <th>Impact</th>
+                            <th>Mitigation Strategy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Schedule</td>
+                            <td>Equipment lead times</td>
+                            <td class="text-warning">Medium</td>
+                            <td class="text-danger">High</td>
+                            <td>Early procurement, confirmed dates</td>
+                        </tr>
+                        <tr>
+                            <td>Technical</td>
+                            <td>System integration conflicts</td>
+                            <td class="text-warning">Medium</td>
+                            <td class="text-warning">Medium</td>
+                            <td>BIM coordination, clash detection</td>
+                        </tr>
+                        <tr>
+                            <td>Regulatory</td>
+                            <td>Permit delays</td>
+                            <td class="text-success">Low</td>
+                            <td class="text-danger">High</td>
+                            <td>Pre-submission meetings, expediter</td>
+                        </tr>
+                        <tr>
+                            <td>Supply Chain</td>
+                            <td>Material shortages</td>
+                            <td class="text-warning">Medium</td>
+                            <td class="text-warning">Medium</td>
+                            <td>Multiple suppliers, buffer stock</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h2>Safety Management Plan</h2>
+            <div class="code-reference">
+                <h4>OSHA Compliance & Safety Protocols</h4>
+                <ul class="decimal-list">
+                    <li><strong>Site Safety Orientation:</strong> Required for all personnel</li>
+                    <li><strong>Daily Toolbox Talks:</strong> Task-specific safety briefings</li>
+                    <li><strong>Fall Protection:</strong> 100% tie-off above 6 feet</li>
+                    <li><strong>Confined Space Entry:</strong> Permit-required procedures</li>
+                    <li><strong>Hot Work Permits:</strong> Required for all brazing/welding</li>
+                    <li><strong>Emergency Response:</strong> Site-specific plan, monthly drills</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- NEW SECTION: Project Execution & Logistics -->
+        <div class="page-break"></div>
+        <div class="section">
+            <h1>PROJECT EXECUTION & LOGISTICS</h1>
+            
+            <h2>Construction Phasing Plan</h2>
+            <div class="critical-path">
+                <h4>Critical Path Method Schedule</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Phase</th>
+                            <th>Duration (Days)</th>
+                            <th>Key Dependencies</th>
+                            <th>Critical Milestones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Site Mobilization</td>
+                            <td>15</td>
+                            <td>Permit issuance</td>
+                            <td>Site fencing, utilities</td>
+                        </tr>
+                        <tr>
+                            <td>Foundation & Structure</td>
+                            <td>45</td>
+                            <td>Site work complete</td>
+                            <td>Concrete pours, steel erection</td>
+                        </tr>
+                        <tr>
+                            <td>Building Enclosure</td>
+                            <td>60</td>
+                            <td>Structure complete</td>
+                            <td>Weather-tight envelope</td>
+                        </tr>
+                        <tr>
+                            <td>MEP Rough-in</td>
+                            <td>75</td>
+                            <td>Enclosure complete</td>
+                            <td>HVAC/Plumbing infrastructure</td>
+                        </tr>
+                        <tr>
+                            <td>Interior Finishes</td>
+                            <td>90</td>
+                            <td>MEP rough-in complete</td>
+                            <td>Drywall, ceilings, flooring</td>
+                        </tr>
+                        <tr>
+                            <td>MEP Finishes & Commissioning</td>
+                            <td>45</td>
+                            <td>Interiors substantially complete</td>
+                            <td>System start-up, testing, balancing</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h2>Submittal & Approval Process</h2>
+            <div class="submittal-log">
+                <h4>Required Submittals - Mechanical Systems</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Submittal Package</th>
+                            <th>Due Date</th>
+                            <th>Review Period</th>
+                            <th>Approval Required</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>HVAC Equipment Schedules</td>
+                            <td>Week 4</td>
+                            <td>14 days</td>
+                            <td>Architect/Engineer</td>
+                        </tr>
+                        <tr>
+                            <td>Ductwork & Piping Layouts</td>
+                            <td>Week 8</td>
+                            <td>21 days</td>
+                            <td>Engineer of Record</td>
+                        </tr>
+                        <tr>
+                            <td>Control System Sequences</td>
+                            <td>Week 12</td>
+                            <td>14 days</td>
+                            <td>Mechanical Engineer</td>
+                        </tr>
+                        <tr>
+                            <td>Commissioning Plan</td>
+                            <td>Week 16</td>
+                            <td>21 days</td>
+                            <td>Owner/Commissioning Agent</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- NEW SECTION: Sustainability & Energy Compliance -->
+        <div class="page-break"></div>
+        <div class="section">
+            <h1>SUSTAINABILITY & ENERGY COMPLIANCE</h1>
+            
+            <h2>LEED Certification Strategy</h2>
+            <div class="performance-metrics">
+                <h4>Targeted LEED v4.1 Credits - Mechanical Systems</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Credit Category</th>
+                            <th>Specific Credit</th>
+                            <th>Target Points</th>
+                            <th>Documentation Method</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Energy & Atmosphere</td>
+                            <td>Optimize Energy Performance</td>
+                            <td>10</td>
+                            <td>Energy modeling, ASHRAE 90.1</td>
+                        </tr>
+                        <tr>
+                            <td>Indoor Environmental Quality</td>
+                            <td>Enhanced Indoor Air Quality</td>
+                            <td>2</td>
+                            <td>ASHRAE 62.1 compliance</td>
+                        </tr>
+                        <tr>
+                            <td>Water Efficiency</td>
+                            <td>Water Use Reduction</td>
+                            <td>5</td>
+                            <td>Water calc, fixture specifications</td>
+                        </tr>
+                        <tr>
+                            <td>Innovation</td>
+                            <td>Building Life-Cycle Impact Reduction</td>
+                            <td>1</td>
+                            <td>VRF system documentation</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h2>Energy Modeling Results</h2>
+            <div class="technical-spec">
+                <h4>ASHRAE 90.1-2022 Compliance Analysis</h4>
+                <table class="specification-table">
+                    <tr><td>Proposed Building Performance</td><td>45.2 kBtu/sf/yr</td></tr>
+                    <tr><td>ASHRAE 90.1 Baseline</td><td>62.8 kBtu/sf/yr</td></tr>
+                    <tr><td>Energy Cost Savings</td><td>28% improvement</td></tr>
+                    <tr><td>Carbon Emissions Reduction</td><td>125 metric tons CO2e/year</td></tr>
+                    <tr><td>Simple Payback Period</td><td>6.2 years</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

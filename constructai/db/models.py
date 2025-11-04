@@ -36,13 +36,13 @@ class ProjectDB(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     
     # JSON fields for flexible data storage
-    metadata = Column(JSON, nullable=True)
+    project_metadata = Column(JSON, nullable=True)
     tasks = Column(JSON, nullable=True)
     resources = Column(JSON, nullable=True)
     
     def to_dict(self):
-        """Convert model to dictionary."""
-        return {
+        """Convert model to dictionary with proper structure for exports."""
+        base_dict = {
             "id": self.id,
             "name": self.name,
             "description": self.description,
@@ -51,10 +51,19 @@ class ProjectDB(Base):
             "total_tasks": self.total_tasks,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "metadata": self.metadata,
             "tasks": self.tasks,
             "resources": self.resources,
         }
+        
+        # Extract analysis and MEP data from project_metadata if available
+        if self.project_metadata and isinstance(self.project_metadata, dict):
+            base_dict["analysis"] = self.project_metadata.get("analysis", {})
+            base_dict["mep_analysis"] = self.project_metadata.get("mep_analysis", {})
+        else:
+            base_dict["analysis"] = {}
+            base_dict["mep_analysis"] = {}
+        
+        return base_dict
 
 
 class AnalysisResultDB(Base):

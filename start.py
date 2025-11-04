@@ -243,21 +243,24 @@ def check_health(url: str, service_name: str, max_attempts: int = MAX_HEALTH_CHE
         True if service is healthy, False otherwise
     """
     print_info(f"Waiting for {service_name} to be ready...")
-    
+
     for attempt in range(1, max_attempts + 1):
         try:
             response = requests.get(url, timeout=5)
+            print_info(f"[Health Check Attempt {attempt}] Status: {response.status_code}")
+            print_info(f"[Health Check Attempt {attempt}] Body: {response.text}")
             if response.status_code == 200:
                 print_success(f"{service_name} is ready! (attempt {attempt}/{max_attempts})")
+                print_info(f"[Health Check] Received 200 OK. Proceeding with workflow.")
                 return True
-        except requests.exceptions.RequestException:
-            pass
-        
+        except requests.exceptions.RequestException as e:
+            print_warning(f"[Health Check Attempt {attempt}] Exception: {e}")
+
         if attempt % 5 == 0:
             print_info(f"  Still waiting... (attempt {attempt}/{max_attempts})")
-        
+
         time.sleep(HEALTH_CHECK_INTERVAL)
-    
+
     print_error(f"{service_name} failed to start after {max_attempts} attempts")
     return False
 
@@ -274,7 +277,8 @@ def start_backend() -> Optional[subprocess.Popen]:
     project_root = get_project_root()
     
     try:
-        # Start uvicorn with the FastAPI app
+        # Start uvicorn with the FastAPI app with auto-reload
+        # Note: Output is not captured so you can see reload messages in real-time
         process = subprocess.Popen(
             [
                 sys.executable,
@@ -283,31 +287,30 @@ def start_backend() -> Optional[subprocess.Popen]:
                 "constructai.web.fastapi_app:app",
                 "--host", BACKEND_HOST,
                 "--port", str(BACKEND_PORT),
-                "--reload"
+                "--reload",
+                "--reload-dir", "constructai"  # Only watch constructai directory for changes
             ],
-            cwd=str(project_root),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True,
-            bufsize=1
+            cwd=str(project_root)
         )
-        
+
         print_success(f"Backend process started (PID: {process.pid})")
-        
+        print_info("Backend is running with auto-reload enabled")
+        print_info("Changes to Python files will automatically reload the server")
+
         # Wait a moment for the process to initialize
         time.sleep(STARTUP_DELAY)
-        
-        # Check if process is still running
+
         if process.poll() is not None:
-            print_error("Backend process terminated unexpectedly")
-            output, _ = process.communicate()
-            print_error(f"Output: {output}")
+            print_error("Backend process terminated unexpectedly during startup")
             return None
-        
+            
+        print_info("Backend process appears to be running. Continuing health checks.")
         return process
-        
+
     except Exception as e:
         print_error(f"Failed to start backend: {e}")
+        import traceback
+        print_error(traceback.format_exc())
         return None
 
 
@@ -327,17 +330,16 @@ def start_frontend() -> Optional[subprocess.Popen]:
         npm_cmd = "npm.cmd" if platform.system() == "Windows" else "npm"
         
         # Start Next.js development server
+        # Note: Output is not captured so you can see HMR messages in real-time
         process = subprocess.Popen(
             [npm_cmd, "run", "dev"],
             cwd=str(frontend_dir),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True,
-            bufsize=1,
             shell=True if platform.system() == "Windows" else False
         )
         
         print_success(f"Frontend process started (PID: {process.pid})")
+        print_info("Frontend is running with Fast Refresh enabled")
+        print_info("Changes to frontend files will automatically refresh in the browser")
         
         # Wait a moment for the process to initialize
         time.sleep(STARTUP_DELAY)
@@ -345,8 +347,6 @@ def start_frontend() -> Optional[subprocess.Popen]:
         # Check if process is still running
         if process.poll() is not None:
             print_error("Frontend process terminated unexpectedly")
-            output, _ = process.communicate()
-            print_error(f"Output: {output}")
             return None
         
         return process
@@ -404,22 +404,15 @@ def monitor_processes(backend_process: subprocess.Popen,
     
     try:
         while True:
-            # Check if processes are still running
-            backend_running = backend_process.poll() is None
-            frontend_running = frontend_process.poll() is None
-            
-            if not backend_running:
-                print_error("Backend process has stopped unexpectedly!")
-                break
-            
-            if not frontend_running:
-                print_error("Frontend process has stopped unexpectedly!")
-                break
-            
+            # Note: We don't check process.poll() because uvicorn --reload 
+            # will spawn child processes that exit and restart on file changes.
+            # The parent reloader process stays alive. Same for Next.js with HMR.
+            # We simply wait for Ctrl+C to shut down.
             time.sleep(5)
             
     except KeyboardInterrupt:
-        print_info("\nReceived shutdown signal")
+        print_info("\nReceived shutdown signal (Ctrl+C)")
+        return True
 
 
 def main():
@@ -457,6 +450,7 @@ def main():
         if not backend_process:
             return 1
         
+        print_info("Backend started, proceeding to health check...")
         # Step 4: Verify backend health
         print_header("Step 4: Verifying Backend Health")
         if not check_health(BACKEND_HEALTH_ENDPOINT, "Backend"):

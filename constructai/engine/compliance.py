@@ -47,16 +47,14 @@ class ISO19650Compliance(ComplianceStandard):
     def check_compliance(self, project: Project) -> List[Dict]:
         """Check ISO 19650 compliance."""
         issues = []
-        
         # Check if BIM-related metadata exists
-        if "bim_level" not in project.metadata:
+        if "bim_level" not in project.project_metadata:
             issues.append({
                 "standard": self.name,
                 "requirement": "BIM-001",
                 "severity": "medium",
-                "description": "BIM information requirements not defined in project metadata"
+                "description": "BIM information requirements not defined in project project_metadata"
             })
-        
         return issues
 
 

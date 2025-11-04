@@ -11,7 +11,6 @@ from .base import (
     ModelCapability,
 )
 from .openai_provider import OpenAIProvider
-from .anthropic_provider import AnthropicProvider
 from .manager import AIModelManager, ProviderType
 
 __all__ = [
@@ -21,7 +20,6 @@ __all__ = [
     "UsageStats",
     "ModelCapability",
     "OpenAIProvider",
-    "AnthropicProvider",
     "AIModelManager",
     "ProviderType",
 ]

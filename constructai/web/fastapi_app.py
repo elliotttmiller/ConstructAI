@@ -250,7 +250,7 @@ def create_app():
                 status=project.get("status", "planning"),
                 budget=project.get("budget", 0),
                 total_tasks=project.get("total_tasks", 0),
-                metadata=project.get("metadata"),
+                project_metadata=project.get("project_metadata"),
                 tasks=project.get("tasks"),
                 resources=project.get("resources"),
             )
@@ -328,7 +328,7 @@ def create_app():
                 status=original.status,
                 budget=original.budget,
                 total_tasks=original.total_tasks,
-                metadata=original.metadata,
+                project_metadata=original.project_metadata,
                 tasks=original.tasks,
                 resources=original.resources,
             )
@@ -434,16 +434,36 @@ def create_app():
     async def export_project(project_id: str, format: str = "json", db: Session = Depends(get_db)):
         """
         Export project data in various formats (json, pdf, excel).
+        Includes all analysis data, MEP systems, and recommendations.
         """
         db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
         
         if not db_project:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        from fastapi.responses import JSONResponse
+        from fastapi.responses import JSONResponse, FileResponse
         from datetime import datetime
+        import os
+        import tempfile
         
+        # Convert to dict and ensure we have required structure
         project_dict = db_project.to_dict()
+        
+        # Ensure analysis structure exists with defaults
+        if 'analysis' not in project_dict or not project_dict['analysis']:
+            project_dict['analysis'] = {
+                'quality': {
+                    'completeness_score': 0,
+                    'sections_count': 0,
+                    'total_clauses': 0,
+                    'masterformat_divisions': 0,
+                    'masterformat_coverage': {}
+                },
+                'standards_found': [],
+                'key_materials': [],
+                'critical_requirements': [],
+                'recommendations': []
+            }
         
         if format == "json":
             return JSONResponse(content={
@@ -453,12 +473,53 @@ def create_app():
                 "exported_at": datetime.utcnow().isoformat()
             })
         elif format == "pdf":
-            return {
-                "status": "success",
-                "format": "pdf",
-                "message": "PDF export will be generated",
-                "download_url": f"/api/downloads/{project_id}.pdf"
-            }
+            try:
+                from ..utils.pdf_export import generate_project_pdf
+                
+                logger.info(f"Starting PDF export for project {project_id}")
+                
+                # Create temporary file for PDF
+                temp_dir = tempfile.gettempdir()
+                pdf_filename = f"ConstructAI_{project_dict.get('name', 'Project')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                # Sanitize filename
+                pdf_filename = "".join(c for c in pdf_filename if c.isalnum() or c in ('_', '-', '.')).rstrip()
+                pdf_path = os.path.join(temp_dir, pdf_filename)
+                
+                logger.info(f"Generating PDF at: {pdf_path}")
+                
+                # Generate PDF with error handling
+                generate_project_pdf(project_dict, pdf_path)
+                
+                # Verify file was created
+                if not os.path.exists(pdf_path):
+                    raise FileNotFoundError(f"PDF file was not created at {pdf_path}")
+                
+                file_size = os.path.getsize(pdf_path)
+                logger.info(f"PDF generated successfully: {pdf_filename} ({file_size} bytes)")
+                
+                # Return as downloadable file
+                return FileResponse(
+                    path=pdf_path,
+                    filename=pdf_filename,
+                    media_type="application/pdf",
+                    headers={
+                        "Content-Disposition": f"attachment; filename={pdf_filename}"
+                    }
+                )
+            except ImportError as e:
+                logger.error(f"PDF generation import error: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="PDF generation requires reportlab. Install with: pip install reportlab"
+                )
+            except Exception as e:
+                import traceback
+                logger.error(f"PDF generation failed: {str(e)}")
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"PDF generation failed: {str(e)}"
+                )
         elif format == "excel":
             return {
                 "status": "success",
@@ -481,110 +542,306 @@ def create_app():
         
         # Validate file size (50MB limit)
         MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
-        
+
         # Read file in chunks to check size
         file_size = 0
         file_content = bytearray()
-        
+
         try:
+            logger.info(f"Received document upload request: filename={file.filename}, content_type={file.content_type}")
             while chunk := await file.read(8192):
                 file_size += len(chunk)
                 if file_size > MAX_FILE_SIZE:
+                    logger.warning(f"File size exceeded: {file_size} bytes (limit {MAX_FILE_SIZE})")
                     raise HTTPException(
                         status_code=413,
                         detail=f"File size exceeds {MAX_FILE_SIZE / (1024 * 1024)}MB limit"
                     )
                 file_content.extend(chunk)
-            
+
+            logger.info(f"File read complete: {file.filename}, size={file_size} bytes")
+
             # Validate file type
             allowed_extensions = ['.pdf', '.docx', '.xlsx', '.txt', '.csv']
             file_extension = os.path.splitext(file.filename)[1].lower()
-            
+
             if file_extension not in allowed_extensions:
+                logger.warning(f"Unsupported file type: {file_extension}")
                 raise HTTPException(
                     status_code=400,
                     detail=f"File type not supported. Allowed: {', '.join(allowed_extensions)}"
                 )
-            
+
             # Save file temporarily for processing
             with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
                 temp_file.write(file_content)
                 temp_file_path = temp_file.name
+
+            logger.info(f"Saved temp file for processing: {temp_file_path}")
+
+            # Always run real document processing pipeline
+            from constructai.document_processing.ingestion import DocumentIngestor
+            from constructai.document_processing.parser import DocumentParser
+            from constructai.nlp.clause_extractor import ClauseExtractor
+            from constructai.nlp.ner import ConstructionNER
+            from constructai.document_processing.masterformat import MasterFormatClassifier
+
+            logger.info("Starting document ingestion...")
+            ingestor = DocumentIngestor()
+            ingested = ingestor.ingest_document(temp_file_path)
+            logger.info(f"Document ingested: type={ingested.get('document_type')}, format={ingested.get('format')}")
+
+            logger.info("Parsing document structure...")
+            parser = DocumentParser()
+            parsed = parser.parse(ingested["content"])
             
-            logger.info(f"Processing document: {file.filename} ({file_size} bytes)")
+            # Log structured content - it's a list, not a dict
+            structured_content = parsed.get('structured_content', [])
+            if isinstance(structured_content, list):
+                logger.info(f"Document parsed: structured_content is a list with {len(structured_content)} sections")
+            else:
+                logger.info(f"Document parsed: structured_content type={type(structured_content)}")
+
+            logger.info("Classifying sections with MasterFormat...")
+            masterformat = MasterFormatClassifier()
+            classified_sections = masterformat.classify_document_sections(parsed["structured_content"])
+            logger.info(f"Sections classified: count={len(classified_sections)}")
+
+            logger.info("Extracting clauses from sections...")
+            clause_extractor = ClauseExtractor()
+            all_clauses = []
+            for section in classified_sections:
+                clauses = clause_extractor.extract_clauses(section.get("content", ""))
+                for c in clauses:
+                    try:
+                        clause_dict = c.to_dict()
+                        all_clauses.append(clause_dict)
+                    except Exception as e:
+                        logger.error(f"Error converting clause to dict: {e}")
+                        continue
+            logger.info(f"Clauses extracted: total={len(all_clauses)}")
+
+            logger.info("Running NER analysis on all clauses...")
+            ner = ConstructionNER()
+            ner_results = []
             
-            # Process document with AI pipeline
-            try:
-                # Import document processing modules
-                from constructai.document_processing.parser import DocumentParser
-                from constructai.document_processing.ingestion import DocumentIngestion
-                from constructai.nlp.clause_extractor import ClauseExtractor
-                
-                # Parse document
-                parser = DocumentParser()
-                parsed_content = parser.parse(temp_file_path)
-                
-                # Extract clauses and information
-                extractor = ClauseExtractor()
-                clauses = extractor.extract_clauses(parsed_content.get("text", ""))
-                
-                # Extract project metadata
-                ingestion = DocumentIngestion()
-                project_data = ingestion.extract_project_info(parsed_content, clauses)
-                
-                logger.info(f"Document processed successfully: {len(clauses)} clauses extracted")
-                
-                # Generate document ID
-                document_id = str(__import__('uuid').uuid4())
-                
-                # Return processed data
-                return {
-                    "status": "success",
-                    "message": "Document processed successfully",
-                    "document_id": document_id,
-                    "filename": file.filename,
-                    "file_size": file_size,
-                    "processed_data": {
-                        "project_name": project_data.get("project_name", file.filename.rsplit('.', 1)[0]),
-                        "budget": project_data.get("budget", 0),
-                        "tasks": len(project_data.get("tasks", [])),
-                        "clauses_extracted": len(clauses),
-                        "resources_identified": len(project_data.get("resources", [])),
+            # Aggregate entities across all clauses
+            all_materials = set()
+            all_standards = set()
+            all_costs = []
+            all_performance = []
+            
+            # Run MEP analysis on full document text
+            logger.info("Running MEP analysis (HVAC/Plumbing)...")
+            from constructai.nlp.mep_analyzer import MEPAnalyzer
+            mep_analyzer = MEPAnalyzer()
+            mep_results = mep_analyzer.analyze_document(ingested["content"])
+            logger.info(f"MEP analysis complete: "
+                       f"HVAC equipment={mep_results['hvac']['summary']['total_equipment']}, "
+                       f"Plumbing fixtures={mep_results['plumbing']['summary']['total_fixtures']}")
+            
+            for clause in all_clauses:
+                try:
+                    entities = ner.extract_entities(clause["text"])
+                    
+                    # Convert entities to dict format for storage
+                    entities_dict = {}
+                    for k, v in entities.items():
+                        if isinstance(v, list):
+                            entities_dict[k] = [e.to_dict() if hasattr(e, 'to_dict') else str(e) for e in v]
+                        else:
+                            entities_dict[k] = []
+                    
+                    # Store per-clause analysis
+                    ner_results.append({
+                        "clause_id": clause["clause_id"],
+                        "entities": entities_dict
+                    })
+                    
+                    # Aggregate for document-level insights
+                    for material in entities.get("materials", []):
+                        all_materials.add(material.text)
+                    for standard in entities.get("standards", []):
+                        all_standards.add(standard.text)
+                    for cost in entities.get("costs", []):
+                        all_costs.append(cost.text)
+                    for perf in entities.get("performance", []):
+                        all_performance.append(perf.text)
+                        
+                except Exception as e:
+                    logger.error(f"Error processing clause {clause.get('clause_id', 'unknown')}: {e}", exc_info=True)
+                    continue
+                    
+            logger.info(f"NER analysis complete: clauses_analyzed={len(ner_results)}, "
+                       f"materials={len(all_materials)}, standards={len(all_standards)}, "
+                       f"costs={len(all_costs)}")
+
+
+            # Clean up temp file
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+                logger.info(f"Temp file deleted: {temp_file_path}")
+
+            # Generate document ID
+            document_id = str(__import__('uuid').uuid4())
+            logger.info(f"Document processing complete: document_id={document_id}")
+
+            # Get division summary and ensure it's a dict
+            divisions_summary = masterformat.get_division_summary(classified_sections)
+            logger.info(f"Division summary type: {type(divisions_summary)}, value: {divisions_summary}")
+            
+            # Ensure divisions_summary is a dict
+            if not isinstance(divisions_summary, dict):
+                logger.warning(f"divisions_summary is not a dict, got {type(divisions_summary)}")
+                divisions_summary = {}
+
+            # Enhanced Analysis: Extract actionable insights
+            logger.info("Performing enhanced analysis for actionable insights...")
+            
+            # 1. Use aggregated entities from NER
+            key_materials = list(all_materials)
+            key_standards = list(all_standards)
+            cost_mentions = all_costs
+            
+            # Extract schedule mentions from text
+            schedule_mentions = []
+            for clause in all_clauses[:20]:
+                text = clause.get("text", "").lower()
+                if any(word in text for word in ["day", "week", "month", "schedule", "timeline", "duration"]):
+                    schedule_mentions.append(clause.get("text")[:100])
+            
+            # 2. Identify potential risks and issues
+            risk_indicators = []
+            for clause in all_clauses:
+                text = clause.get("text", "").lower()
+                if any(word in text for word in ["shall", "must", "required", "mandatory"]):
+                    risk_indicators.append({
+                        "type": "requirement",
+                        "clause_id": clause.get("clause_id"),
+                        "text": clause.get("text")[:200],
+                        "severity": "high" if "must" in text else "medium"
+                    })
+            
+            # 3. Calculate completeness score
+            completeness_factors = {
+                "has_multiple_divisions": len(divisions_summary) > 3,
+                "has_clauses": len(all_clauses) > 10,
+                "has_standards": len(key_standards) > 0,
+                "has_detailed_sections": len(classified_sections) > 5,
+                "has_materials": len(key_materials) > 0,
+                "has_costs": len(cost_mentions) > 0
+            }
+            completeness_score = (sum(completeness_factors.values()) / len(completeness_factors)) * 100
+            
+            # 4. Generate recommendations
+            recommendations = []
+            
+            if len(divisions_summary) < 3:
+                recommendations.append({
+                    "priority": "high",
+                    "category": "completeness",
+                    "message": "Document covers few MasterFormat divisions. Consider adding more detailed scope sections."
+                })
+            
+            if len(key_standards) == 0:
+                recommendations.append({
+                    "priority": "medium",
+                    "category": "standards",
+                    "message": "No industry standards detected (ASTM, ACI, etc.). Ensure compliance requirements are specified."
+                })
+            else:
+                recommendations.append({
+                    "priority": "low",
+                    "category": "standards",
+                    "message": f"Good! Found {len(key_standards)} industry standard references ensuring code compliance."
+                })
+            
+            if len(key_materials) == 0:
+                recommendations.append({
+                    "priority": "medium",
+                    "category": "materials",
+                    "message": "No specific materials identified. Add detailed material specifications."
+                })
+            else:
+                recommendations.append({
+                    "priority": "low",
+                    "category": "materials",
+                    "message": f"Good! Identified {len(key_materials)} different materials with specifications."
+                })
+            
+            if len(cost_mentions) == 0:
+                recommendations.append({
+                    "priority": "medium",
+                    "category": "budget",
+                    "message": "No cost information found. Consider adding budget estimates or allowances."
+                })
+            else:
+                recommendations.append({
+                    "priority": "low",
+                    "category": "budget",
+                    "message": f"Good! Found {len(cost_mentions)} cost references throughout the document."
+                })
+            
+            if len(all_clauses) < 10:
+                recommendations.append({
+                    "priority": "medium",
+                    "category": "detail",
+                    "message": "Limited specification detail found. Consider expanding technical requirements."
+                })
+
+
+            return {
+                "status": "success",
+                "message": "Document processed successfully",
+                "document_id": document_id,
+                "filename": file.filename,
+                "file_size": file_size,
+                "analysis": {
+                    # Basic metrics
+                    "sections": len(classified_sections),
+                    "clauses_extracted": len(all_clauses),
+                    "divisions_found": divisions_summary,
+                    "sample_clauses": all_clauses[:10],
+                    "ner_analysis": ner_results,
+                    
+                    # MEP-specific analysis
+                    "mep_analysis": {
+                        "hvac": {
+                            "equipment": mep_results['hvac']['equipment'][:10],
+                            "capacities": mep_results['hvac']['capacities'][:10],
+                            "efficiency_ratings": mep_results['hvac']['efficiency_ratings'],
+                            "ductwork": mep_results['hvac']['ductwork'][:5],
+                            "standards": mep_results['hvac']['standards'],
+                            "summary": mep_results['hvac']['summary']
+                        },
+                        "plumbing": {
+                            "fixtures": mep_results['plumbing']['fixtures'][:10],
+                            "piping": mep_results['plumbing']['piping'][:10],
+                            "water_supply": mep_results['plumbing']['water_supply'][:5],
+                            "drainage": mep_results['plumbing']['drainage'][:5],
+                            "standards": mep_results['plumbing']['standards'],
+                            "summary": mep_results['plumbing']['summary']
+                        },
+                        "overall": mep_results['overall_summary']
                     },
-                    "raw_data": {
-                        "clauses": clauses[:10],  # First 10 clauses as sample
-                        "tasks": project_data.get("tasks", []),
-                        "resources": project_data.get("resources", []),
+                    
+                    # Enhanced insights
+                    "insights": {
+                        "completeness_score": round(completeness_score, 1),
+                        "key_materials": list(key_materials)[:10],
+                        "key_standards": list(key_standards)[:10],
+                        "risk_indicators": risk_indicators[:5],
+                        "recommendations": recommendations,
+                        "summary": {
+                            "total_divisions": len(divisions_summary),
+                            "most_referenced_division": max(divisions_summary.items(), key=lambda x: x[1])[0] if divisions_summary else "N/A",
+                            "specification_density": round(len(all_clauses) / max(len(classified_sections), 1), 2),
+                            "has_mep_specifications": mep_results['overall_summary']['has_hvac_specs'] or mep_results['overall_summary']['has_plumbing_specs']
+                        }
                     }
                 }
-                
-            except ImportError as e:
-                # Fallback if document processing modules not fully implemented
-                logger.warning(f"Document processing modules not available: {e}")
-                
-                # Mock processing result for MVP
-                document_id = str(__import__('uuid').uuid4())
-                
-                return {
-                    "status": "success",
-                    "message": "Document uploaded (AI processing pending full implementation)",
-                    "document_id": document_id,
-                    "filename": file.filename,
-                    "file_size": file_size,
-                    "processed_data": {
-                        "project_name": file.filename.rsplit('.', 1)[0],
-                        "budget": 2500000,  # Mock data
-                        "tasks": 25,
-                        "clauses_extracted": 0,
-                        "resources_identified": 0,
-                    }
-                }
-            
-            finally:
-                # Clean up temp file
-                if os.path.exists(temp_file_path):
-                    os.unlink(temp_file_path)
-            
+            }
+
         except HTTPException:
             raise
         except Exception as e:
@@ -592,26 +849,30 @@ def create_app():
             raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
     
     @app.post("/api/projects/{project_id}/documents/upload")
-    async def upload_document(project_id: str, file: UploadFile):
+    async def upload_document_to_project(project_id: str, file: UploadFile, db: Session = Depends(get_db)):
         """
-        Upload a document for a project.
-        Processes the document and extracts relevant information.
+        Upload a document for a specific project.
+        Processes the document and saves analysis results to the project.
         """
         from fastapi import HTTPException, UploadFile
         import os
         import tempfile
-        
-        if project_id not in projects_db:
+        import json
+
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+        if not db_project:
             raise HTTPException(status_code=404, detail="Project not found")
-        
+
         # Validate file size (50MB limit)
         MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
-        
+
         # Read file in chunks to check size
         file_size = 0
         file_content = bytearray()
-        
+
         try:
+            logger.info(f"Uploading document to project {project_id}: {file.filename}")
+            
             while chunk := await file.read(8192):
                 file_size += len(chunk)
                 if file_size > MAX_FILE_SIZE:
@@ -620,44 +881,259 @@ def create_app():
                         detail=f"File size exceeds {MAX_FILE_SIZE / (1024 * 1024)}MB limit"
                     )
                 file_content.extend(chunk)
-            
+
             # Validate file type
             allowed_extensions = ['.pdf', '.docx', '.xlsx', '.txt', '.csv']
             file_extension = os.path.splitext(file.filename)[1].lower()
-            
+
             if file_extension not in allowed_extensions:
                 raise HTTPException(
                     status_code=400,
                     detail=f"File type not supported. Allowed: {', '.join(allowed_extensions)}"
                 )
-            
+
             # Save file temporarily for processing
             with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
                 temp_file.write(file_content)
                 temp_file_path = temp_file.name
+
+            logger.info(f"Processing document for project {project_id}...")
+
+            # Run document processing pipeline
+            from constructai.document_processing.ingestion import DocumentIngestor
+            from constructai.document_processing.parser import DocumentParser
+            from constructai.nlp.clause_extractor import ClauseExtractor
+            from constructai.nlp.ner import ConstructionNER
+            from constructai.document_processing.masterformat import MasterFormatClassifier
+            from constructai.nlp.mep_analyzer import MEPAnalyzer
+
+            # Process document
+            ingestor = DocumentIngestor()
+            ingested = ingestor.ingest_document(temp_file_path)
+
+            parser = DocumentParser()
+            parsed = parser.parse(ingested["content"])
+
+            masterformat = MasterFormatClassifier()
+            classified_sections = masterformat.classify_document_sections(parsed["structured_content"])
+
+            clause_extractor = ClauseExtractor()
+            all_clauses = []
+            for section in classified_sections:
+                clauses = clause_extractor.extract_clauses(section.get("content", ""))
+                for c in clauses:
+                    try:
+                        all_clauses.append(c.to_dict())
+                    except:
+                        continue
+
+            # NER analysis
+            ner = ConstructionNER()
+            all_materials = set()
+            all_standards = set()
+            all_costs = []
             
-            # TODO: Process document with document_processing module
-            # from constructai.document_processing import ingestion
-            # result = ingestion.process_document(temp_file_path)
+            for clause in all_clauses:
+                try:
+                    entities = ner.extract_entities(clause["text"])
+                    for material in entities.get("materials", []):
+                        all_materials.add(material.text)
+                    for standard in entities.get("standards", []):
+                        all_standards.add(standard.text)
+                    for cost in entities.get("costs", []):
+                        all_costs.append(cost.text)
+                except:
+                    continue
+
+            # MEP analysis
+            mep_analyzer = MEPAnalyzer()
+            mep_results = mep_analyzer.analyze_document(ingested["content"])
+
+            # Get division summary
+            divisions_summary = masterformat.get_division_summary(classified_sections)
+            if not isinstance(divisions_summary, dict):
+                divisions_summary = {}
+
+            # Calculate completeness
+            completeness_factors = {
+                "has_multiple_divisions": len(divisions_summary) > 3,
+                "has_clauses": len(all_clauses) > 10,
+                "has_standards": len(all_standards) > 0,
+                "has_detailed_sections": len(classified_sections) > 5,
+                "has_materials": len(all_materials) > 0,
+                "has_costs": len(all_costs) > 0
+            }
+            completeness_score = (sum(completeness_factors.values()) / len(completeness_factors)) * 100
+
+            # Generate recommendations
+            recommendations = []
+            if len(divisions_summary) < 3:
+                recommendations.append({
+                    "priority": "high",
+                    "category": "completeness",
+                    "description": "Document covers few MasterFormat divisions. Consider adding more detailed scope sections."
+                })
+            if len(all_standards) == 0:
+                recommendations.append({
+                    "priority": "medium",
+                    "category": "standards",
+                    "description": "No industry standards detected. Ensure compliance requirements are specified."
+                })
+            else:
+                recommendations.append({
+                    "priority": "low",
+                    "category": "standards",
+                    "description": f"Good! Found {len(all_standards)} industry standard references."
+                })
+            if len(all_materials) > 0:
+                recommendations.append({
+                    "priority": "low",
+                    "category": "materials",
+                    "description": f"Good! Identified {len(all_materials)} different materials with specifications."
+                })
+            if len(all_costs) > 0:
+                recommendations.append({
+                    "priority": "low",
+                    "category": "budget",
+                    "description": f"Good! Found {len(all_costs)} cost references throughout the document."
+                })
+
+            # Critical requirements (high severity risk indicators)
+            critical_requirements = []
+            for clause in all_clauses[:20]:
+                text = clause.get("text", "").lower()
+                if "must" in text or "shall" in text:
+                    critical_requirements.append({
+                        "severity": "MEDIUM",
+                        "requirement": "REQUIREMENT",
+                        "description": clause.get("text", "")[:200]
+                    })
+
+            # Build comprehensive analysis data structure
+            analysis_data = {
+                "quality": {
+                    "completeness_score": round(completeness_score, 1),
+                    "sections_count": len(classified_sections),
+                    "total_clauses": len(all_clauses),
+                    "masterformat_divisions": len(divisions_summary),
+                    "masterformat_coverage": divisions_summary
+                },
+                "standards_found": list(all_standards),
+                "key_materials": list(all_materials)[:20],
+                "recommendations": recommendations,
+                "critical_requirements": critical_requirements[:10]
+            }
+
+            # Store analysis in project metadata
+            if not db_project.project_metadata:
+                db_project.project_metadata = {}
             
+            metadata = db_project.project_metadata if isinstance(db_project.project_metadata, dict) else {}
+            metadata["analysis"] = analysis_data
+            metadata["mep_analysis"] = {
+                "overall": {
+                    "has_hvac_specs": len(mep_results['hvac']['equipment']) > 0,
+                    "has_plumbing_specs": len(mep_results['plumbing']['fixtures']) > 0,
+                    "has_electrical_specs": False,  # Not yet implemented
+                    "completion_percentage": round(
+                        (
+                            (80 if len(mep_results['hvac']['equipment']) > 0 else 0) +
+                            (80 if len(mep_results['plumbing']['fixtures']) > 0 else 0)
+                        ) / 2, 1
+                    )
+                },
+                "hvac": {
+                    "equipment": mep_results['hvac']['equipment'][:10],
+                    "capacities": mep_results['hvac']['capacities'][:10],
+                    "efficiency_ratings": mep_results['hvac']['efficiency_ratings'],
+                    "ductwork": mep_results['hvac']['ductwork'][:5],
+                    "standards": mep_results['hvac']['standards'],  # Changed from standards_compliance
+                    "completion_percentage": 80 if len(mep_results['hvac']['equipment']) > 0 else 0,
+                    "summary": {
+                        "completeness_score": 80 if len(mep_results['hvac']['equipment']) > 0 else 0,
+                        "total_equipment": len(mep_results['hvac']['equipment']),
+                        "total_capacities": len(mep_results['hvac']['capacities']),
+                        "has_efficiency_data": len(mep_results['hvac']['efficiency_ratings']) > 0
+                    }
+                },
+                "plumbing": {
+                    "fixtures": mep_results['plumbing']['fixtures'][:10],
+                    "piping": mep_results['plumbing']['piping'][:10],
+                    "water_supply": mep_results['plumbing']['water_supply'][:5],
+                    "drainage": mep_results['plumbing']['drainage'][:5],
+                    "standards": mep_results['plumbing']['standards'],  # Changed from standards_compliance
+                    "completion_percentage": 80 if len(mep_results['plumbing']['fixtures']) > 0 else 0,
+                    "summary": {
+                        "completeness_score": 80 if len(mep_results['plumbing']['fixtures']) > 0 else 0,
+                        "total_fixtures": len(mep_results['plumbing']['fixtures']),
+                        "total_piping": len(mep_results['plumbing']['piping']),
+                        "has_drainage_data": len(mep_results['plumbing']['drainage']) > 0
+                    }
+                }
+            }
+            
+            db_project.project_metadata = metadata
+            db.commit()
+            db.refresh(db_project)
+
+            logger.info(f"Analysis data saved to project {project_id}")
+
             # Clean up temp file
-            os.unlink(temp_file_path)
-            
-            # Store document metadata in project
-            if "documents" not in projects_db[project_id]:
-                projects_db[project_id]["documents"] = []
-            
-            document_id = str(__import__('uuid').uuid4())
-            projects_db[project_id]["documents"].append({
-                "id": document_id,
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+
+            # Return response matching the structure expected by frontend
+            return {
+                "status": "success",
+                "message": "Document processed and analysis saved to project",
+                "document_id": str(__import__('uuid').uuid4()),
                 "filename": file.filename,
                 "file_size": file_size,
-                "content_type": file.content_type,
-                "uploaded_at": __import__('datetime').datetime.utcnow().isoformat()
-            })
-            
+                "project_id": project_id,
+                "analysis": {
+                    "sections": len(classified_sections),
+                    "clauses_extracted": len(all_clauses),
+                    "divisions_found": divisions_summary,
+                    "mep_analysis": metadata["mep_analysis"],
+                    "insights": {
+                        "completeness_score": round(completeness_score, 1),
+                        "summary": {
+                            "specification_density": round(len(all_clauses) / max(len(classified_sections), 1), 1),
+                            "total_divisions": len(divisions_summary),
+                            "total_standards": len(all_standards),
+                            "total_materials": len(all_materials)
+                        },
+                        "key_materials": list(all_materials)[:10],
+                        "key_standards": list(all_standards)[:10],
+                        "recommendations": recommendations,
+                        "critical_requirements": critical_requirements[:5],
+                        "risk_indicators": []  # Add risk indicators array (empty for now, can be populated with risk analysis logic)
+                    }
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Document processing failed: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Document processing failed: {str(e)}")
+            os.unlink(temp_file_path)
+
+            # Store document metadata in project (extend model as needed)
+            # Example: add to a documents JSON field if present
+            # if hasattr(db_project, "documents"):
+            #     documents = db_project.documents or []
+            #     documents.append({
+            #         "id": document_id,
+            #         "filename": file.filename,
+            #         "file_size": file_size,
+            #         "content_type": file.content_type,
+            #         "uploaded_at": __import__('datetime').datetime.utcnow().isoformat()
+            #     })
+            #     db_project.documents = documents
+            #     db.commit()
+
+            document_id = str(__import__('uuid').uuid4())
             logger.info(f"Document uploaded for project {project_id}: {file.filename}")
-            
+
             return {
                 "status": "success",
                 "message": "Document uploaded successfully",
@@ -666,7 +1142,7 @@ def create_app():
                 "file_size": file_size,
                 "project_id": project_id
             }
-            
+
         except HTTPException:
             raise
         except Exception as e:
@@ -674,13 +1150,14 @@ def create_app():
             raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
     
     @app.get("/api/projects/{project_id}/config")
-    async def get_project_config(project_id: str):
+    async def get_project_config(project_id: str, db: Session = Depends(get_db)):
         """Get project configuration settings."""
         from fastapi import HTTPException
-        
-        if project_id not in projects_db:
+
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+        if not db_project:
             raise HTTPException(status_code=404, detail="Project not found")
-        
+
         # Return default configuration
         return {
             "status": "success",
@@ -703,15 +1180,15 @@ def create_app():
         }
     
     @app.put("/api/projects/{project_id}/config")
-    async def update_project_config(project_id: str, config: Dict[str, Any]):
+    async def update_project_config(project_id: str, config: Dict[str, Any], db: Session = Depends(get_db)):
         """Update project configuration settings."""
         db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
-        
+
         if not db_project:
             raise HTTPException(status_code=404, detail="Project not found")
-        
+
         logger.info(f"Updated config for project {project_id}")
-        
+
         return {
             "status": "success",
             "project_id": project_id,

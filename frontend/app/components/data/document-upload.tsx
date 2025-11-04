@@ -7,17 +7,27 @@ import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { cn } from "@/app/lib/utils";
 
+interface DocumentAnalysis {
+  sections: number;
+  clauses_extracted: number;
+  divisions_found: Record<string, number>;
+  sample_clauses: unknown[];
+  ner_analysis: unknown[];
+}
+
 interface UploadedFile {
   id: string;
   file: File;
   status: "pending" | "uploading" | "success" | "error";
   progress: number;
   error?: string;
+  documentId?: string;
+  analysis?: DocumentAnalysis;
 }
 
 interface DocumentUploadProps {
-  projectId: string;
-  onUploadComplete?: (files: File[]) => void;
+  projectId?: string;
+  onUploadComplete?: (documentId: string, analysis: DocumentAnalysis) => void;
   maxFiles?: number;
   maxSizeInMB?: number;
   acceptedFormats?: string[];
@@ -58,10 +68,11 @@ export function DocumentUpload({
     [files.length, maxFiles, maxSizeInMB, acceptedFormats]
   );
 
-  const uploadFile = async (uploadedFile: UploadedFile): Promise<void> => {
+  const uploadFile = useCallback(async (uploadedFile: UploadedFile): Promise<void> => {
     const formData = new FormData();
     formData.append("file", uploadedFile.file);
-    formData.append("project_id", projectId);
+
+    let progressInterval: NodeJS.Timeout | undefined;
 
     try {
       // Update status to uploading
@@ -73,8 +84,8 @@ export function DocumentUpload({
         )
       );
 
-      // Simulate upload progress (replace with real XMLHttpRequest or fetch with progress)
-      const progressInterval = setInterval(() => {
+      // Simulate upload progress
+      progressInterval = setInterval(() => {
         setFiles((prev) =>
           prev.map((f) =>
             f.id === uploadedFile.id && f.progress < 90
@@ -84,30 +95,50 @@ export function DocumentUpload({
         );
       }, 200);
 
-      // TODO: Replace with real API endpoint
-      const response = await fetch(
-        `http://localhost:8000/api/projects/${projectId}/documents/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      // Use the project-specific upload endpoint if projectId is provided
+      const uploadUrl = projectId 
+        ? `http://localhost:8000/api/projects/${projectId}/documents/upload`
+        : `http://localhost:8000/api/documents/upload`;
+        
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        body: formData,
+      });
 
       clearInterval(progressInterval);
 
       if (!response.ok) {
-        throw new Error("Upload failed");
+        const errorData = await response.json().catch(() => ({ detail: "Upload failed" }));
+        throw new Error(errorData.detail || "Upload failed");
       }
 
-      // Update status to success
+      const result = await response.json();
+      console.log("Document uploaded and analyzed:", result);
+
+      // Update status to success and store analysis data
       setFiles((prev) =>
         prev.map((f) =>
           f.id === uploadedFile.id
-            ? { ...f, status: "success", progress: 100 }
+            ? { 
+                ...f, 
+                status: "success", 
+                progress: 100,
+                documentId: result.document_id,
+                analysis: result.analysis
+              }
             : f
         )
       );
+
+      // Notify parent component with document ID and analysis
+      if (onUploadComplete && result.document_id && result.analysis) {
+        onUploadComplete(result.document_id, result.analysis);
+      }
     } catch (error) {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+      console.error("Upload error:", error);
       setFiles((prev) =>
         prev.map((f) =>
           f.id === uploadedFile.id
@@ -121,7 +152,7 @@ export function DocumentUpload({
         )
       );
     }
-  };
+  }, [onUploadComplete, projectId]);
 
   const handleFiles = useCallback(
     (fileList: FileList | null) => {
@@ -152,7 +183,7 @@ export function DocumentUpload({
         }
       });
     },
-    [validateFile]
+    [validateFile, uploadFile]
   );
 
   const handleDrop = useCallback(
@@ -196,7 +227,7 @@ export function DocumentUpload({
       )
     );
     uploadFile(file);
-  }, []);
+  }, [uploadFile]);
 
   const getStatusIcon = (status: UploadedFile["status"]) => {
     switch (status) {

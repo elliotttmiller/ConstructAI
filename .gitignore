@@ -56,6 +56,11 @@ Thumbs.db
 tmp/
 *.tmp
 
+# Environment variables
+.env
+.env.local
+.env*.local
+
 # Next.js / Frontend
 frontend/.next/
 frontend/out/

@@ -80,7 +80,7 @@ class Project:
     start_date: datetime = field(default_factory=datetime.now)
     target_end_date: Optional[datetime] = None
     budget: float = 0.0
-    metadata: Dict = field(default_factory=dict)
+    project_metadata: Dict = field(default_factory=dict)
     
     def add_task(self, task: Task) -> None:
         """Add a task to the project."""
