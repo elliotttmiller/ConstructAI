@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useState, useEffect } from "react";
-import { Play, FileDown, Settings, Sparkles, CheckCircle2, UploadCloud, Upload, FileText, X, Trash2 } from "lucide-react";
+import { Play, FileDown, Settings, Sparkles, CheckCircle2, UploadCloud, Upload, FileText, X, Trash2, History } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { apiClient } from "@/app/lib/api/client";
@@ -10,6 +10,7 @@ import { ConfigurationModal } from "../data/configuration-modal";
 import { DocumentUpload } from "../data/document-upload";
 import { RealTimeAnalysisViewport } from "../analysis/real-time-analysis-viewport";
 import { PostAnalysisDashboard } from "../analysis/post-analysis-dashboard";
+import { AnalysisHistory } from "../analysis/analysis-history";
 import { ProjectDashboard } from "../dashboard/project-dashboard";
 import { UniversalDomainViewer } from "../analysis/universal-domain-viewer";
 import { useToast } from "../ui/toast";
@@ -121,6 +122,7 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
   const [streamController, setStreamController] = useState<{ close: () => void } | null>(null);
   const [showAnalysisViewport, setShowAnalysisViewport] = useState(false);
   const [showPostAnalysisDashboard, setShowPostAnalysisDashboard] = useState(false);
+  const [showAnalysisHistory, setShowAnalysisHistory] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState({
     phase: 0,
     totalPhases: 7,
@@ -519,6 +521,15 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
             <Button 
               variant="outline" 
               size="sm"
+              onClick={() => setShowAnalysisHistory(true)}
+              className="shadow-sm h-9 w-9 p-0"
+              title="View Analysis History"
+            >
+              <History className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
               onClick={handleExport}
               className="shadow-sm h-9 w-9 p-0"
               title="Export Results"
@@ -542,8 +553,8 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
       <div className="flex-1 overflow-y-auto p-8">
         {projectId ? (
           <div className="mx-auto max-w-6xl space-y-6">
-            {/* Project Dashboard */}
-            {!documentAnalysis && (
+            {/* Project Dashboard - Show when not viewing post-analysis dashboard */}
+            {!showPostAnalysisDashboard && (
               <ProjectDashboard
                 projectName={projectName || "Unnamed Project"}
                 stats={{
@@ -941,6 +952,20 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
         onCancel={handleCancelAnalysis}
         analysisResult={analysisResultSummary || undefined}
       />
+
+      {/* Analysis History Modal */}
+      {projectId && (
+        <AnalysisHistory
+          projectId={projectId}
+          isOpen={showAnalysisHistory}
+          onClose={() => setShowAnalysisHistory(false)}
+          onSelectAnalysis={(analysis) => {
+            console.log("Selected historical analysis:", analysis);
+            // TODO: Show PostAnalysisDashboard with historical data
+            setShowAnalysisHistory(false);
+          }}
+        />
+      )}
 
       {/* Post-Analysis Dashboard Modal */}
       {analysisResultSummary && (

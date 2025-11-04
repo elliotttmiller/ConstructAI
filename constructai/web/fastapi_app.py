@@ -1863,6 +1863,41 @@ Total Clauses: {len(all_clauses)}
                 document["analysis_result"] = analysis_result
                 document["analyzed_at"] = __import__('datetime').datetime.utcnow().isoformat()
                 
+                # Store in analysis history for the project
+                if "analysis_history" not in metadata:
+                    metadata["analysis_history"] = []
+                
+                # Create a history entry
+                history_entry = {
+                    "analysis_id": analysis_result["analysis_id"],
+                    "document_id": document_id,
+                    "document_name": document.get("filename", "Unknown"),
+                    "timestamp": __import__('datetime').datetime.utcnow().isoformat(),
+                    "execution_time": execution_time,
+                    "quality_score": quality_score,
+                    "ai_decisions": ai_decisions_made,
+                    "recommendations_count": len(recommendations_list),
+                    "requirements_count": len(critical_requirements),
+                    "document_type": doc_type,
+                    "clauses_found": len(all_clauses),
+                    "divisions_detected": len(divisions_summary),
+                    "entities_extracted": entities_count,
+                    "full_result": analysis_result  # Store complete result
+                }
+                metadata["analysis_history"].append(history_entry)
+                
+                # Update project-level statistics
+                total_analyses = len(metadata["analysis_history"])
+                avg_quality = sum(h.get("quality_score", 0) for h in metadata["analysis_history"]) / total_analyses if total_analyses > 0 else 0
+                
+                metadata["statistics"] = {
+                    "total_analyses": total_analyses,
+                    "last_analysis": __import__('datetime').datetime.utcnow().isoformat(),
+                    "average_quality_score": round(avg_quality, 2),
+                    "total_recommendations": sum(h.get("recommendations_count", 0) for h in metadata["analysis_history"]),
+                    "total_requirements": sum(h.get("requirements_count", 0) for h in metadata["analysis_history"])
+                }
+                
                 from sqlalchemy.orm.attributes import flag_modified
                 db_project.project_metadata = metadata
                 flag_modified(db_project, "project_metadata")
@@ -1872,27 +1907,26 @@ Total Clauses: {len(all_clauses)}
                 
                 # Send completion event with FULL analysis results
                 completion_event = {
-                    # Summary metrics for quick display
+                    # Summary metrics for quick display (counts for RealTimeAnalysisViewport)
                     "analysis_id": analysis_result["analysis_id"],
                     "execution_time": execution_time,
                     "quality_score": quality_score,
                     "ai_decisions": ai_decisions_made,
-                    "recommendations": len(recommendations_list),
-                    "requirements": len(critical_requirements),
+                    "recommendations": len(recommendations_list),  # COUNT for viewport
+                    "requirements": len(critical_requirements),    # COUNT for viewport
                     "document_type": doc_type,
+                    "clauses_found": len(all_clauses),
+                    "divisions_detected": len(divisions_summary),
+                    "entities_extracted": entities_count,
                     
-                    # Full analysis data for post-analysis dashboard
-                    "document_type": doc_type,
+                    # Full analysis data for post-analysis dashboard (arrays with full data)
                     "project_name": db_project.name,
                     "classification": analysis_result["universal_intelligence"]["classification"],
                     "entities": analysis_result["universal_intelligence"]["entities"],
                     "risks": universal_entities.get("risks", []),
-                    "requirements": critical_requirements,
-                    "recommendations": recommendations_list,
-                    "quality_metrics": analysis_result["quality_metrics"],
-                    "clauses_found": len(all_clauses),
-                    "divisions_detected": len(divisions_summary),
-                    "entities_extracted": entities_count
+                    "requirements_list": critical_requirements,      # ARRAY for dashboard
+                    "recommendations_list": recommendations_list,    # ARRAY for dashboard
+                    "quality_metrics": analysis_result["quality_metrics"]
                 }
                 logger.info(f"✅ Streaming analysis completed in {execution_time:.2f}s")
                 yield f"event: complete\ndata: {json.dumps(completion_event)}\n\n"
@@ -1926,6 +1960,51 @@ Total Clauses: {len(all_clauses)}
                 "X-Accel-Buffering": "no"  # Disable nginx buffering
             }
         )
+    
+    @app.get("/api/projects/{project_id}/analysis-history")
+    async def get_analysis_history(project_id: str, db: Session = Depends(get_db)):
+        """
+        Get the complete analysis history for a project.
+        Returns all past analysis runs with timestamps and results.
+        """
+        from fastapi import HTTPException
+        
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        metadata = db_project.project_metadata if isinstance(db_project.project_metadata, dict) else {}
+        analysis_history = metadata.get("analysis_history", [])
+        statistics = metadata.get("statistics", {})
+        
+        return {
+            "project_id": project_id,
+            "project_name": db_project.name,
+            "total_analyses": len(analysis_history),
+            "statistics": statistics,
+            "history": analysis_history
+        }
+    
+    @app.get("/api/projects/{project_id}/analysis/{analysis_id}")
+    async def get_analysis_by_id(project_id: str, analysis_id: str, db: Session = Depends(get_db)):
+        """
+        Get a specific analysis run by its ID.
+        """
+        from fastapi import HTTPException
+        
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        metadata = db_project.project_metadata if isinstance(db_project.project_metadata, dict) else {}
+        analysis_history = metadata.get("analysis_history", [])
+        
+        # Find the specific analysis
+        analysis = next((a for a in analysis_history if a.get("analysis_id") == analysis_id), None)
+        if not analysis:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+        
+        return analysis
     
     @app.put("/api/projects/{project_id}/config")
     async def update_project_config(project_id: str, config: Dict[str, Any], db: Session = Depends(get_db)):
