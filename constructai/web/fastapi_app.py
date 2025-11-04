@@ -698,9 +698,9 @@ def create_app():
     @app.put("/api/projects/{project_id}/config")
     async def update_project_config(project_id: str, config: Dict[str, Any]):
         """Update project configuration settings."""
-        from fastapi import HTTPException
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
         
-        if project_id not in projects_db:
+        if not db_project:
             raise HTTPException(status_code=404, detail="Project not found")
         
         logger.info(f"Updated config for project {project_id}")
@@ -712,7 +712,185 @@ def create_app():
             "config": config
         }
     
-    logger.info("FastAPI app created successfully")
+    # Enhanced AI endpoints
+    @app.post("/api/ai/predict-risks")
+    async def predict_project_risks(project_data: Dict[str, Any]):
+        """
+        Predict potential risks for a construction project using AI.
+        
+        Request body should include:
+        - name: Project name
+        - budget: Budget amount
+        - duration_days: Project duration
+        - tasks: List of tasks
+        - resources: List of resources
+        """
+        try:
+            from ..ai import RiskPredictor
+            
+            predictor = RiskPredictor()
+            risks = predictor.predict_risks(project_data)
+            
+            return {
+                "status": "success",
+                "risks_predicted": len(risks),
+                "risks": risks,
+                "summary": {
+                    "critical": len([r for r in risks if r["impact"] == "critical"]),
+                    "high": len([r for r in risks if r["impact"] == "high"]),
+                    "medium": len([r for r in risks if r["impact"] == "medium"]),
+                    "low": len([r for r in risks if r["impact"] == "low"]),
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error predicting risks: {e}")
+            raise HTTPException(status_code=500, detail=f"Risk prediction failed: {str(e)}")
+    
+    @app.post("/api/ai/estimate-cost")
+    async def estimate_project_cost(project_data: Dict[str, Any]):
+        """
+        Estimate project cost using AI-powered analysis.
+        
+        Request body should include:
+        - tasks: List of tasks with resources
+        - resources: List of resources
+        - duration_days: Project duration
+        - project_type: Type of construction project
+        """
+        try:
+            from ..ai import CostEstimator
+            
+            estimator = CostEstimator()
+            estimate = estimator.estimate_cost(project_data)
+            
+            return {
+                "status": "success",
+                "estimate": estimate
+            }
+        except Exception as e:
+            logger.error(f"Error estimating cost: {e}")
+            raise HTTPException(status_code=500, detail=f"Cost estimation failed: {str(e)}")
+    
+    @app.post("/api/ai/recommendations")
+    async def get_recommendations(project_data: Dict[str, Any], analysis_results: Optional[Dict[str, Any]] = None):
+        """
+        Get AI-powered recommendations for project improvement.
+        
+        Request body should include:
+        - Project data (tasks, resources, budget, etc.)
+        - Optional: analysis_results from audit/optimization
+        """
+        try:
+            from ..ai import RecommendationEngine
+            
+            engine = RecommendationEngine()
+            recommendations = engine.generate_recommendations(project_data, analysis_results)
+            
+            return {
+                "status": "success",
+                "total_recommendations": len(recommendations),
+                "recommendations": recommendations,
+                "categories": {
+                    "schedule_optimization": len([r for r in recommendations if r["category"] == "schedule_optimization"]),
+                    "cost_optimization": len([r for r in recommendations if r["category"] == "cost_optimization"]),
+                    "risk_mitigation": len([r for r in recommendations if r["category"] == "risk_mitigation"]),
+                    "quality_improvement": len([r for r in recommendations if r["category"] == "quality_improvement"]),
+                    "technology_adoption": len([r for r in recommendations if r["category"] == "technology_adoption"]),
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error generating recommendations: {e}")
+            raise HTTPException(status_code=500, detail=f"Recommendation generation failed: {str(e)}")
+    
+    @app.post("/api/projects/{project_id}/ai-analysis")
+    async def comprehensive_ai_analysis(project_id: str, db: Session = Depends(get_db)):
+        """
+        Perform comprehensive AI analysis on a project.
+        Includes risk prediction, cost estimation, and recommendations.
+        """
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+        
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        try:
+            from ..ai import RiskPredictor, CostEstimator, RecommendationEngine
+            from ..engine.auditor import ProjectAuditor
+            from ..engine.optimizer import WorkflowOptimizer
+            
+            # Prepare project data
+            project_data = {
+                "name": db_project.name,
+                "budget": db_project.budget,
+                "duration_days": 90,  # Default if not specified
+                "tasks": db_project.tasks or [],
+                "resources": db_project.resources or []
+            }
+            
+            # Run all AI analyses
+            risk_predictor = RiskPredictor()
+            cost_estimator = CostEstimator()
+            recommender = RecommendationEngine()
+            auditor = ProjectAuditor()
+            optimizer = WorkflowOptimizer()
+            
+            risks = risk_predictor.predict_risks(project_data)
+            cost_estimate = cost_estimator.estimate_cost(project_data)
+            
+            # Run audit and optimization
+            audit_result = auditor.audit(project_data) if project_data["tasks"] else {}
+            optimization_result = optimizer.optimize(project_data) if project_data["tasks"] else {}
+            
+            # Generate recommendations based on all analyses
+            analysis_context = {
+                "audit": audit_result,
+                "optimization": optimization_result
+            }
+            recommendations = recommender.generate_recommendations(project_data, analysis_context)
+            
+            # Cache comprehensive results
+            analysis_id = str(uuid.uuid4())
+            cache_entry = AnalysisResultDB(
+                id=analysis_id,
+                project_id=project_id,
+                analysis_type="comprehensive_ai",
+                result={
+                    "risks": risks,
+                    "cost_estimate": cost_estimate,
+                    "recommendations": recommendations,
+                    "audit": audit_result,
+                    "optimization": optimization_result
+                }
+            )
+            db.add(cache_entry)
+            db.commit()
+            
+            return {
+                "status": "success",
+                "project_id": project_id,
+                "analysis_id": analysis_id,
+                "risks": {
+                    "total": len(risks),
+                    "critical": len([r for r in risks if r["impact"] == "critical"]),
+                    "high": len([r for r in risks if r["impact"] == "high"]),
+                    "details": risks[:5]  # Top 5 risks
+                },
+                "cost_estimate": cost_estimate,
+                "recommendations": {
+                    "total": len(recommendations),
+                    "high_priority": len([r for r in recommendations if r.get("priority", 0) > 0.7]),
+                    "details": recommendations[:5]  # Top 5 recommendations
+                },
+                "audit_score": audit_result.get("overall_score") if audit_result else None,
+                "optimization_savings": optimization_result.get("cost_savings") if optimization_result else None
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error in comprehensive AI analysis: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Comprehensive analysis failed: {str(e)}")
+    
+    logger.info("FastAPI app created successfully with enhanced AI capabilities")
     return app
 
 
