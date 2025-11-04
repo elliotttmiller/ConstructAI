@@ -13,6 +13,7 @@ import {
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
+import { useToast } from "../ui/toast";
 import { FolderPlus, Building2, FileText, DollarSign } from "lucide-react";
 
 interface CreateProjectModalProps {
@@ -30,6 +31,7 @@ export function CreateProjectModal({
   onOpenChange,
   onSubmit,
 }: CreateProjectModalProps) {
+  const { showToast } = useToast();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [budget, setBudget] = useState("");
@@ -39,7 +41,7 @@ export function CreateProjectModal({
     e.preventDefault();
     
     if (!name.trim()) {
-      alert("Please enter a project name");
+      showToast("Please enter a project name", "warning");
       return;
     }
 
@@ -58,7 +60,7 @@ export function CreateProjectModal({
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to create project:", error);
-      alert("Failed to create project. Please try again.");
+      showToast("Failed to create project. Please try again.", "error");
     } finally {
       setIsSubmitting(false);
     }

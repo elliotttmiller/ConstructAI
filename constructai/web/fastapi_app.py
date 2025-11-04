@@ -53,10 +53,29 @@ def create_app():
         version=settings.APP_VERSION,
         docs_url="/api/docs",
         redoc_url="/api/redoc",
+        debug=settings.DEBUG,
     )
     
     # Add enhanced middleware
     from ..middleware import LoggingMiddleware, ErrorHandlerMiddleware, RateLimiterMiddleware
+    
+    # Debug: Log all registered routes on startup
+    @app.on_event("startup")
+    async def log_routes():
+        logger.info("="*80)
+        logger.info("REGISTERED API ROUTES")
+        logger.info("="*80)
+        route_count = 0
+        for route in app.routes:
+            if hasattr(route, 'path') and hasattr(route, 'methods'):
+                methods = ','.join(route.methods) if route.methods else 'N/A'
+                logger.info(f"  {methods:8} {route.path}")
+                route_count += 1
+                # Special attention to our streaming route
+                if 'analyze/stream' in route.path:
+                    logger.info(f"  ✓ STREAMING ROUTE REGISTERED: {route.path}")
+        logger.info(f"Total routes registered: {route_count}")
+        logger.info("="*80)
     
     # Order matters: Error handler first, then logging, then rate limiting
     app.add_middleware(ErrorHandlerMiddleware)
@@ -582,8 +601,8 @@ def create_app():
         else:
             raise HTTPException(status_code=400, detail="Invalid format. Use: json, pdf, or excel")
     
-    @app.post("/api/documents/upload")
-    async def upload_and_process_document(file: UploadFile):
+    @app.post("/api/projects/{project_id}/documents/upload")
+    async def upload_document_to_project(project_id: str, file: UploadFile, db: Session = Depends(get_db)):
         """
         Upload a construction document and process it with AI.
         Extracts project information, tasks, resources, and performs initial analysis.
@@ -1181,7 +1200,9 @@ Total Clauses: {len(critical_prompt_context.get('clauses', []))}
                 }
             }
             
+            from sqlalchemy.orm.attributes import flag_modified
             db_project.project_metadata = metadata
+            flag_modified(db_project, "project_metadata")
             db.commit()
             db.refresh(db_project)
 
@@ -1328,7 +1349,9 @@ Total Clauses: {len(critical_prompt_context.get('clauses', []))}
                 metadata["analysis_type"] = "autonomous_ai"
                 metadata["last_autonomous_analysis"] = autonomous_result
                 
+                from sqlalchemy.orm.attributes import flag_modified
                 db_project.project_metadata = metadata
+                flag_modified(db_project, "project_metadata")
                 db.commit()
                 db.refresh(db_project)
                 
@@ -1431,23 +1454,24 @@ Total Clauses: {len(critical_prompt_context.get('clauses', []))}
             }
         }
     
-    @app.post("/api/projects/{project_id}/documents/upload-simple")
-    async def upload_document_simple(project_id: str, file: UploadFile, db: Session = Depends(get_db)):
+    @app.post("/api/projects/{project_id}/documents/upload")
+    async def upload_document(project_id: str, file: UploadFile, db: Session = Depends(get_db)):
         """
-        📤 SIMPLE DOCUMENT UPLOAD (NO AI ANALYSIS)
+        📤 UNIVERSAL DOCUMENT UPLOAD
         
         Upload and ingest a document for a project.
-        This endpoint ONLY handles document upload and basic ingestion.
+        This is the single, unified endpoint for all document uploads.
         
         Workflow:
         1. Validate file (size, type)
         2. Save document to storage
         3. Parse/extract text content
-        4. Store document metadata
+        4. Store document metadata in database
         5. Return document_id for subsequent analysis
         
-        Use POST /api/projects/{project_id}/documents/{document_id}/analyze
-        to trigger AI-driven analysis after upload.
+        Next steps:
+        - POST /api/projects/{project_id}/documents/{document_id}/analyze - Trigger AI analysis
+        - GET /api/projects/{project_id}/documents/{document_id}/analyze/stream - Stream analysis
         """
         from fastapi import HTTPException, UploadFile
         import os
@@ -1496,6 +1520,7 @@ Total Clauses: {len(critical_prompt_context.get('clauses', []))}
             
             # Generate document ID
             document_id = str(__import__('uuid').uuid4())
+            logger.debug(f"Generated document ID: {document_id}")
             
             # Store document metadata in project
             if not db_project.project_metadata:
@@ -1506,7 +1531,7 @@ Total Clauses: {len(critical_prompt_context.get('clauses', []))}
             if "documents" not in metadata:
                 metadata["documents"] = []
             
-            metadata["documents"].append({
+            document_metadata = {
                 "id": document_id,
                 "filename": file.filename,
                 "file_size": file_size,
@@ -1516,11 +1541,25 @@ Total Clauses: {len(critical_prompt_context.get('clauses', []))}
                 "content": ingested.get("content", ""),
                 "uploaded_at": __import__('datetime').datetime.utcnow().isoformat(),
                 "analysis_status": "pending"
-            })
+            }
             
+            logger.debug(f"Storing document with metadata: id={document_id}, filename={file.filename}")
+            metadata["documents"].append(document_metadata)
+            
+            # CRITICAL: Force SQLAlchemy to detect JSON column mutation
+            # SQLAlchemy doesn't auto-detect changes to mutable objects in JSON columns
+            from sqlalchemy.orm.attributes import flag_modified
             db_project.project_metadata = metadata
+            flag_modified(db_project, "project_metadata")  # Mark column as dirty
+            
             db.commit()
             db.refresh(db_project)
+            
+            # Verify document was stored
+            refreshed_metadata = db_project.project_metadata
+            doc_count = len(refreshed_metadata.get("documents", []))
+            logger.debug(f"After commit: Project now has {doc_count} document(s)")
+            logger.debug(f"Last document ID stored: {refreshed_metadata.get('documents', [])[-1].get('id') if refreshed_metadata.get('documents') else 'NONE'}")
             
             # Clean up temp file
             if os.path.exists(temp_file_path):
@@ -1587,8 +1626,10 @@ Total Clauses: {len(critical_prompt_context.get('clauses', []))}
             logger.info(f"🤖 Starting AI analysis for document {document_id} in project {project_id}")
             
             # Update analysis status
+            from sqlalchemy.orm.attributes import flag_modified
             document["analysis_status"] = "analyzing"
             db_project.project_metadata = metadata
+            flag_modified(db_project, "project_metadata")
             db.commit()
             
             # Get document content
@@ -2086,7 +2127,9 @@ Total Clauses: {len(all_clauses)}
             document["analysis_result"] = analysis_result
             document["analyzed_at"] = __import__('datetime').datetime.utcnow().isoformat()
             
+            from sqlalchemy.orm.attributes import flag_modified
             db_project.project_metadata = metadata
+            flag_modified(db_project, "project_metadata")
             db.commit()
             db.refresh(db_project)
             
@@ -2109,9 +2152,11 @@ Total Clauses: {len(all_clauses)}
             logger.error(f"❌ AI analysis failed: {str(e)}", exc_info=True)
             # Update document status to failed
             if document:
+                from sqlalchemy.orm.attributes import flag_modified
                 document["analysis_status"] = "failed"
                 document["analysis_error"] = str(e)
                 db_project.project_metadata = metadata
+                flag_modified(db_project, "project_metadata")
                 db.commit()
             raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
     
@@ -2142,34 +2187,71 @@ Total Clauses: {len(all_clauses)}
         event: error
         data: {"error": "...", "phase": 3}
         """
+        # Debug logging
+        logger.info("="*80)
+        logger.info("🌊 STREAMING ANALYSIS ENDPOINT CALLED")
+        logger.info("="*80)
+        logger.info(f"Project ID: {project_id}")
+        logger.info(f"Document ID: {document_id}")
+        logger.info(f"Request received at streaming endpoint")
+        logger.info("="*80)
+        
         from fastapi import HTTPException
         from fastapi.responses import StreamingResponse
         import json
         import asyncio
         
+        logger.debug(f"Querying database for project: {project_id}")
         db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
         if not db_project:
+            logger.error(f"❌ Project not found: {project_id}")
             raise HTTPException(status_code=404, detail="Project not found")
+        
+        logger.debug(f"✓ Project found: {db_project.name}")
         
         # Get document from project metadata
         metadata = db_project.project_metadata if isinstance(db_project.project_metadata, dict) else {}
         documents = metadata.get("documents", [])
+        logger.debug(f"Project has {len(documents)} document(s)")
+        logger.debug(f"Looking for document ID: {document_id}")
+        
+        # Debug: Print all document IDs in the project
+        if documents:
+            logger.debug("Available documents in project:")
+            for idx, doc in enumerate(documents):
+                doc_id = doc.get('id', 'NO_ID')
+                doc_name = doc.get('filename', 'NO_NAME')
+                logger.debug(f"  [{idx}] ID: {doc_id}, Filename: {doc_name}")
+        else:
+            logger.warning("No documents found in project metadata!")
         
         document = next((doc for doc in documents if doc.get("id") == document_id), None)
         if not document:
+            logger.error(f"❌ Document not found: {document_id}")
+            logger.debug(f"Available document IDs: {[d.get('id') for d in documents]}")
             raise HTTPException(status_code=404, detail="Document not found")
+        
+        logger.info(f"✓ Document found: {document.get('filename')}")
         
         document_content = document.get("content", "")
         if not document_content:
+            logger.error(f"❌ Document has no content: {document_id}")
             raise HTTPException(status_code=400, detail="Document has no content to analyze")
+        
+        logger.info(f"✓ Document content length: {len(document_content)} characters")
+        logger.info("Starting streaming analysis...")
         
         async def generate_progress_stream():
             """Generator that yields SSE formatted progress updates."""
+            logger.info("🌊 Starting SSE stream generator")
             try:
                 # Update analysis status
+                from sqlalchemy.orm.attributes import flag_modified
                 document["analysis_status"] = "analyzing"
                 db_project.project_metadata = metadata
+                flag_modified(db_project, "project_metadata")
                 db.commit()
+                logger.debug("Updated document status to 'analyzing'")
                 
                 # Import required modules
                 from constructai.document_processing.parser import DocumentParser
@@ -2181,6 +2263,8 @@ Total Clauses: {len(all_clauses)}
                 from constructai.ai.analysis_generator import AnalysisGenerator
                 from constructai.ai.prompts import get_prompt_engineer, TaskType, PromptContext
                 from constructai.ai.universal_intelligence import UniversalDocumentIntelligence
+                
+                logger.debug("All analysis modules imported successfully")
                 
                 analysis_start_time = __import__('time').time()
                 total_phases = 7
@@ -2548,7 +2632,9 @@ Total Clauses: {len(all_clauses)}
                 document["analysis_result"] = analysis_result
                 document["analyzed_at"] = __import__('datetime').datetime.utcnow().isoformat()
                 
+                from sqlalchemy.orm.attributes import flag_modified
                 db_project.project_metadata = metadata
+                flag_modified(db_project, "project_metadata")
                 db.commit()
                 
                 yield send_progress(7, "✅ Analysis complete!", 100, "completed")
@@ -2563,10 +2649,13 @@ Total Clauses: {len(all_clauses)}
                     "requirements": len(critical_requirements),
                     "document_type": doc_type
                 }
+                logger.info(f"✅ Streaming analysis completed in {execution_time:.2f}s")
                 yield f"event: complete\ndata: {json.dumps(completion_event)}\n\n"
                 
             except Exception as e:
                 logger.error(f"❌ Streaming analysis failed: {str(e)}", exc_info=True)
+                logger.error(f"Exception type: {type(e).__name__}")
+                logger.error(f"Exception args: {e.args}")
                 error_event = {
                     "error": str(e),
                     "phase": "unknown"
@@ -2575,11 +2664,14 @@ Total Clauses: {len(all_clauses)}
                 
                 # Update document status to failed
                 if document:
+                    from sqlalchemy.orm.attributes import flag_modified
                     document["analysis_status"] = "failed"
                     document["analysis_error"] = str(e)
                     db_project.project_metadata = metadata
+                    flag_modified(db_project, "project_metadata")
                     db.commit()
         
+        logger.info("Returning StreamingResponse with SSE media type")
         return StreamingResponse(
             generate_progress_stream(),
             media_type="text/event-stream",

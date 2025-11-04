@@ -34,7 +34,7 @@ interface DocumentUploadProps {
   onUploadComplete?: (
     documentId: string,
     analysis?: DocumentAnalysis,
-    autonomousResult?: AutonomousUploadResult
+    uploadResult?: AutonomousUploadResult | { file_size?: number; filename?: string }
   ) => void;
   maxFiles?: number;
   maxSizeInMB?: number;
@@ -118,8 +118,9 @@ export function DocumentUpload({
           )
         );
 
+        // Pass full result including file_size to callback
         if (onUploadComplete && result.document_id) {
-          onUploadComplete(result.document_id, undefined, undefined);
+          onUploadComplete(result.document_id, undefined, result);
         }
       } catch (error) {
         console.error("Document upload error:", error);

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useState } from "react";
-import { Play, Download, Settings, Sparkles, CheckCircle2, Upload, FileText, X } from "lucide-react";
+import { Play, FileDown, Settings, Sparkles, CheckCircle2, UploadCloud, Upload, FileText, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { apiClient } from "@/app/lib/api/client";
@@ -11,6 +11,7 @@ import { DocumentUpload } from "../data/document-upload";
 import { RealTimeAnalysisViewport } from "../analysis/real-time-analysis-viewport";
 import { ProjectDashboard } from "../dashboard/project-dashboard";
 import { UniversalDomainViewer } from "../analysis/universal-domain-viewer";
+import { useToast } from "../ui/toast";
 import type { ProjectConfig } from "@/app/lib/types";
 
 // Universal, extensible document analysis interface
@@ -101,6 +102,7 @@ interface AIStudioProps {
 }
 
 export function AIStudio({ projectId, projectName }: AIStudioProps) {
+  const { showToast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [configModalOpen, setConfigModalOpen] = useState(false);
   const [currentConfig, setCurrentConfig] = useState<ProjectConfig | null>(null);
@@ -144,29 +146,33 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
     entities_extracted?: number;
   } | null>(null);
 
-  const handleDocumentUpload = (documentId: string, analysis?: DocumentAnalysis, autonomousResult?: unknown) => {
-    console.log("Document uploaded:", { documentId, analysis, autonomousResult });
+  const handleDocumentUpload = (
+    documentId: string, 
+    analysis?: DocumentAnalysis, 
+    uploadResult?: { file_size?: number; filename?: string }
+  ) => {
+    console.log("Document uploaded:", { documentId, analysis, uploadResult });
     
-    // Track the uploaded document
+    // Track the uploaded document with actual file size
     setUploadedDocs(prev => [...prev, {
       id: Date.now().toString(),
       documentId,
-      name: "Uploaded document",
-      size: 0,
+      name: uploadResult?.filename || "Uploaded document",
+      size: uploadResult?.file_size || 0,
       analysis: analysis || undefined
     }]);
     
-    // Just notify upload complete - user must click Analyze button
-    alert(
-      `✅ Document uploaded successfully!\n\n` +
-      `Document ID: ${documentId}\n\n` +
-      `Click the "Analyze" button to run AI analysis.`
+    // Notify upload complete - user must click Analyze button
+    showToast(
+      `✅ Document uploaded successfully!\n\nDocument ID: ${documentId}\n\nClick the "Analyze" button to run AI analysis.`,
+      "success",
+      6000
     );
   };
 
   const handleConfigure = async () => {
     if (!projectId) {
-      alert("Please select a project first");
+      showToast("Please select a project first", "warning");
       return;
     }
 
@@ -177,7 +183,7 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
       setConfigModalOpen(true);
     } catch (error) {
       console.error("Failed to get configuration:", error);
-      alert("Failed to load configuration");
+      showToast("Failed to load configuration", "error");
     }
   };
 
@@ -187,7 +193,7 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
     try {
       await apiClient.updateProjectConfig(projectId, { config });
       setCurrentConfig(config);
-      alert("Configuration updated successfully!");
+      showToast("Configuration updated successfully!", "success");
     } catch (error) {
       console.error("Failed to update configuration:", error);
       throw error; // Let modal handle the error
@@ -196,7 +202,7 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
 
   const handleExport = async () => {
     if (!projectId) {
-      alert("Please select a project first");
+      showToast("Please select a project first", "warning");
       return;
     }
 
@@ -244,7 +250,7 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        alert("PDF report downloaded successfully!");
+        showToast("PDF report downloaded successfully!", "success");
       } else {
         // For JSON and Excel, use the API client
         const result = await apiClient.exportProject(projectId, selectedFormat);
@@ -261,15 +267,15 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
-          alert("Export downloaded successfully!");
+          showToast("Export downloaded successfully!", "success");
         } else if (result.download_url) {
-          alert(`Export ready! Download URL: ${result.download_url}\n\n(Full file generation coming soon)`);
+          showToast(`Export ready! Download URL: ${result.download_url}\n\n(Full file generation coming soon)`, "info", 7000);
         }
       }
     } catch (error) {
       console.error("Failed to export:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      alert(`Failed to export project: ${errorMessage}\n\nPlease check the console for details.`);
+      showToast(`Failed to export project: ${errorMessage}\n\nPlease check the console for details.`, "error");
     }
   };
 
@@ -294,19 +300,19 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
 
   const handleAnalyze = async () => {
     if (!projectId) {
-      alert("Please select a project first");
+      showToast("Please select a project first", "warning");
       return;
     }
 
     // Get the most recently uploaded document
     if (uploadedDocs.length === 0) {
-      alert("Please upload a document first before analyzing");
+      showToast("Please upload a document first before analyzing", "warning");
       return;
     }
 
     const lastDoc = uploadedDocs[uploadedDocs.length - 1];
     if (!lastDoc.documentId) {
-      alert("No valid document to analyze");
+      showToast("No valid document to analyze", "error");
       return;
     }
 
@@ -435,38 +441,42 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => setShowUpload(true)}
-              className="shadow-sm"
+              onClick={() => {
+                console.log("Upload button clicked, showUpload:", showUpload);
+                setShowUpload(true);
+                console.log("setShowUpload(true) called");
+              }}
+              className="shadow-sm h-9 w-9 p-0"
+              title="Upload Document"
             >
-              <Upload className="mr-2 h-4 w-4" />
-              Upload
+              <UploadCloud className="h-4 w-4" />
             </Button>
             <Button 
               variant="outline" 
               size="sm"
               onClick={handleConfigure}
-              className="shadow-sm"
+              className="shadow-sm h-9 w-9 p-0"
+              title="Configure Project"
             >
-              <Settings className="mr-2 h-4 w-4" />
-              Configure
+              <Settings className="h-4 w-4" />
             </Button>
             <Button 
               variant="outline" 
               size="sm"
               onClick={handleExport}
-              className="shadow-sm"
+              className="shadow-sm h-9 w-9 p-0"
+              title="Export Results"
             >
-              <Download className="mr-2 h-4 w-4" />
-              Export
+              <FileDown className="h-4 w-4" />
             </Button>
             <Button 
               size="sm"
               onClick={handleAnalyze}
               disabled={isAnalyzing}
-              className="bg-linear-to-r from-primary to-primary/80 shadow-md hover:shadow-lg transition-shadow"
+              className="bg-linear-to-r from-primary to-primary/80 shadow-md hover:shadow-lg transition-shadow h-9 w-9 p-0"
+              title={isAnalyzing ? "Analyzing..." : "Analyze Document"}
             >
-              <Play className="mr-2 h-4 w-4" />
-              {isAnalyzing ? "Analyzing..." : "Analyze"}
+              <Play className="h-4 w-4" />
             </Button>
           </div>
         )}
@@ -714,7 +724,10 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
                   </p>
                   <Button
                     size="lg"
-                    onClick={() => setShowUpload(true)}
+                    onClick={() => {
+                      console.log("Upload First Document button clicked");
+                      setShowUpload(true);
+                    }}
                     className="bg-primary hover:bg-primary-hover shadow-md"
                   >
                     <Upload className="mr-2 h-5 w-5" />
@@ -724,35 +737,57 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
               </div>
             )}
 
-            {/* Compact Upload Modal */}
-            {showUpload && (
-              <Card className="shadow-xl border-primary/20">
-                <CardHeader className="border-b border-neutral-200">
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <Upload className="h-5 w-5 text-primary" />
-                      Upload Document
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowUpload(false)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <DocumentUpload
-                    projectId={projectId}
-                    onUploadComplete={(docId) => {
-                      handleDocumentUpload(docId);
+            {/* Upload Modal - Fixed Overlay */}
+            {(() => {
+              console.log("Render - showUpload state:", showUpload);
+              return showUpload && (
+                <div 
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+                  onClick={(e) => {
+                    // Close modal if clicking on backdrop (not the card)
+                    if (e.target === e.currentTarget) {
+                      console.log("Backdrop clicked, closing modal");
                       setShowUpload(false);
-                    }}
-                  />
-                </CardContent>
-              </Card>
-            )}
+                    }
+                  }}
+                >
+                  <Card className="shadow-xl border-primary/20 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+                    <CardHeader className="border-b border-neutral-200">
+                      <CardTitle className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <Upload className="h-5 w-5 text-primary" />
+                          Upload Document
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            console.log("Closing upload modal");
+                            setShowUpload(false);
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <DocumentUpload
+                        projectId={projectId}
+                        onUploadComplete={(docId, _analysis, uploadResult) => {
+                          console.log("Upload complete callback:", { docId, uploadResult });
+                          const fileInfo = uploadResult && 'file_size' in uploadResult ? {
+                            file_size: (uploadResult as { file_size: number }).file_size,
+                            filename: (uploadResult as { filename: string }).filename
+                          } : undefined;
+                          handleDocumentUpload(docId, undefined, fileInfo);
+                          setShowUpload(false);
+                        }}
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })()}
 
             {/* Uploaded Documents - Compact List */}
             {uploadedDocs.length > 0 && !documentAnalysis && (

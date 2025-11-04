@@ -12,6 +12,7 @@ import {
 } from "../ui/dialog";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
+import { useToast } from "../ui/toast";
 import type { ProjectConfig } from "@/app/lib/types";
 
 interface ConfigurationModalProps {
@@ -27,6 +28,7 @@ export function ConfigurationModal({
   initialConfig,
   onSubmit,
 }: ConfigurationModalProps) {
+  const { showToast } = useToast();
   const [config, setConfig] = useState<ProjectConfig>(
     initialConfig || {
       analysis_settings: {
@@ -61,7 +63,7 @@ export function ConfigurationModal({
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to update configuration:", error);
-      alert("Failed to update configuration. Please try again.");
+      showToast("Failed to update configuration. Please try again.", "error");
     } finally {
       setIsSubmitting(false);
     }
