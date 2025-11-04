@@ -80,12 +80,16 @@ class OpenAIProvider(AIProvider):
         json_system = (system_prompt or "") + "\n\nYou must respond with valid JSON matching this schema:\n" + json.dumps(schema, indent=2)
         
         try:
-            # For models that support response_format
+            # For models that support response_format, pass it through kwargs
+            kwargs_with_format = {
+                **kwargs,
+                "response_format": {"type": "json_object"}
+            }
+            
             response = self.generate(
                 prompt=prompt,
                 system_prompt=json_system,
-                response_format={"type": "json_object"},
-                **kwargs
+                **kwargs_with_format
             )
             
             # Parse JSON response
