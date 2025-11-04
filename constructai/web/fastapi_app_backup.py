@@ -2,72 +2,42 @@
 FastAPI application for ConstructAI web interface.
 
 Provides REST API and web dashboard for document analysis.
-Enhanced with database persistence, middleware, and comprehensive error handling.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 import logging
-import uuid
 
 logger = logging.getLogger(__name__)
 
 
 def create_app():
     """
-    Create FastAPI application with all enhancements.
+    Create FastAPI application.
     
     Returns:
         FastAPI app instance
     """
     try:
-        from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
+        from fastapi import FastAPI, UploadFile, File
         from fastapi.middleware.cors import CORSMiddleware
-        from sqlalchemy.orm import Session
         
     except ImportError:
-        raise ImportError("FastAPI not installed. Install with: pip install fastapi uvicorn sqlalchemy")
-    
-    # Initialize settings and logging
-    from ..config import setup_logging, get_settings
-    settings = get_settings()
-    setup_logging(settings.LOG_LEVEL, settings.LOG_FILE)
+        raise ImportError("FastAPI not installed. Install with: pip install fastapi uvicorn")
     
     app = FastAPI(
         title="ConstructAI API",
         description="AI-powered construction specification analysis and workflow optimization",
-        version=settings.APP_VERSION,
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
+        version="0.2.0"
     )
-    
-    # Add enhanced middleware
-    from ..middleware import LoggingMiddleware, ErrorHandlerMiddleware, RateLimiterMiddleware
-    
-    # Order matters: Error handler first, then logging, then rate limiting
-    app.add_middleware(ErrorHandlerMiddleware)
-    app.add_middleware(LoggingMiddleware)
-    
-    if settings.RATE_LIMIT_ENABLED:
-        app.add_middleware(RateLimiterMiddleware, requests_per_minute=settings.RATE_LIMIT_PER_MINUTE)
     
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS if not settings.DEBUG else ["*"],
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
-    # Initialize database
-    from ..db import Database, get_db, ProjectDB, AnalysisResultDB
-    
-    try:
-        Database.create_tables()
-        logger.info("Database tables initialized")
-    except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
-        # Continue anyway for development
     
     # Import modules
     from ..document_processing import DocumentIngestor, DocumentParser, MasterFormatClassifier
@@ -189,193 +159,154 @@ def create_app():
     
     @app.get("/api/v2/health")
     async def health():
-        """Health check endpoint with database status."""
-        try:
-            # Try to query database
-            db = Database.get_session()
-            db.execute("SELECT 1")
-            db.close()
-            db_status = "connected"
-        except Exception as e:
-            logger.error(f"Database health check failed: {e}")
-            db_status = "disconnected"
-        
+        """Health check endpoint."""
         return {
             "status": "healthy",
-            "version": settings.APP_VERSION,
-            "service": "ConstructAI Advanced",
-            "database": db_status,
+            "version": "0.2.0",
+            "service": "ConstructAI Advanced"
         }
     
-    # Database-backed project endpoints
+    # In-memory storage for projects (temporary - replace with database later)
+    projects_db: Dict[str, Dict[str, Any]] = {}
+    
     @app.get("/api/projects")
-    async def get_projects(db: Session = Depends(get_db)):
-        """Get all projects from database."""
-        try:
-            projects = db.query(ProjectDB).all()
-            return [project.to_dict() for project in projects]
-        except Exception as e:
-            logger.error(f"Error fetching projects: {e}")
-            raise HTTPException(status_code=500, detail="Failed to fetch projects")
+    async def get_projects():
+        """Get all projects."""
+        return list(projects_db.values())
     
     @app.get("/api/projects/{project_id}")
-    async def get_project(project_id: str, db: Session = Depends(get_db)):
-        """Get a specific project by ID from database."""
-        project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+    async def get_project(project_id: str):
+        """Get a specific project by ID."""
+        from fastapi import HTTPException
         
-        if not project:
+        if project_id not in projects_db:
             raise HTTPException(status_code=404, detail="Project not found")
-        
-        return project.to_dict()
+        return projects_db[project_id]
     
     @app.post("/api/projects")
-    async def create_project(project: Dict[str, Any], db: Session = Depends(get_db)):
-        """Create a new project in database."""
-        try:
-            # Generate unique ID
-            project_id = str(uuid.uuid4())
-            
-            # Create database model
-            db_project = ProjectDB(
-                id=project_id,
-                name=project.get("name", "Untitled Project"),
-                description=project.get("description", ""),
-                status=project.get("status", "planning"),
-                budget=project.get("budget", 0),
-                total_tasks=project.get("total_tasks", 0),
-                metadata=project.get("metadata"),
-                tasks=project.get("tasks"),
-                resources=project.get("resources"),
-            )
-            
-            db.add(db_project)
-            db.commit()
-            db.refresh(db_project)
-            
-            logger.info(f"Created project: {project_id} - {db_project.name}")
-            return db_project.to_dict()
-            
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error creating project: {e}")
-            raise HTTPException(status_code=500, detail="Failed to create project")
+    async def create_project(project: Dict[str, Any]):
+        """Create a new project."""
+        import uuid
+        from datetime import datetime
+        
+        # Generate unique ID
+        project_id = str(uuid.uuid4())
+        
+        # Set defaults and timestamps
+        new_project = {
+            "id": project_id,
+            "name": project.get("name", "Untitled Project"),
+            "description": project.get("description", ""),
+            "status": project.get("status", "planning"),
+            "budget": project.get("budget", 0),
+            "total_tasks": project.get("total_tasks", 0),
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        
+        # Store in memory
+        projects_db[project_id] = new_project
+        
+        logger.info(f"Created project: {project_id} - {new_project['name']}")
+        return new_project
     
     @app.put("/api/projects/{project_id}")
-    async def update_project(project_id: str, project: Dict[str, Any], db: Session = Depends(get_db)):
-        """Update an existing project in database."""
-        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+    async def update_project(project_id: str, project: Dict[str, Any]):
+        """Update an existing project."""
+        from fastapi import HTTPException
+        from datetime import datetime
         
-        if not db_project:
+        if project_id not in projects_db:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        try:
-            # Update fields
-            for key, value in project.items():
-                if key != "id" and key != "created_at" and hasattr(db_project, key):
-                    setattr(db_project, key, value)
-            
-            db.commit()
-            db.refresh(db_project)
-            
-            logger.info(f"Updated project: {project_id}")
-            return db_project.to_dict()
-            
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error updating project: {e}")
-            raise HTTPException(status_code=500, detail="Failed to update project")
+        # Update fields
+        existing_project = projects_db[project_id]
+        for key, value in project.items():
+            if key != "id" and key != "created_at":  # Don't allow changing ID or creation date
+                existing_project[key] = value
+        
+        existing_project["updated_at"] = datetime.utcnow().isoformat()
+        
+        logger.info(f"Updated project: {project_id}")
+        return existing_project
     
     @app.delete("/api/projects/{project_id}")
-    async def delete_project(project_id: str, db: Session = Depends(get_db)):
-        """Delete a project from database."""
-        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+    async def delete_project(project_id: str):
+        """Delete a project."""
+        from fastapi import HTTPException
         
-        if not db_project:
+        if project_id not in projects_db:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        try:
-            db.delete(db_project)
-            db.commit()
-            logger.info(f"Deleted project: {project_id}")
-            return {"status": "deleted", "project_id": project_id}
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error deleting project: {e}")
-            raise HTTPException(status_code=500, detail="Failed to delete project")
+        del projects_db[project_id]
+        logger.info(f"Deleted project: {project_id}")
+        return {"status": "deleted", "project_id": project_id}
     
     @app.post("/api/projects/{project_id}/duplicate")
-    async def duplicate_project(project_id: str, db: Session = Depends(get_db)):
+    async def duplicate_project(project_id: str):
         """Duplicate an existing project."""
-        original = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+        import uuid
+        from datetime import datetime
+        from fastapi import HTTPException
         
-        if not original:
+        if project_id not in projects_db:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        try:
-            # Create duplicate with new ID
-            new_project_id = str(uuid.uuid4())
-            duplicate = ProjectDB(
-                id=new_project_id,
-                name=f"{original.name} (Copy)",
-                description=original.description,
-                status=original.status,
-                budget=original.budget,
-                total_tasks=original.total_tasks,
-                metadata=original.metadata,
-                tasks=original.tasks,
-                resources=original.resources,
-            )
-            
-            db.add(duplicate)
-            db.commit()
-            db.refresh(duplicate)
-            
-            logger.info(f"Duplicated project: {project_id} -> {new_project_id}")
-            return duplicate.to_dict()
-            
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error duplicating project: {e}")
-            raise HTTPException(status_code=500, detail="Failed to duplicate project")
+        # Get original project
+        original_project = projects_db[project_id]
+        
+        # Create duplicate with new ID
+        new_project_id = str(uuid.uuid4())
+        duplicate_project = {
+            **original_project,
+            "id": new_project_id,
+            "name": f"{original_project['name']} (Copy)",
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        
+        # Store duplicate
+        projects_db[new_project_id] = duplicate_project
+        
+        logger.info(f"Duplicated project: {project_id} -> {new_project_id}")
+        return duplicate_project
     
     @app.put("/api/projects/{project_id}/archive")
-    async def archive_project(project_id: str, db: Session = Depends(get_db)):
+    async def archive_project(project_id: str):
         """Archive a project (sets status to 'archived')."""
-        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+        from datetime import datetime
+        from fastapi import HTTPException
         
-        if not db_project:
+        if project_id not in projects_db:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        try:
-            db_project.status = "archived"
-            db.commit()
-            db.refresh(db_project)
-            
-            logger.info(f"Archived project: {project_id}")
-            return db_project.to_dict()
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error archiving project: {e}")
-            raise HTTPException(status_code=500, detail="Failed to archive project")
+        # Update project status to archived
+        projects_db[project_id]["status"] = "archived"
+        projects_db[project_id]["updated_at"] = datetime.utcnow().isoformat()
+        
+        logger.info(f"Archived project: {project_id}")
+        return projects_db[project_id]
     
     @app.post("/api/projects/{project_id}/analyze")
-    async def analyze_project(project_id: str, project_data: Dict[str, Any], db: Session = Depends(get_db)):
+    async def analyze_project(project_id: str, project_data: Dict[str, Any]):
         """
         Perform AI analysis on a project.
         Returns audit results and optimization suggestions.
         """
-        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+        from fastapi import HTTPException
         
-        if not db_project:
+        if project_id not in projects_db:
             raise HTTPException(status_code=404, detail="Project not found")
         
         try:
+            project = projects_db[project_id]
+            
             # Create sample project data for analysis
             sample_project_data = {
-                "project_name": db_project.name,
-                "budget": db_project.budget,
-                "tasks": project_data.get("tasks", db_project.tasks or []),
-                "resources": project_data.get("resources", db_project.resources or [])
+                "project_name": project["name"],
+                "budget": project["budget"],
+                "tasks": project_data.get("tasks", []),
+                "resources": project_data.get("resources", [])
             }
             
             # Perform audit
@@ -385,20 +316,6 @@ def create_app():
             # Perform optimization
             optimizer = WorkflowOptimizer()
             optimization_result = optimizer.optimize(sample_project_data)
-            
-            # Cache the results in database
-            analysis_id = str(uuid.uuid4())
-            cache_entry = AnalysisResultDB(
-                id=analysis_id,
-                project_id=project_id,
-                analysis_type="full",
-                result={
-                    "audit": audit_result,
-                    "optimization": optimization_result
-                }
-            )
-            db.add(cache_entry)
-            db.commit()
             
             return {
                 "status": "success",
@@ -419,31 +336,28 @@ def create_app():
                 }
             }
         except Exception as e:
-            db.rollback()
             logger.error(f"Error analyzing project {project_id}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
     
     @app.get("/api/projects/{project_id}/export")
-    async def export_project(project_id: str, format: str = "json", db: Session = Depends(get_db)):
+    async def export_project(project_id: str, format: str = "json"):
         """
         Export project data in various formats (json, pdf, excel).
         """
-        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+        from fastapi import HTTPException
+        from fastapi.responses import JSONResponse
         
-        if not db_project:
+        if project_id not in projects_db:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        from fastapi.responses import JSONResponse
-        from datetime import datetime
-        
-        project_dict = db_project.to_dict()
+        project = projects_db[project_id]
         
         if format == "json":
             return JSONResponse(content={
                 "status": "success",
                 "format": "json",
-                "data": project_dict,
-                "exported_at": datetime.utcnow().isoformat()
+                "data": project,
+                "exported_at": __import__('datetime').datetime.utcnow().isoformat()
             })
         elif format == "pdf":
             return {
