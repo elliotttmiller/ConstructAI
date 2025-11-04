@@ -16,6 +16,12 @@ torch
 spacy
 sentence-transformers
 
+# AI Model Providers
+openai>=1.0.0  # OpenAI GPT models
+anthropic>=0.18.0  # Anthropic Claude models
+google-generativeai  # Google Gemini models (optional)
+# For Azure OpenAI, use openai with azure endpoint
+
 # Graph Database
 neo4j
 py2neo
@@ -27,6 +33,12 @@ pinecone-client
 fastapi
 uvicorn
 pydantic>=2.0.0  # Required for FastAPI compatibility
+pydantic-settings  # For settings management
+python-multipart  # Required for file uploads
+
+# Database
+sqlalchemy>=2.0.0
+alembic  # Database migrations
 
 # Additional utilities
 aiohttp
@@ -36,3 +48,7 @@ lxml
 
 # Process Management (for start.py script)
 psutil
+
+# Logging and Monitoring
+python-json-logger
+

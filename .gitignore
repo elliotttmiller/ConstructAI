@@ -40,6 +40,13 @@ htmlcov/
 
 # Logs
 *.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+constructai.db
 
 # OS
 .DS_Store

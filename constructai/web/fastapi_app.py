@@ -2,42 +2,77 @@
 FastAPI application for ConstructAI web interface.
 
 Provides REST API and web dashboard for document analysis.
+Enhanced with database persistence, middleware, and comprehensive error handling.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
 
 def create_app():
     """
-    Create FastAPI application.
+    Create FastAPI application with all enhancements.
     
     Returns:
         FastAPI app instance
     """
     try:
-        from fastapi import FastAPI, UploadFile, File
+        from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
         from fastapi.middleware.cors import CORSMiddleware
+        from sqlalchemy.orm import Session
         
     except ImportError:
-        raise ImportError("FastAPI not installed. Install with: pip install fastapi uvicorn")
+        raise ImportError("FastAPI not installed. Install with: pip install fastapi uvicorn sqlalchemy")
+    
+    # Initialize settings and logging
+    from ..config import setup_logging, get_settings
+    settings = get_settings()
+    setup_logging(settings.LOG_LEVEL, settings.LOG_FILE)
     
     app = FastAPI(
         title="ConstructAI API",
         description="AI-powered construction specification analysis and workflow optimization",
-        version="0.2.0"
+        version=settings.APP_VERSION,
+        docs_url="/api/docs",
+        redoc_url="/api/redoc",
     )
+    
+    # Add enhanced middleware
+    from ..middleware import LoggingMiddleware, ErrorHandlerMiddleware, RateLimiterMiddleware
+    
+    # Order matters: Error handler first, then logging, then rate limiting
+    app.add_middleware(ErrorHandlerMiddleware)
+    app.add_middleware(LoggingMiddleware)
+    
+    if settings.RATE_LIMIT_ENABLED:
+        app.add_middleware(RateLimiterMiddleware, requests_per_minute=settings.RATE_LIMIT_PER_MINUTE)
     
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.CORS_ORIGINS if not settings.DEBUG else ["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    
+    # Initialize database
+    from ..db import Database, get_db, ProjectDB, AnalysisResultDB
+    
+    try:
+        Database.create_tables()
+        logger.info("Database tables initialized")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        # Continue anyway for development
+    
+    # Initialize AI Model Manager
+    from ..ai.providers import AIModelManager
+    ai_manager = AIModelManager(config_source="env")
+    logger.info(f"AI Model Manager initialized with providers: {list(ai_manager.providers.keys())}")
     
     # Import modules
     from ..document_processing import DocumentIngestor, DocumentParser, MasterFormatClassifier
@@ -55,7 +90,9 @@ def create_app():
     
     @app.get("/")
     async def root():
-        """Root endpoint."""
+        """Root endpoint with AI provider information."""
+        available_providers = ai_manager.get_available_providers()
+        
         return {
             "service": "ConstructAI",
             "version": "0.2.0",
@@ -159,154 +196,193 @@ def create_app():
     
     @app.get("/api/v2/health")
     async def health():
-        """Health check endpoint."""
+        """Health check endpoint with database status."""
+        try:
+            # Try to query database
+            db = Database.get_session()
+            db.execute("SELECT 1")
+            db.close()
+            db_status = "connected"
+        except Exception as e:
+            logger.error(f"Database health check failed: {e}")
+            db_status = "disconnected"
+        
         return {
             "status": "healthy",
-            "version": "0.2.0",
-            "service": "ConstructAI Advanced"
+            "version": settings.APP_VERSION,
+            "service": "ConstructAI Advanced",
+            "database": db_status,
         }
     
-    # In-memory storage for projects (temporary - replace with database later)
-    projects_db: Dict[str, Dict[str, Any]] = {}
-    
+    # Database-backed project endpoints
     @app.get("/api/projects")
-    async def get_projects():
-        """Get all projects."""
-        return list(projects_db.values())
+    async def get_projects(db: Session = Depends(get_db)):
+        """Get all projects from database."""
+        try:
+            projects = db.query(ProjectDB).all()
+            return [project.to_dict() for project in projects]
+        except Exception as e:
+            logger.error(f"Error fetching projects: {e}")
+            raise HTTPException(status_code=500, detail="Failed to fetch projects")
     
     @app.get("/api/projects/{project_id}")
-    async def get_project(project_id: str):
-        """Get a specific project by ID."""
-        from fastapi import HTTPException
+    async def get_project(project_id: str, db: Session = Depends(get_db)):
+        """Get a specific project by ID from database."""
+        project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
         
-        if project_id not in projects_db:
+        if not project:
             raise HTTPException(status_code=404, detail="Project not found")
-        return projects_db[project_id]
+        
+        return project.to_dict()
     
     @app.post("/api/projects")
-    async def create_project(project: Dict[str, Any]):
-        """Create a new project."""
-        import uuid
-        from datetime import datetime
-        
-        # Generate unique ID
-        project_id = str(uuid.uuid4())
-        
-        # Set defaults and timestamps
-        new_project = {
-            "id": project_id,
-            "name": project.get("name", "Untitled Project"),
-            "description": project.get("description", ""),
-            "status": project.get("status", "planning"),
-            "budget": project.get("budget", 0),
-            "total_tasks": project.get("total_tasks", 0),
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
-        }
-        
-        # Store in memory
-        projects_db[project_id] = new_project
-        
-        logger.info(f"Created project: {project_id} - {new_project['name']}")
-        return new_project
+    async def create_project(project: Dict[str, Any], db: Session = Depends(get_db)):
+        """Create a new project in database."""
+        try:
+            # Generate unique ID
+            project_id = str(uuid.uuid4())
+            
+            # Create database model
+            db_project = ProjectDB(
+                id=project_id,
+                name=project.get("name", "Untitled Project"),
+                description=project.get("description", ""),
+                status=project.get("status", "planning"),
+                budget=project.get("budget", 0),
+                total_tasks=project.get("total_tasks", 0),
+                metadata=project.get("metadata"),
+                tasks=project.get("tasks"),
+                resources=project.get("resources"),
+            )
+            
+            db.add(db_project)
+            db.commit()
+            db.refresh(db_project)
+            
+            logger.info(f"Created project: {project_id} - {db_project.name}")
+            return db_project.to_dict()
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error creating project: {e}")
+            raise HTTPException(status_code=500, detail="Failed to create project")
     
     @app.put("/api/projects/{project_id}")
-    async def update_project(project_id: str, project: Dict[str, Any]):
-        """Update an existing project."""
-        from fastapi import HTTPException
-        from datetime import datetime
+    async def update_project(project_id: str, project: Dict[str, Any], db: Session = Depends(get_db)):
+        """Update an existing project in database."""
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
         
-        if project_id not in projects_db:
+        if not db_project:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        # Update fields
-        existing_project = projects_db[project_id]
-        for key, value in project.items():
-            if key != "id" and key != "created_at":  # Don't allow changing ID or creation date
-                existing_project[key] = value
-        
-        existing_project["updated_at"] = datetime.utcnow().isoformat()
-        
-        logger.info(f"Updated project: {project_id}")
-        return existing_project
+        try:
+            # Update fields
+            for key, value in project.items():
+                if key != "id" and key != "created_at" and hasattr(db_project, key):
+                    setattr(db_project, key, value)
+            
+            db.commit()
+            db.refresh(db_project)
+            
+            logger.info(f"Updated project: {project_id}")
+            return db_project.to_dict()
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error updating project: {e}")
+            raise HTTPException(status_code=500, detail="Failed to update project")
     
     @app.delete("/api/projects/{project_id}")
-    async def delete_project(project_id: str):
-        """Delete a project."""
-        from fastapi import HTTPException
+    async def delete_project(project_id: str, db: Session = Depends(get_db)):
+        """Delete a project from database."""
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
         
-        if project_id not in projects_db:
+        if not db_project:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        del projects_db[project_id]
-        logger.info(f"Deleted project: {project_id}")
-        return {"status": "deleted", "project_id": project_id}
+        try:
+            db.delete(db_project)
+            db.commit()
+            logger.info(f"Deleted project: {project_id}")
+            return {"status": "deleted", "project_id": project_id}
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error deleting project: {e}")
+            raise HTTPException(status_code=500, detail="Failed to delete project")
     
     @app.post("/api/projects/{project_id}/duplicate")
-    async def duplicate_project(project_id: str):
+    async def duplicate_project(project_id: str, db: Session = Depends(get_db)):
         """Duplicate an existing project."""
-        import uuid
-        from datetime import datetime
-        from fastapi import HTTPException
+        original = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
         
-        if project_id not in projects_db:
+        if not original:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        # Get original project
-        original_project = projects_db[project_id]
-        
-        # Create duplicate with new ID
-        new_project_id = str(uuid.uuid4())
-        duplicate_project = {
-            **original_project,
-            "id": new_project_id,
-            "name": f"{original_project['name']} (Copy)",
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
-        }
-        
-        # Store duplicate
-        projects_db[new_project_id] = duplicate_project
-        
-        logger.info(f"Duplicated project: {project_id} -> {new_project_id}")
-        return duplicate_project
+        try:
+            # Create duplicate with new ID
+            new_project_id = str(uuid.uuid4())
+            duplicate = ProjectDB(
+                id=new_project_id,
+                name=f"{original.name} (Copy)",
+                description=original.description,
+                status=original.status,
+                budget=original.budget,
+                total_tasks=original.total_tasks,
+                metadata=original.metadata,
+                tasks=original.tasks,
+                resources=original.resources,
+            )
+            
+            db.add(duplicate)
+            db.commit()
+            db.refresh(duplicate)
+            
+            logger.info(f"Duplicated project: {project_id} -> {new_project_id}")
+            return duplicate.to_dict()
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error duplicating project: {e}")
+            raise HTTPException(status_code=500, detail="Failed to duplicate project")
     
     @app.put("/api/projects/{project_id}/archive")
-    async def archive_project(project_id: str):
+    async def archive_project(project_id: str, db: Session = Depends(get_db)):
         """Archive a project (sets status to 'archived')."""
-        from datetime import datetime
-        from fastapi import HTTPException
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
         
-        if project_id not in projects_db:
+        if not db_project:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        # Update project status to archived
-        projects_db[project_id]["status"] = "archived"
-        projects_db[project_id]["updated_at"] = datetime.utcnow().isoformat()
-        
-        logger.info(f"Archived project: {project_id}")
-        return projects_db[project_id]
+        try:
+            db_project.status = "archived"
+            db.commit()
+            db.refresh(db_project)
+            
+            logger.info(f"Archived project: {project_id}")
+            return db_project.to_dict()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error archiving project: {e}")
+            raise HTTPException(status_code=500, detail="Failed to archive project")
     
     @app.post("/api/projects/{project_id}/analyze")
-    async def analyze_project(project_id: str, project_data: Dict[str, Any]):
+    async def analyze_project(project_id: str, project_data: Dict[str, Any], db: Session = Depends(get_db)):
         """
         Perform AI analysis on a project.
         Returns audit results and optimization suggestions.
         """
-        from fastapi import HTTPException
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
         
-        if project_id not in projects_db:
+        if not db_project:
             raise HTTPException(status_code=404, detail="Project not found")
         
         try:
-            project = projects_db[project_id]
-            
             # Create sample project data for analysis
             sample_project_data = {
-                "project_name": project["name"],
-                "budget": project["budget"],
-                "tasks": project_data.get("tasks", []),
-                "resources": project_data.get("resources", [])
+                "project_name": db_project.name,
+                "budget": db_project.budget,
+                "tasks": project_data.get("tasks", db_project.tasks or []),
+                "resources": project_data.get("resources", db_project.resources or [])
             }
             
             # Perform audit
@@ -316,6 +392,20 @@ def create_app():
             # Perform optimization
             optimizer = WorkflowOptimizer()
             optimization_result = optimizer.optimize(sample_project_data)
+            
+            # Cache the results in database
+            analysis_id = str(uuid.uuid4())
+            cache_entry = AnalysisResultDB(
+                id=analysis_id,
+                project_id=project_id,
+                analysis_type="full",
+                result={
+                    "audit": audit_result,
+                    "optimization": optimization_result
+                }
+            )
+            db.add(cache_entry)
+            db.commit()
             
             return {
                 "status": "success",
@@ -336,28 +426,31 @@ def create_app():
                 }
             }
         except Exception as e:
+            db.rollback()
             logger.error(f"Error analyzing project {project_id}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
     
     @app.get("/api/projects/{project_id}/export")
-    async def export_project(project_id: str, format: str = "json"):
+    async def export_project(project_id: str, format: str = "json", db: Session = Depends(get_db)):
         """
         Export project data in various formats (json, pdf, excel).
         """
-        from fastapi import HTTPException
-        from fastapi.responses import JSONResponse
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
         
-        if project_id not in projects_db:
+        if not db_project:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        project = projects_db[project_id]
+        from fastapi.responses import JSONResponse
+        from datetime import datetime
+        
+        project_dict = db_project.to_dict()
         
         if format == "json":
             return JSONResponse(content={
                 "status": "success",
                 "format": "json",
-                "data": project,
-                "exported_at": __import__('datetime').datetime.utcnow().isoformat()
+                "data": project_dict,
+                "exported_at": datetime.utcnow().isoformat()
             })
         elif format == "pdf":
             return {
@@ -612,9 +705,9 @@ def create_app():
     @app.put("/api/projects/{project_id}/config")
     async def update_project_config(project_id: str, config: Dict[str, Any]):
         """Update project configuration settings."""
-        from fastapi import HTTPException
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
         
-        if project_id not in projects_db:
+        if not db_project:
             raise HTTPException(status_code=404, detail="Project not found")
         
         logger.info(f"Updated config for project {project_id}")
@@ -626,7 +719,263 @@ def create_app():
             "config": config
         }
     
-    logger.info("FastAPI app created successfully")
+    # AI Provider Management Endpoints
+    @app.get("/api/ai/providers")
+    async def get_ai_providers():
+        """
+        Get list of available AI providers and their capabilities.
+        """
+        try:
+            providers = ai_manager.get_available_providers()
+            usage_stats = ai_manager.get_usage_stats()
+            
+            return {
+                "status": "success",
+                "primary_provider": ai_manager.primary_provider,
+                "fallback_order": ai_manager.fallback_order,
+                "providers": providers,
+                "usage": usage_stats
+            }
+        except Exception as e:
+            logger.error(f"Error getting AI providers: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/ai/test")
+    async def test_ai_provider(
+        provider: Optional[str] = None,
+        prompt: str = "Hello! Respond with 'OK' if you can hear me."
+    ):
+        """
+        Test an AI provider with a simple prompt.
+        
+        Args:
+            provider: Provider name (optional, uses primary if not specified)
+            prompt: Test prompt
+        """
+        try:
+            response = ai_manager.generate(
+                prompt=prompt,
+                provider=provider,
+                use_fallback=False,
+                max_tokens=50
+            )
+            
+            return {
+                "status": "success",
+                "provider": response.provider,
+                "model": response.model,
+                "response": response.content,
+                "tokens_used": response.tokens_used,
+                "metadata": response.metadata
+            }
+        except Exception as e:
+            logger.error(f"AI provider test failed: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "provider": provider or ai_manager.primary_provider
+            }
+    
+    @app.get("/api/ai/usage")
+    async def get_ai_usage(provider: Optional[str] = None):
+        """
+        Get AI usage statistics for all or specific provider.
+        
+        Args:
+            provider: Optional provider name
+        """
+        try:
+            stats = ai_manager.get_usage_stats(provider)
+            return {
+                "status": "success",
+                **stats
+            }
+        except Exception as e:
+            logger.error(f"Error getting usage stats: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    # Enhanced AI endpoints
+    @app.post("/api/ai/predict-risks")
+    async def predict_project_risks(project_data: Dict[str, Any], provider: Optional[str] = None):
+        """
+        Predict potential risks for a construction project using AI.
+        
+        Request body should include:
+        - name: Project name
+        - budget: Budget amount
+        - duration_days: Project duration
+        - tasks: List of tasks
+        - resources: List of resources
+        
+        Query parameter:
+        - provider: AI provider to use (optional)
+        """
+        try:
+            from ..ai import RiskPredictor
+            
+            predictor = RiskPredictor()
+            risks = predictor.predict_risks(project_data)
+            
+            return {
+                "status": "success",
+                "risks_predicted": len(risks),
+                "risks": risks,
+                "summary": {
+                    "critical": len([r for r in risks if r["impact"] == "critical"]),
+                    "high": len([r for r in risks if r["impact"] == "high"]),
+                    "medium": len([r for r in risks if r["impact"] == "medium"]),
+                    "low": len([r for r in risks if r["impact"] == "low"]),
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error predicting risks: {e}")
+            raise HTTPException(status_code=500, detail=f"Risk prediction failed: {str(e)}")
+    
+    @app.post("/api/ai/estimate-cost")
+    async def estimate_project_cost(project_data: Dict[str, Any]):
+        """
+        Estimate project cost using AI-powered analysis.
+        
+        Request body should include:
+        - tasks: List of tasks with resources
+        - resources: List of resources
+        - duration_days: Project duration
+        - project_type: Type of construction project
+        """
+        try:
+            from ..ai import CostEstimator
+            
+            estimator = CostEstimator()
+            estimate = estimator.estimate_cost(project_data)
+            
+            return {
+                "status": "success",
+                "estimate": estimate
+            }
+        except Exception as e:
+            logger.error(f"Error estimating cost: {e}")
+            raise HTTPException(status_code=500, detail=f"Cost estimation failed: {str(e)}")
+    
+    @app.post("/api/ai/recommendations")
+    async def get_recommendations(project_data: Dict[str, Any], analysis_results: Optional[Dict[str, Any]] = None):
+        """
+        Get AI-powered recommendations for project improvement.
+        
+        Request body should include:
+        - Project data (tasks, resources, budget, etc.)
+        - Optional: analysis_results from audit/optimization
+        """
+        try:
+            from ..ai import RecommendationEngine
+            
+            engine = RecommendationEngine()
+            recommendations = engine.generate_recommendations(project_data, analysis_results)
+            
+            return {
+                "status": "success",
+                "total_recommendations": len(recommendations),
+                "recommendations": recommendations,
+                "categories": {
+                    "schedule_optimization": len([r for r in recommendations if r["category"] == "schedule_optimization"]),
+                    "cost_optimization": len([r for r in recommendations if r["category"] == "cost_optimization"]),
+                    "risk_mitigation": len([r for r in recommendations if r["category"] == "risk_mitigation"]),
+                    "quality_improvement": len([r for r in recommendations if r["category"] == "quality_improvement"]),
+                    "technology_adoption": len([r for r in recommendations if r["category"] == "technology_adoption"]),
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error generating recommendations: {e}")
+            raise HTTPException(status_code=500, detail=f"Recommendation generation failed: {str(e)}")
+    
+    @app.post("/api/projects/{project_id}/ai-analysis")
+    async def comprehensive_ai_analysis(project_id: str, db: Session = Depends(get_db)):
+        """
+        Perform comprehensive AI analysis on a project.
+        Includes risk prediction, cost estimation, and recommendations.
+        """
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+        
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        try:
+            from ..ai import RiskPredictor, CostEstimator, RecommendationEngine
+            from ..engine.auditor import ProjectAuditor
+            from ..engine.optimizer import WorkflowOptimizer
+            
+            # Prepare project data
+            project_data = {
+                "name": db_project.name,
+                "budget": db_project.budget,
+                "duration_days": 90,  # Default if not specified
+                "tasks": db_project.tasks or [],
+                "resources": db_project.resources or []
+            }
+            
+            # Run all AI analyses
+            risk_predictor = RiskPredictor()
+            cost_estimator = CostEstimator()
+            recommender = RecommendationEngine()
+            auditor = ProjectAuditor()
+            optimizer = WorkflowOptimizer()
+            
+            risks = risk_predictor.predict_risks(project_data)
+            cost_estimate = cost_estimator.estimate_cost(project_data)
+            
+            # Run audit and optimization
+            audit_result = auditor.audit(project_data) if project_data["tasks"] else {}
+            optimization_result = optimizer.optimize(project_data) if project_data["tasks"] else {}
+            
+            # Generate recommendations based on all analyses
+            analysis_context = {
+                "audit": audit_result,
+                "optimization": optimization_result
+            }
+            recommendations = recommender.generate_recommendations(project_data, analysis_context)
+            
+            # Cache comprehensive results
+            analysis_id = str(uuid.uuid4())
+            cache_entry = AnalysisResultDB(
+                id=analysis_id,
+                project_id=project_id,
+                analysis_type="comprehensive_ai",
+                result={
+                    "risks": risks,
+                    "cost_estimate": cost_estimate,
+                    "recommendations": recommendations,
+                    "audit": audit_result,
+                    "optimization": optimization_result
+                }
+            )
+            db.add(cache_entry)
+            db.commit()
+            
+            return {
+                "status": "success",
+                "project_id": project_id,
+                "analysis_id": analysis_id,
+                "risks": {
+                    "total": len(risks),
+                    "critical": len([r for r in risks if r["impact"] == "critical"]),
+                    "high": len([r for r in risks if r["impact"] == "high"]),
+                    "details": risks[:5]  # Top 5 risks
+                },
+                "cost_estimate": cost_estimate,
+                "recommendations": {
+                    "total": len(recommendations),
+                    "high_priority": len([r for r in recommendations if r.get("priority", 0) > 0.7]),
+                    "details": recommendations[:5]  # Top 5 recommendations
+                },
+                "audit_score": audit_result.get("overall_score") if audit_result else None,
+                "optimization_savings": optimization_result.get("cost_savings") if optimization_result else None
+            }
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error in comprehensive AI analysis: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Comprehensive analysis failed: {str(e)}")
+    
+    logger.info("FastAPI app created successfully with enhanced AI capabilities")
     return app
 
 
