@@ -5,9 +5,12 @@ This module performs comprehensive analysis of construction project plans
 to identify risks, compliance issues, and optimization opportunities.
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union, Any
 from datetime import datetime, timedelta
+import logging
 from ..models.project import Project, Task, TaskStatus, ResourceType
+
+logger = logging.getLogger(__name__)
 
 
 class AuditResult:
@@ -168,8 +171,14 @@ class ProjectAuditor:
         
         return result
     
-    def _check_dependencies(self, project: Project, result: AuditResult):
+    def _check_dependencies(self, project: Union[Project, Dict[str, Any]], result: AuditResult):
         """Check for circular dependencies and invalid references."""
+        # Handle both Project object and dict
+        if isinstance(project, dict):
+            # For dict, just log a warning and skip dependency validation
+            logger.warning("Project audit called with dict instead of Project object - skipping dependency validation")
+            return
+        
         errors = project.validate_dependencies()
         for error in errors:
             result.add_risk(

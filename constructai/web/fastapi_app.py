@@ -1020,20 +1020,22 @@ def create_app():
                             user_role="compliance_officer"
                         )
                         
-                        prompt_data = prompt_engineer.generate_prompt(
+                        prompt_data = prompt_engineer.get_prompt(
                             task_type=TaskType.COMPLIANCE_CHECK,
-                            context=context,
-                            input_data={
+                            context={
                                 "project_name": db_project.name,
-                                "clauses": critical_prompt_context["clauses"],
+                                "clauses": str(critical_prompt_context["clauses"]),
                                 "task": "Identify 5-10 critical requirements from these clauses that have significant legal, safety, quality, schedule, or permit implications. Return specific, actionable requirements."
-                            }
+                            },
+                            prompt_context=context
                         )
                         
+                        full_prompt = f"{prompt_data['system_prompt']}\n\n{prompt_data['user_prompt']}"
+                        
                         crit_response = ai_manager.generate(
-                            prompt=prompt_data["full_prompt"],
-                            max_tokens=1500,
-                            temperature=0.6,
+                            prompt=full_prompt,
+                            max_tokens=prompt_data.get("max_tokens", 1500),
+                            temperature=prompt_data.get("temperature", 0.6),
                             task_type="compliance_check"
                         )
                         

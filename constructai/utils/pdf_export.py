@@ -997,3 +997,7 @@ def generate_construction_report(project_data: Dict[str, Any], output_path: str)
     """
     report = ConstructAIPDFReport(project_data)
     return report.generate(output_path)
+
+
+# Alias for backward compatibility
+generate_project_pdf = generate_construction_report

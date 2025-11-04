@@ -67,11 +67,10 @@ class ConstructionAnalysisGenerator:
             # Prepare analysis summary for AI
             analysis_summary = self._prepare_analysis_summary(analysis_results)
             
-            # Generate prompt
-            prompt_data = self.prompt_engineer.generate_prompt(
+            # Generate prompt using the correct method name
+            prompt_data = self.prompt_engineer.get_prompt(
                 task_type=TaskType.RECOMMENDATION_GENERATION,
-                context=context,
-                input_data={
+                context={
                     "project_name": project_data.get("name", "Unknown Project"),
                     "analysis_summary": analysis_summary,
                     "divisions_found": analysis_results.get("divisions_summary", {}),
@@ -79,14 +78,17 @@ class ConstructionAnalysisGenerator:
                     "standards_count": len(analysis_results.get("standards", [])),
                     "clauses_count": analysis_results.get("clauses_count", 0),
                     "mep_data": analysis_results.get("mep_analysis", {})
-                }
+                },
+                prompt_context=context
             )
             
-            # Call AI model
+            # Call AI model - construct full prompt from system and user prompts
+            full_prompt = f"{prompt_data['system_prompt']}\n\n{prompt_data['user_prompt']}"
+            
             response = self.ai_manager.generate(
-                prompt=prompt_data["full_prompt"],
-                max_tokens=2000,
-                temperature=0.7,
+                prompt=full_prompt,
+                max_tokens=prompt_data.get("max_tokens", 2000),
+                temperature=prompt_data.get("temperature", 0.7),
                 task_type="recommendation_generation"
             )
             
@@ -121,24 +123,26 @@ class ConstructionAnalysisGenerator:
             
             analysis_summary = self._prepare_analysis_summary(analysis_results)
             
-            prompt_data = self.prompt_engineer.generate_prompt(
+            prompt_data = self.prompt_engineer.get_prompt(
                 task_type=TaskType.DOCUMENT_ANALYSIS,
-                context=context,
-                input_data={
+                context={
                     "project_name": project_data.get("name", "Project"),
                     "analysis_summary": analysis_summary,
-                    "divisions": analysis_results.get("divisions_summary", {}),
-                    "materials": analysis_results.get("materials", [])[:20],
-                    "standards": analysis_results.get("standards", [])[:20],
-                    "mep_analysis": analysis_results.get("mep_analysis", {}),
+                    "divisions": str(analysis_results.get("divisions_summary", {})),
+                    "materials": str(analysis_results.get("materials", [])[:20]),
+                    "standards": str(analysis_results.get("standards", [])[:20]),
+                    "mep_analysis": str(analysis_results.get("mep_analysis", {})),
                     "task": "Generate comprehensive project intelligence including: 1) Project scope overview, 2) Key project characteristics, 3) Construction type and complexity, 4) Critical systems and components. Be specific and actionable."
-                }
+                },
+                prompt_context=context
             )
             
+            full_prompt = f"{prompt_data['system_prompt']}\n\n{prompt_data['user_prompt']}"
+            
             response = self.ai_manager.generate(
-                prompt=prompt_data["full_prompt"],
-                max_tokens=1500,
-                temperature=0.6,
+                prompt=full_prompt,
+                max_tokens=prompt_data.get("max_tokens", 1500),
+                temperature=prompt_data.get("temperature", 0.6),
                 task_type="project_intelligence"
             )
             
@@ -168,22 +172,24 @@ class ConstructionAnalysisGenerator:
                 user_role="construction_manager"
             )
             
-            prompt_data = self.prompt_engineer.generate_prompt(
+            prompt_data = self.prompt_engineer.get_prompt(
                 task_type=TaskType.WORKFLOW_OPTIMIZATION,
-                context=context,
-                input_data={
+                context={
                     "project_name": project_data.get("name", "Project"),
-                    "divisions": analysis_results.get("divisions_summary", {}),
-                    "mep_systems": analysis_results.get("mep_analysis", {}),
-                    "materials": analysis_results.get("materials", [])[:15],
+                    "divisions": str(analysis_results.get("divisions_summary", {})),
+                    "mep_systems": str(analysis_results.get("mep_analysis", {})),
+                    "materials": str(analysis_results.get("materials", [])[:15]),
                     "task": "Generate detailed construction execution strategy including: 1) Phased construction sequence with specific tasks, 2) Critical path and long-lead items with lead times, 3) Sequencing recommendations for optimal efficiency. Be specific about actual construction activities."
-                }
+                },
+                prompt_context=context
             )
             
+            full_prompt = f"{prompt_data['system_prompt']}\n\n{prompt_data['user_prompt']}"
+            
             response = self.ai_manager.generate(
-                prompt=prompt_data["full_prompt"],
-                max_tokens=2000,
-                temperature=0.7,
+                prompt=full_prompt,
+                max_tokens=prompt_data.get("max_tokens", 2000),
+                temperature=prompt_data.get("temperature", 0.7),
                 task_type="execution_strategy"
             )
             
@@ -213,23 +219,25 @@ class ConstructionAnalysisGenerator:
                 user_role="safety_manager"
             )
             
-            prompt_data = self.prompt_engineer.generate_prompt(
+            prompt_data = self.prompt_engineer.get_prompt(
                 task_type=TaskType.RISK_PREDICTION,
-                context=context,
-                input_data={
+                context={
                     "project_name": project_data.get("name", "Project"),
-                    "divisions": analysis_results.get("divisions_summary", {}),
-                    "materials": analysis_results.get("materials", [])[:20],
-                    "standards": analysis_results.get("standards", [])[:20],
-                    "mep_systems": analysis_results.get("mep_analysis", {}),
+                    "divisions": str(analysis_results.get("divisions_summary", {})),
+                    "materials": str(analysis_results.get("materials", [])[:20]),
+                    "standards": str(analysis_results.get("standards", [])[:20]),
+                    "mep_systems": str(analysis_results.get("mep_analysis", {})),
                     "task": "Analyze project risks and generate: 1) Safety considerations and OSHA compliance items, 2) Schedule risk factors and mitigation, 3) Quality control checkpoints. Be specific about actual risks for this project type."
-                }
+                },
+                prompt_context=context
             )
             
+            full_prompt = f"{prompt_data['system_prompt']}\n\n{prompt_data['user_prompt']}"
+            
             response = self.ai_manager.generate(
-                prompt=prompt_data["full_prompt"],
-                max_tokens=1800,
-                temperature=0.6,
+                prompt=full_prompt,
+                max_tokens=prompt_data.get("max_tokens", 1800),
+                temperature=prompt_data.get("temperature", 0.6),
                 task_type="risk_analysis"
             )
             
@@ -259,22 +267,24 @@ class ConstructionAnalysisGenerator:
                 user_role="procurement_manager"
             )
             
-            prompt_data = self.prompt_engineer.generate_prompt(
+            prompt_data = self.prompt_engineer.get_prompt(
                 task_type=TaskType.COST_ESTIMATION,
-                context=context,
-                input_data={
+                context={
                     "project_name": project_data.get("name", "Project"),
-                    "divisions": analysis_results.get("divisions_summary", {}),
-                    "materials": analysis_results.get("materials", [])[:25],
-                    "mep_equipment": self._extract_mep_equipment(analysis_results.get("mep_analysis", {})),
+                    "divisions": str(analysis_results.get("divisions_summary", {})),
+                    "materials": str(analysis_results.get("materials", [])[:25]),
+                    "mep_equipment": str(self._extract_mep_equipment(analysis_results.get("mep_analysis", {}))),
                     "task": "Generate procurement strategy including: 1) Phased procurement timeline with specific items and lead times, 2) Material sourcing considerations, 3) Value engineering opportunities. Be specific about actual materials and equipment."
-                }
+                },
+                prompt_context=context
             )
             
+            full_prompt = f"{prompt_data['system_prompt']}\n\n{prompt_data['user_prompt']}"
+            
             response = self.ai_manager.generate(
-                prompt=prompt_data["full_prompt"],
-                max_tokens=1800,
-                temperature=0.7,
+                prompt=full_prompt,
+                max_tokens=prompt_data.get("max_tokens", 1800),
+                temperature=prompt_data.get("temperature", 0.7),
                 task_type="procurement_strategy"
             )
             
@@ -304,22 +314,24 @@ class ConstructionAnalysisGenerator:
                 user_role="cost_estimator"
             )
             
-            prompt_data = self.prompt_engineer.generate_prompt(
+            prompt_data = self.prompt_engineer.get_prompt(
                 task_type=TaskType.COST_ESTIMATION,
-                context=context,
-                input_data={
+                context={
                     "project_name": project_data.get("name", "Project"),
-                    "divisions": analysis_results.get("divisions_summary", {}),
-                    "materials": analysis_results.get("materials", [])[:30],
-                    "mep_systems": analysis_results.get("mep_analysis", {}),
+                    "divisions": str(analysis_results.get("divisions_summary", {})),
+                    "materials": str(analysis_results.get("materials", [])[:30]),
+                    "mep_systems": str(analysis_results.get("mep_analysis", {})),
                     "task": "Generate detailed cost and resource analysis including: 1) Material requirements by category, 2) Labor and trade requirements, 3) Major equipment needs. Be specific about quantities and types."
-                }
+                },
+                prompt_context=context
             )
             
+            full_prompt = f"{prompt_data['system_prompt']}\n\n{prompt_data['user_prompt']}"
+            
             response = self.ai_manager.generate(
-                prompt=prompt_data["full_prompt"],
-                max_tokens=1800,
-                temperature=0.6,
+                prompt=full_prompt,
+                max_tokens=prompt_data.get("max_tokens", 1800),
+                temperature=prompt_data.get("temperature", 0.6),
                 task_type="cost_analysis"
             )
             

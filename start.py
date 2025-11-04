@@ -52,20 +52,22 @@ import signal
 import platform
 import psutil
 import requests
+import asyncio
+import httpx
 from typing import Optional, List, Tuple
 from datetime import datetime
 
 
-# Configuration
-BACKEND_PORT = 8000
-FRONTEND_PORT = 3000
-BACKEND_HOST = "127.0.0.1"
-FRONTEND_HOST = "localhost"
+# Configuration - Load from environment with defaults
+BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8000"))
+FRONTEND_PORT = int(os.getenv("FRONTEND_PORT", "3000"))
+BACKEND_HOST = os.getenv("BACKEND_HOST", "127.0.0.1")
+FRONTEND_HOST = os.getenv("FRONTEND_HOST", "localhost")
 BACKEND_HEALTH_ENDPOINT = f"http://{BACKEND_HOST}:{BACKEND_PORT}/api/v2/health"
 FRONTEND_HEALTH_ENDPOINT = f"http://{FRONTEND_HOST}:{FRONTEND_PORT}"
-MAX_HEALTH_CHECK_ATTEMPTS = 30
-HEALTH_CHECK_INTERVAL = 2  # seconds
-STARTUP_DELAY = 3  # seconds to wait for process initialization
+MAX_HEALTH_CHECK_ATTEMPTS = int(os.getenv("MAX_HEALTH_CHECK_ATTEMPTS", "30"))
+HEALTH_CHECK_INTERVAL = float(os.getenv("HEALTH_CHECK_INTERVAL", "2"))  # seconds
+STARTUP_DELAY = float(os.getenv("STARTUP_DELAY", "3"))  # seconds to wait for process initialization
 
 
 class Colors:
@@ -257,38 +259,34 @@ def check_node_dependencies() -> bool:
     print_success("Node.js dependencies are installed")
     return True
 
-
-def check_health(url: str, service_name: str, max_attempts: int = MAX_HEALTH_CHECK_ATTEMPTS) -> bool:
+async def check_health_async(url: str, service_name: str, max_attempts: int = MAX_HEALTH_CHECK_ATTEMPTS, base_delay: float = HEALTH_CHECK_INTERVAL) -> bool:
     """
-    Check if a service is responding to health checks.
-    
+    Asynchronously check if a service is responding to health checks with exponential backoff.
     Args:
         url: Health check endpoint URL
         service_name: Name of the service for logging
         max_attempts: Maximum number of health check attempts
-        
+        base_delay: Initial delay between attempts (seconds)
     Returns:
         True if service is healthy, False otherwise
     """
     print_info(f"Waiting for {service_name} to be ready...")
-
     for attempt in range(1, max_attempts + 1):
         try:
-            response = requests.get(url, timeout=5)
-            print_info(f"[Health Check Attempt {attempt}] Status: {response.status_code}")
-            print_info(f"[Health Check Attempt {attempt}] Body: {response.text}")
-            if response.status_code == 200:
-                print_success(f"{service_name} is ready! (attempt {attempt}/{max_attempts})")
-                print_info(f"[Health Check] Received 200 OK. Proceeding with workflow.")
-                return True
-        except requests.exceptions.RequestException as e:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, timeout=5)
+                print_info(f"[Health Check Attempt {attempt}] Status: {response.status_code}")
+                print_info(f"[Health Check Attempt {attempt}] Body: {response.text}")
+                if response.status_code == 200:
+                    print_success(f"{service_name} is ready! (attempt {attempt}/{max_attempts})")
+                    print_info(f"[Health Check] Received 200 OK. Proceeding with workflow.")
+                    return True
+        except Exception as e:
             print_warning(f"[Health Check Attempt {attempt}] Exception: {e}")
-
         if attempt % 5 == 0:
             print_info(f"  Still waiting... (attempt {attempt}/{max_attempts})")
-
-        time.sleep(HEALTH_CHECK_INTERVAL)
-
+        # Exponential backoff every 5 attempts
+        await asyncio.sleep(base_delay * (2 ** ((attempt - 1) // 5)))
     print_error(f"{service_name} failed to start after {max_attempts} attempts")
     return False
 
@@ -357,11 +355,16 @@ def start_frontend() -> Optional[subprocess.Popen]:
         # Determine the npm command based on platform
         npm_cmd = "npm.cmd" if platform.system() == "Windows" else "npm"
         
+        # Create environment with PORT set to FRONTEND_PORT to prevent conflicts
+        frontend_env = os.environ.copy()
+        frontend_env["PORT"] = str(FRONTEND_PORT)
+        
         # Start Next.js development server
         # Note: Output is not captured so you can see HMR messages in real-time
         process = subprocess.Popen(
             [npm_cmd, "run", "dev"],
             cwd=str(frontend_dir),
+            env=frontend_env,
             shell=True if platform.system() == "Windows" else False
         )
         
@@ -481,20 +484,20 @@ def main():
         print_info("Backend started, proceeding to health check...")
         # Step 4: Verify backend health
         print_header("Step 4: Verifying Backend Health")
-        if not check_health(BACKEND_HEALTH_ENDPOINT, "Backend"):
+        if not asyncio.run(check_health_async(BACKEND_HEALTH_ENDPOINT, "Backend")):
             return 1
-        
+
         # Step 5: Start frontend
         print_header("Step 5: Starting Frontend Server")
         frontend_process = start_frontend()
         if not frontend_process:
             return 1
-        
+
         # Step 6: Verify frontend health
         print_header("Step 6: Verifying Frontend Health")
-        if not check_health(FRONTEND_HEALTH_ENDPOINT, "Frontend"):
+        if not asyncio.run(check_health_async(FRONTEND_HEALTH_ENDPOINT, "Frontend")):
             return 1
-        
+
         # Step 7: Monitor processes
         monitor_processes(backend_process, frontend_process)
         
