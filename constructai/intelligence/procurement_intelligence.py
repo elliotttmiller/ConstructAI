@@ -341,7 +341,7 @@ class ProcurementIntelligence:
         Returns:
             Purchase order document
         """
-        po_number = f"PO-{datetime.now().strftime('%Y%m%d')}-{id(item) % 10000:04d}"
+        po_number = f"PO-{datetime.now().strftime('%Y%m%d')}-{str(id(item))[-6:]}"
         
         supplier = self.supplier_database.get(supplier_id, None)
         if not supplier:

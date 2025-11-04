@@ -296,8 +296,8 @@ class SpecificationIntelligence:
         """Extract specifications using regex patterns."""
         specs = []
         
-        # Pattern for material specifications
-        material_pattern = r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:shall|must|will)\s+(?:be|meet|conform)'
+        # Pattern for material specifications (simplified to avoid ReDoS)
+        material_pattern = r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,5})\s+(?:shall|must|will)\s+(?:be|meet|conform)'
         
         for match in re.finditer(material_pattern, text):
             spec_text = match.group(0)

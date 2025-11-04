@@ -2922,22 +2922,3 @@ Total Clauses: {len(all_clauses)}
 
 # For running with uvicorn
 app = create_app()
-                        "match_score": round(match.match_score, 3),
-                        "match_type": match.match_type,
-                        "compatibility": match.compatibility,
-                        "differences": match.differences,
-                        "recommendations": match.recommendations
-                    }
-                    for match in matches
-                ]
-            }
-        except Exception as e:
-            logger.error(f"Error matching components: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-    
-    logger.info("FastAPI app created successfully with Enterprise Intelligence capabilities")
-    return app
-
-
-# For running with uvicorn
-app = create_app()
