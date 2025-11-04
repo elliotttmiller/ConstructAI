@@ -2,6 +2,7 @@ numpy
 pandas
 pyyaml
 python-dateutil
+python-dotenv  # Environment variable management
 
 # Document Processing & OCR
 pypdf2

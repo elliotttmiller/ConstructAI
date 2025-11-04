@@ -3,6 +3,8 @@ FastAPI application for ConstructAI web interface.
 
 Provides REST API and web dashboard for document analysis.
 Enhanced with database persistence, middleware, and comprehensive error handling.
+
+Environment variables are automatically loaded by the constructai package.
 """
 
 from typing import Dict, Any, Optional
@@ -16,6 +18,8 @@ def create_app():
     """
     Create FastAPI application with all enhancements.
     
+    Environment variables are loaded by constructai.__init__.py when imported.
+    
     Returns:
         FastAPI app instance
     """
@@ -28,9 +32,20 @@ def create_app():
         raise ImportError("FastAPI not installed. Install with: pip install fastapi uvicorn sqlalchemy")
     
     # Initialize settings and logging
+    # Environment variables are already loaded by constructai.__init__.py
     from ..config import setup_logging, get_settings
     settings = get_settings()
     setup_logging(settings.LOG_LEVEL, settings.LOG_FILE)
+    
+    logger.info("="*80)
+    logger.info("CONSTRUCTAI FASTAPI APPLICATION")
+    logger.info("="*80)
+    logger.info(f"Environment variables loaded from .env/.env.local files")
+    logger.info(f"App Name: {settings.APP_NAME}")
+    logger.info(f"Version: {settings.APP_VERSION}")
+    logger.info(f"Debug Mode: {settings.DEBUG}")
+    logger.info(f"Host: {settings.HOST}:{settings.PORT}")
+    logger.info("="*80)
     
     app = FastAPI(
         title="ConstructAI API",

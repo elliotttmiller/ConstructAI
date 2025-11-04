@@ -1,11 +1,14 @@
 """
 Command-line interface for ConstructAI.
+
+Environment variables are automatically loaded by the constructai package.
 """
 
 import sys
 import argparse
 from datetime import datetime, timedelta
 
+# Importing constructai will trigger environment variable loading
 from constructai.models.project import Project, Task, Resource, TaskStatus, ResourceType
 from constructai.engine.auditor import ProjectAuditor
 from constructai.engine.optimizer import WorkflowOptimizer

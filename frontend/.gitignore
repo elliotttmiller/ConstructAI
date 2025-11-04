@@ -1,41 +1,126 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ============================================================================
+# CONSTRUCTAI FRONTEND - NEXT.JS GITIGNORE
+# ============================================================================
+# Optimized for Next.js 14+ with TypeScript
+# See: https://nextjs.org/docs/getting-started/installation
+# ============================================================================
 
-# dependencies
+# ============================================================================
+# DEPENDENCIES
+# ============================================================================
 /node_modules
 /.pnp
 .pnp.*
+.pnp.js
+
+# Yarn
 .yarn/*
+!.yarn/cache
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
+# npm
+package-lock.json
+npm-debug.log*
 
-# next.js
+# pnpm
+.pnpm-debug.log*
+pnpm-lock.yaml
+
+# ============================================================================
+# TESTING & COVERAGE
+# ============================================================================
+/coverage
+.nyc_output
+*.lcov
+
+# ============================================================================
+# NEXT.JS BUILD OUTPUT
+# ============================================================================
 /.next/
 /out/
+/.turbo/
 
-# production
+# ============================================================================
+# PRODUCTION BUILD
+# ============================================================================
 /build
+/dist
 
-# misc
-.DS_Store
-*.pem
+# ============================================================================
+# ENVIRONMENT VARIABLES (CRITICAL - CONTAINS SECRETS)
+# ============================================================================
+# Always ignore - may contain API keys and secrets
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.backup
 
-# debug
+# Allow .env.example (safe template with no secrets)
+!.env.example
+
+# ============================================================================
+# VERCEL DEPLOYMENT
+# ============================================================================
+.vercel
+.vercel.json
+
+# ============================================================================
+# TYPESCRIPT
+# ============================================================================
+*.tsbuildinfo
+next-env.d.ts
+
+# ============================================================================
+# DEBUG LOGS
+# ============================================================================
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# ============================================================================
+# OPERATING SYSTEM
+# ============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
 
-# vercel
-.vercel
+# Windows
+Thumbs.db
+Desktop.ini
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# Linux
+.directory
+
+# ============================================================================
+# IDE & EDITORS
+# ============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================================================================
+# MISC
+# ============================================================================
+*.pem
+*.key
+.cache/
+
+# Storybook
+storybook-static/
+
+# Bundle analyzer
+.next-bundle-analyzer/
+
+# Sentry
+.sentryclirc

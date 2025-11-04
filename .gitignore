@@ -1,4 +1,6 @@
-# Python
+# ============================================================================
+# PYTHON
+# ============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,55 +18,215 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# Virtual environments
+# ============================================================================
+# VIRTUAL ENVIRONMENTS
+# ============================================================================
 venv/
 env/
 ENV/
 .venv
+.conda/
+*.virtualenv
 
-# IDE
+# ============================================================================
+# IDE & EDITORS
+# ============================================================================
+# VSCode
 .vscode/
+*.code-workspace
+
+# PyCharm / IntelliJ
 .idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
 *.swp
 *.swo
 *~
 
-# Testing
+# Emacs
+*#
+.#*
+
+# ============================================================================
+# TESTING & COVERAGE
+# ============================================================================
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+.tox/
+.nox/
+.hypothesis/
+*.cover
+*.py,cover
+nosetests.xml
+coverage.xml
+*.coveragerc
 
-# Logs
+# ============================================================================
+# LOGGING
+# ============================================================================
 *.log
 logs/
+*.log.*
 
-# Database
+# ============================================================================
+# DATABASE
+# ============================================================================
 *.db
 *.sqlite
 *.sqlite3
+*.db-journal
 constructai.db
+constructai.db-*
 
-# OS
+# ============================================================================
+# OPERATING SYSTEM
+# ============================================================================
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
 Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
 
-# Temporary files
-tmp/
-*.tmp
+# Linux
+.directory
+.Trash-*
 
-# Environment variables
+# ============================================================================
+# ENVIRONMENT VARIABLES (CRITICAL - CONTAINS SECRETS)
+# ============================================================================
+# Always ignore - contains real API keys and secrets
 .env
 .env.local
-.env*.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.backup
+.env.old
 
-# Next.js / Frontend
+# Allow .env.example (safe template with no secrets)
+!.env.example
+
+# ============================================================================
+# TEMPORARY & CACHE FILES
+# ============================================================================
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+.cache/
+*.bak
+*.swp
+
+# ============================================================================
+# FRONTEND (Next.js)
+# ============================================================================
+# Dependencies
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.js
+
+# Production builds
 frontend/.next/
 frontend/out/
-frontend/node_modules/
-frontend/.env*.local
 frontend/dist/
 frontend/build/
+
+# Environment files (with secrets)
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Allow frontend template
+!frontend/.env.example
+
+# Turbopack cache
+frontend/.turbo/
+
+# Vercel
+frontend/.vercel
+
+# TypeScript
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# ============================================================================
+# PROJECT SPECIFIC
+# ============================================================================
+# Uploaded documents (may contain sensitive data)
+uploads/
+documents/
+
+# Generated reports
+reports/*.pdf
+reports/*.html
+
+# Model weights/checkpoints (large files)
+models/*.pt
+models/*.pth
+models/*.h5
+models/*.pb
+*.ckpt
+
+# Data files (if sensitive)
+data/raw/
+data/processed/
+
+# ============================================================================
+# DOCUMENTATION BUILD
+# ============================================================================
+docs/_build/
+docs/_static/
+docs/_templates/
+site/
+
+# ============================================================================
+# SECURITY & CREDENTIALS (EXTRA PROTECTION)
+# ============================================================================
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials/
+.aws/
+.azure/
+
+# ============================================================================
+# MISCELLANEOUS
+# ============================================================================
+*.pid
+*.seed
+*.pid.lock
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py

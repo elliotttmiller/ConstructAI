@@ -3,27 +3,55 @@
 ConstructAI Professional Startup Script
 
 This script manages the complete startup process for both backend and frontend servers:
-1. Gracefully terminates any existing processes on required ports
-2. Validates dependencies and environment
-3. Starts backend FastAPI server (port 8000)
-4. Verifies backend health before proceeding
-5. Starts frontend Next.js server (port 3000)
-6. Verifies frontend health
-7. Provides real-time status updates and error handling
+1. Loads environment variables from .env files
+2. Gracefully terminates any existing processes on required ports
+3. Validates dependencies and environment
+4. Starts backend FastAPI server (port 8000)
+5. Verifies backend health before proceeding
+6. Starts frontend Next.js server (port 3000)
+7. Verifies frontend health
+8. Provides real-time status updates and error handling
 
 Author: ConstructAI Team
 Version: 1.0.0
 """
 
+# ============================================================================
+# CRITICAL: Load environment variables BEFORE any other imports
+# This ensures all modules have access to environment configuration
+# ============================================================================
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Get project root
+PROJECT_ROOT = Path(__file__).parent.absolute()
+
+# Load environment variables with proper priority
+# 1. .env (base configuration)
+env_file = PROJECT_ROOT / ".env"
+if env_file.exists():
+    load_dotenv(env_file, override=False)
+    print(f"✓ Loaded environment from: {env_file}")
+
+# 2. .env.local (local overrides)
+env_local_file = PROJECT_ROOT / ".env.local"
+if env_local_file.exists():
+    load_dotenv(env_local_file, override=True)
+    print(f"✓ Loaded local environment overrides from: {env_local_file}")
+
+print("✓ Environment variables loaded successfully\n")
+
+# ============================================================================
+# Now import everything else
+# ============================================================================
 import subprocess
 import sys
 import time
-import os
 import signal
 import platform
 import psutil
 import requests
-from pathlib import Path
 from typing import Optional, List, Tuple
 from datetime import datetime
 
