@@ -3,6 +3,17 @@
  * These types match the backend API contracts
  */
 
+export interface DocumentMetadata {
+  id: string;
+  filename: string;
+  file_size: number;
+  file_type: string;
+  document_type: string;
+  uploaded_at: string;
+  analysis_status: string;
+  analysis_result?: Record<string, unknown>;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -15,6 +26,7 @@ export interface Project {
   target_end_date?: string;
   created_at: string;
   updated_at: string;
+  documents?: DocumentMetadata[];
 }
 
 export interface Task {

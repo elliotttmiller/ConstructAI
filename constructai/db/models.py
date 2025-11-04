@@ -55,13 +55,15 @@ class ProjectDB(Base):
             "resources": self.resources,
         }
         
-        # Extract analysis and MEP data from project_metadata if available
+        # Extract data from project_metadata if available
         if self.project_metadata and isinstance(self.project_metadata, dict):
             base_dict["analysis"] = self.project_metadata.get("analysis", {})
             base_dict["mep_analysis"] = self.project_metadata.get("mep_analysis", {})
+            base_dict["documents"] = self.project_metadata.get("documents", [])  # Include documents!
         else:
             base_dict["analysis"] = {}
             base_dict["mep_analysis"] = {}
+            base_dict["documents"] = []  # Empty list if no metadata
         
         return base_dict
     

@@ -274,7 +274,7 @@ class ConstructionIntelligenceEngine:
             
             # Generate cost model using AI
             prompt_data = self.prompt_engineer.get_prompt(
-                task_type=TaskType.COST_ESTIMATION,
+                task_type=TaskType.RISK_PREDICTION,  # Changed from COST_ESTIMATION (no template exists)
                 context={
                     "project_scope": scope_analysis,
                     "estimate_class": estimate_class,
@@ -294,7 +294,7 @@ class ConstructionIntelligenceEngine:
                 prompt=full_prompt,
                 max_tokens=4000,
                 temperature=0.2,  # Low temperature for cost accuracy
-                task_type="quantitative_estimation"
+                task_type=TaskType.RISK_PREDICTION  # Changed from invalid string
             )
 
             # Parse and validate cost estimate
@@ -365,7 +365,7 @@ class ConstructionIntelligenceEngine:
                 prompt=full_prompt,
                 max_tokens=3500,
                 temperature=0.3,
-                task_type="risk_assessment"
+                task_type=TaskType.RISK_PREDICTION  # Changed from invalid string
             )
 
             # Parse and validate risk assessment
@@ -416,7 +416,7 @@ class ConstructionIntelligenceEngine:
             
             # Generate strategic recommendations
             prompt_data = self.prompt_engineer.get_prompt(
-                task_type=TaskType.STRATEGIC_RECOMMENDATIONS,
+                task_type=TaskType.RECOMMENDATION_GENERATION,  # Use proper TaskType enum
                 context={
                     "project_intelligence": project_data,
                     "technical_analysis": analysis_results,
@@ -426,7 +426,7 @@ class ConstructionIntelligenceEngine:
                     "innovation_opportunities": self._identify_innovation_opportunities(analysis_results)
                 },
                 prompt_context=context,
-                reasoning_pattern=ReasoningPattern.STRATEGIC_PLANNING
+                reasoning_pattern=ReasoningPattern.STRATEGIC_THINKING  # Use existing enum value
             )
 
             full_prompt = f"{prompt_data['system_prompt']}\n\n{prompt_data['user_prompt']}"
@@ -436,7 +436,7 @@ class ConstructionIntelligenceEngine:
                 prompt=full_prompt,
                 max_tokens=3000,
                 temperature=0.4,
-                task_type="strategic_recommendations"
+                task_type=TaskType.RECOMMENDATION_GENERATION
             )
 
             # Parse and validate recommendations

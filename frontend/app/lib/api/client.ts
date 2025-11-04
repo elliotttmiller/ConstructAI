@@ -402,6 +402,28 @@ class APIClient {
   }
 
   /**
+   * 🗑️ Delete a document from project
+   */
+  async deleteDocument(
+    projectId: string,
+    documentId: string
+  ): Promise<{
+    status: string;
+    message: string;
+    document_id: string;
+    remaining_documents: number;
+  }> {
+    const response = await fetch(
+      `${this.baseURL}/api/projects/${projectId}/documents/${documentId}`,
+      {
+        method: "DELETE",
+        headers: this.headers,
+      }
+    );
+    return this.handleResponse(response);
+  }
+
+  /**
    * 🤖 STEP 2: Analyze uploaded document (AI-driven, comprehensive)
    * Triggers full AI analysis pipeline on uploaded document
    */

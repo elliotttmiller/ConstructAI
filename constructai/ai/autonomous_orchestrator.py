@@ -310,7 +310,7 @@ Provide your strategic analysis plan with confidence scores.
             prompt=full_prompt,
             max_tokens=2000,
             temperature=0.3,  # Lower temperature for strategic decisions
-            task_type="autonomous_initialization"
+            task_type=TaskType.DOCUMENT_ANALYSIS
         )
         
         # Parse AI strategic decisions
@@ -393,7 +393,7 @@ Provide comprehensive autonomous understanding with confidence scores for each f
             prompt=full_prompt,
             max_tokens=4000,
             temperature=0.4,
-            task_type="autonomous_understanding"
+            task_type=TaskType.DOCUMENT_ANALYSIS
         )
         
         understanding = self._parse_understanding_response(response.content)
@@ -604,7 +604,7 @@ Standards: {len(analysis_result.get('standards', []))} standards referenced
         ])
         
         prompt_data = self.prompt_engineer.get_prompt(
-            task_type=TaskType.COMPLIANCE_CHECK,
+            task_type=TaskType.RISK_PREDICTION,  # Changed from COMPLIANCE_CHECK (no template exists)
             context={
                 "project_details": project_details,
                 "specifications": specifications
@@ -620,7 +620,7 @@ Standards: {len(analysis_result.get('standards', []))} standards referenced
             prompt=full_prompt,
             max_tokens=3000,
             temperature=0.2,  # Very low for compliance - must be accurate
-            task_type="autonomous_compliance"
+            task_type=TaskType.RISK_PREDICTION  # Changed from invalid string
         )
         
         return self._parse_compliance_response(response.content)
@@ -697,7 +697,7 @@ Standards: {len(analysis_result.get('standards', []))} standards referenced
         all_findings = json.dumps(state.analyses_completed, indent=2)[:8000]
         
         prompt_data = self.prompt_engineer.get_prompt(
-            task_type=TaskType.GENERAL_ANALYSIS,
+            task_type=TaskType.DOCUMENT_ANALYSIS,  # Changed from GENERAL_ANALYSIS (doesn't exist)
             context={
                 "analysis_findings": f"""
 COMPREHENSIVE ANALYSIS SYNTHESIS
@@ -752,7 +752,7 @@ Provide a professional, comprehensive synthesis that demonstrates expert-level u
             prompt=full_prompt,
             max_tokens=4000,
             temperature=0.5,
-            task_type="autonomous_synthesis"
+            task_type=TaskType.RECOMMENDATION_GENERATION
         )
         
         return {

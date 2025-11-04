@@ -836,7 +836,23 @@ Deliver autonomous construction recommendations with quantified impact analysis.
         # Merge context with autonomous data
         full_context = {**context, **autonomous_context_data}
         
-        return template.instruction_template.format(**full_context)
+        # Use format_map with defaultdict to handle missing keys gracefully
+        from collections import defaultdict
+        safe_context = defaultdict(lambda: "[Not Provided]", full_context)
+        
+        try:
+            return template.instruction_template.format_map(safe_context)
+        except (KeyError, ValueError) as e:
+            logger.warning(f"Template formatting warning: {e}. Using partial context.")
+            # Fallback: return template with available context
+            import string
+            # Extract all field names from template
+            field_names = [fname for _, fname, _, _ in string.Formatter().parse(template.instruction_template) if fname]
+            # Log missing fields
+            missing = [f for f in field_names if f not in full_context]
+            if missing:
+                logger.debug(f"Missing template fields: {missing}")
+            return template.instruction_template.format_map(safe_context)
     
     def _apply_autonomous_reasoning_pattern(
         self, 

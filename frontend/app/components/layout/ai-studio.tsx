@@ -1,18 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { useState } from "react";
-import { Play, FileDown, Settings, Sparkles, CheckCircle2, UploadCloud, Upload, FileText, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Play, FileDown, Settings, Sparkles, CheckCircle2, UploadCloud, Upload, FileText, X, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { apiClient } from "@/app/lib/api/client";
 import { ConfigurationModal } from "../data/configuration-modal";
 import { DocumentUpload } from "../data/document-upload";
 import { RealTimeAnalysisViewport } from "../analysis/real-time-analysis-viewport";
+import { PostAnalysisDashboard } from "../analysis/post-analysis-dashboard";
 import { ProjectDashboard } from "../dashboard/project-dashboard";
 import { UniversalDomainViewer } from "../analysis/universal-domain-viewer";
 import { useToast } from "../ui/toast";
-import type { ProjectConfig } from "@/app/lib/types";
+import type { ProjectConfig, DocumentMetadata } from "@/app/lib/types";
 
 // Universal, extensible document analysis interface
 interface DocumentAnalysis {
@@ -119,6 +120,7 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
   // 🌊 Real-time streaming progress state
   const [streamController, setStreamController] = useState<{ close: () => void } | null>(null);
   const [showAnalysisViewport, setShowAnalysisViewport] = useState(false);
+  const [showPostAnalysisDashboard, setShowPostAnalysisDashboard] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState({
     phase: 0,
     totalPhases: 7,
@@ -145,6 +147,56 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
     divisions_detected?: number;
     entities_extracted?: number;
   } | null>(null);
+
+  // Load existing documents when project changes
+  useEffect(() => {
+    const loadProjectDocuments = async () => {
+      if (!projectId) return;
+      
+      try {
+        const project = await apiClient.getProject(projectId);
+        
+        if (project.documents && Array.isArray(project.documents)) {
+          const docs = project.documents.map((doc: DocumentMetadata) => ({
+            id: doc.id,
+            documentId: doc.id,
+            name: doc.filename || 'Unknown',
+            size: doc.file_size || 0,
+            analysis: doc.analysis_result as DocumentAnalysis | undefined
+          }));
+          
+          setUploadedDocs(docs);
+          console.log(`✅ Loaded ${docs.length} existing documents from project`);
+        }
+      } catch (error) {
+        console.error('Failed to load project documents:', error);
+        showToast('Failed to load existing documents', 'error');
+      }
+    };
+
+    if (projectId) {
+      loadProjectDocuments();
+    }
+  }, [projectId, showToast]);
+
+  const handleDeleteDocument = async (documentId: string, documentName: string) => {
+    if (!projectId) return;
+    
+    try {
+      console.log(`🗑️ Deleting document: ${documentId}`);
+      
+      await apiClient.deleteDocument(projectId, documentId);
+      
+      // Remove from local state
+      setUploadedDocs(prev => prev.filter(doc => doc.documentId !== documentId));
+      
+      showToast(`Document "${documentName}" deleted successfully`, "success");
+      console.log(`✅ Document deleted: ${documentId}`);
+    } catch (error) {
+      console.error('Failed to delete document:', error);
+      showToast(`Failed to delete document: ${error}`, 'error');
+    }
+  };
 
   const handleDocumentUpload = (
     documentId: string, 
@@ -384,7 +436,11 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
               entities_extracted: (data as {entities_extracted?: number}).entities_extracted
             });
             
-            // Keep viewport open to show completion - user will close it
+            // Auto-transition to post-analysis dashboard after 1.5 seconds
+            setTimeout(() => {
+              setShowAnalysisViewport(false);
+              setShowPostAnalysisDashboard(true);
+            }, 1500);
           },
           
           onError: (data) => {
@@ -814,7 +870,7 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
                     {uploadedDocs.slice(-3).map((doc) => (
                       <div
                         key={doc.id}
-                        className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3"
+                        className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 group hover:border-red-200 transition-colors"
                       >
                         <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -825,6 +881,18 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
                             {(doc.size / 1024 / 1024).toFixed(2)} MB
                           </p>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteDocument(doc.documentId, doc.name);
+                          }}
+                          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-600"
+                          title="Delete document"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     ))}
                     {uploadedDocs.length > 3 && (
@@ -873,6 +941,18 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
         onCancel={handleCancelAnalysis}
         analysisResult={analysisResultSummary || undefined}
       />
+
+      {/* Post-Analysis Dashboard Modal */}
+      {analysisResultSummary && (
+        <PostAnalysisDashboard
+          isOpen={showPostAnalysisDashboard}
+          onClose={() => setShowPostAnalysisDashboard(false)}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          documentAnalysis={documentAnalysis as any}
+          resultSummary={analysisResultSummary}
+          insights={analysisInsights}
+        />
+      )}
     </main>
   );
 }

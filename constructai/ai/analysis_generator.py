@@ -187,7 +187,7 @@ class AnalysisGenerator:
                 prompt=full_prompt,
                 max_tokens=3000,
                 temperature=0.3,  # Lower temperature for strategic decisions
-                task_type="strategic_recommendations"
+                task_type=TaskType.RECOMMENDATION_GENERATION
             )
 
             # Parse and validate recommendations
@@ -231,7 +231,7 @@ class AnalysisGenerator:
             dimensions = await self._analyze_project_dimensions(project_data, analysis_results)
             
             prompt_data = self.prompt_engineer.get_prompt(
-                task_type=TaskType.MULTI_DIMENSIONAL_ANALYSIS,
+                task_type=TaskType.DOCUMENT_ANALYSIS,  # Changed from MULTI_DIMENSIONAL_ANALYSIS (doesn't exist)
                 context={
                     "project_data": project_data,
                     "analysis_results": analysis_results,
@@ -240,7 +240,7 @@ class AnalysisGenerator:
                     "industry_context": self._get_industry_context(project_data)
                 },
                 prompt_context=context,
-                reasoning_pattern=ReasoningPattern.SYSTEMS_THINKING
+                reasoning_pattern=ReasoningPattern.COLLABORATIVE_REASONING  # Changed from SYSTEMS_THINKING (doesn't exist)
             )
 
             full_prompt = f"{prompt_data['system_prompt']}\n\n{prompt_data['user_prompt']}"
@@ -250,7 +250,7 @@ class AnalysisGenerator:
                 prompt=full_prompt,
                 max_tokens=4000,
                 temperature=0.4,
-                task_type="project_intelligence"
+                task_type=TaskType.DOCUMENT_ANALYSIS
             )
 
             intelligence = await self._parse_project_intelligence(response.content, dimensions)
@@ -295,7 +295,7 @@ class AnalysisGenerator:
             sequencing_analysis = await self._analyze_sequencing_requirements(project_data, analysis_results)
             
             prompt_data = self.prompt_engineer.get_prompt(
-                task_type=TaskType.EXECUTION_PLANNING,
+                task_type=TaskType.RECOMMENDATION_GENERATION,  # Changed from EXECUTION_PLANNING (doesn't exist)
                 context={
                     "project_scope": project_data,
                     "technical_analysis": analysis_results,
@@ -304,7 +304,7 @@ class AnalysisGenerator:
                     "risk_factors": analysis_results.get("risk_analysis", {})
                 },
                 prompt_context=context,
-                reasoning_pattern=ReasoningPattern.CRITICAL_PATH_ANALYSIS
+                reasoning_pattern=ReasoningPattern.STRATEGIC_THINKING  # Changed from CRITICAL_PATH_ANALYSIS (doesn't exist)
             )
 
             full_prompt = f"{prompt_data['system_prompt']}\n\n{prompt_data['user_prompt']}"
@@ -314,7 +314,7 @@ class AnalysisGenerator:
                 prompt=full_prompt,
                 max_tokens=3500,
                 temperature=0.3,
-                task_type="execution_strategy"
+                task_type=TaskType.RECOMMENDATION_GENERATION
             )
 
             strategy = await self._parse_execution_strategy(response.content, sequencing_analysis)
@@ -358,7 +358,7 @@ class AnalysisGenerator:
             risk_quantification = await self._quantify_project_risks(project_data, analysis_results)
             
             prompt_data = self.prompt_engineer.get_prompt(
-                task_type=TaskType.RISK_ANALYSIS,
+                task_type=TaskType.RISK_PREDICTION,  # Changed from RISK_ANALYSIS (doesn't exist)
                 context={
                     "project_context": project_data,
                     "technical_analysis": analysis_results,
@@ -377,7 +377,7 @@ class AnalysisGenerator:
                 prompt=full_prompt,
                 max_tokens=4000,
                 temperature=0.2,  # Low temperature for risk analysis
-                task_type="risk_analysis"
+                task_type=TaskType.RISK_PREDICTION
             )
 
             risk_analysis = await self._parse_risk_analysis(response.content, risk_quantification)
@@ -442,7 +442,7 @@ class AnalysisGenerator:
                 prompt=full_prompt,
                 max_tokens=3500,
                 temperature=0.3,
-                task_type="cost_insights"
+                task_type=TaskType.RISK_PREDICTION
             )
 
             cost_insights = await self._parse_cost_insights(response.content, cost_analysis)
@@ -506,7 +506,7 @@ class AnalysisGenerator:
                 prompt=full_prompt,
                 max_tokens=3000,
                 temperature=0.4,
-                task_type="procurement_strategy"
+                task_type=TaskType.RECOMMENDATION_GENERATION
             )
 
             strategy = await self._parse_procurement_strategy(response.content, procurement_analysis)
@@ -547,7 +547,7 @@ class AnalysisGenerator:
             compliance_analysis = await self._analyze_compliance_requirements(project_data, analysis_results)
             
             prompt_data = self.prompt_engineer.get_prompt(
-                task_type=TaskType.COMPLIANCE_CHECK,
+                task_type=TaskType.RISK_PREDICTION,  # Changed from COMPLIANCE_CHECK (no template exists)
                 context={
                     "project_details": project_data,
                     "technical_specifications": analysis_results,
@@ -556,7 +556,7 @@ class AnalysisGenerator:
                     "jurisdictional_requirements": self._get_jurisdictional_requirements(project_data)
                 },
                 prompt_context=context,
-                reasoning_pattern=ReasoningPattern.COMPLIANCE_REASONING
+                reasoning_pattern=ReasoningPattern.CHAIN_OF_THOUGHT  # Changed from COMPLIANCE_REASONING (doesn't exist)
             )
 
             full_prompt = f"{prompt_data['system_prompt']}\n\n{prompt_data['user_prompt']}"
@@ -566,7 +566,7 @@ class AnalysisGenerator:
                 prompt=full_prompt,
                 max_tokens=3500,
                 temperature=0.2,  # Very low for compliance accuracy
-                task_type="compliance_validation"
+                task_type=TaskType.RISK_PREDICTION  # Changed from invalid string
             )
 
             validation = await self._parse_compliance_validation(response.content, compliance_analysis)

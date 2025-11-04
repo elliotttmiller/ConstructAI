@@ -57,35 +57,37 @@ class UniversalDocumentIntelligence:
         
         doc_preview = document_content[:3000]
         
-        classification_prompt = self.prompt_engineer.get_prompt(
-            task_type=TaskType.DOCUMENT_ANALYSIS,
-            context={
-                "document_content": doc_preview,  # Changed from document_preview to document_content
-                "task": """Analyze this document and provide a JSON response with:
-                {
-                    "document_type": "one of: construction_specification, proposal, bid, contract, rfp, rfq, schedule, safety_plan, quality_plan, submittal, change_order, meeting_minutes, drawing_notes, or other",
-                    "structure_type": "one of: master_format, csi_format, free_form, tabular, narrative",
-                    "key_sections": ["list", "of", "section", "names"],
-                    "information_density": "low/medium/high",
-                    "primary_focus": ["technical", "financial", "schedule", "compliance", "safety", "quality"],
-                    "has_costs": true/false,
-                    "has_technical_specs": true/false,
-                    "has_schedule": true/false,
-                    "confidence": 0.0-1.0
-                }"""
-            },
-            prompt_context=PromptContext(
-                document_type="universal",
-                custom_context=metadata or {}
-            )
-        )
+        # Create a simple, direct prompt for JSON classification
+        system_prompt = """You are a construction document classification expert. 
+Analyze documents and return ONLY valid JSON with no additional text or formatting.
+Your response must be pure JSON that can be parsed directly."""
+
+        user_prompt = f"""Analyze this construction document and return ONLY a JSON object (no markdown, no code blocks, no extra text):
+
+DOCUMENT PREVIEW:
+{doc_preview}
+
+Return this exact JSON structure:
+{{
+    "document_type": "construction_specification|proposal|bid|contract|rfp|rfq|schedule|safety_plan|quality_plan|submittal|change_order|meeting_minutes|drawing_notes|other",
+    "structure_type": "master_format|csi_format|free_form|tabular|narrative",
+    "key_sections": ["section1", "section2"],
+    "information_density": "low|medium|high",
+    "primary_focus": ["technical", "financial", "schedule", "compliance", "safety", "quality"],
+    "has_costs": true,
+    "has_technical_specs": true,
+    "has_schedule": false,
+    "confidence": 0.85
+}}
+
+IMPORTANT: Return ONLY the JSON object, no markdown formatting, no ```json blocks, no explanations."""
         
         try:
             response = self.ai_manager.generate(
-                prompt=f"{classification_prompt['system_prompt']}\n\n{classification_prompt['user_prompt']}",
+                prompt=user_prompt,
+                system_prompt=system_prompt,
                 max_tokens=600,
-                temperature=0.2,
-                task_type="classification"
+                temperature=0.2
             )
             
             # Try to parse JSON response
@@ -93,6 +95,11 @@ class UniversalDocumentIntelligence:
             import re
             
             content = response.content.strip()
+            
+            # Check if response is empty
+            if not content:
+                logger.warning("AI returned empty response for classification")
+                raise ValueError("Empty AI response")
             
             # Try multiple JSON extraction strategies
             # 1. Look for JSON in code blocks
@@ -105,14 +112,37 @@ class UniversalDocumentIntelligence:
                 start = content.find('{')
                 end = content.rfind('}') + 1
                 content = content[start:end]
+            else:
+                logger.warning(f"No JSON found in AI response. Content preview: {content[:200]}")
+                raise ValueError("No JSON object found in response")
+            
+            # Final validation
+            if not content or not content.strip():
+                logger.warning("Extracted content is empty after JSON extraction")
+                raise ValueError("Extracted JSON content is empty")
             
             classification = json.loads(content)
             logger.info(f"✅ Document classified as: {classification.get('document_type', 'unknown')}")
             return classification
             
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error in classification: {e}")
+            logger.debug(f"Attempted to parse: {content[:500] if 'content' in locals() else 'No content'}")
+            logger.debug(f"Full AI response: {response.content if 'response' in locals() else 'No response'}")
+            return {
+                "document_type": "unknown",
+                "structure_type": "free_form",
+                "key_sections": [],
+                "information_density": "medium",
+                "primary_focus": ["general"],
+                "has_costs": False,
+                "has_technical_specs": False,
+                "has_schedule": False,
+                "confidence": 0.3
+            }
         except Exception as e:
             logger.error(f"AI classification failed: {e}")
-            logger.debug(f"AI response content: {response.content[:200] if 'response' in locals() else 'No response'}")
+            logger.debug(f"AI response content: {response.content[:500] if 'response' in locals() else 'No response'}")
             return {
                 "document_type": "unknown",
                 "structure_type": "free_form",
@@ -147,46 +177,53 @@ class UniversalDocumentIntelligence:
         logger.info("🔍 Extracting entities with AI...")
         
         doc_type = classification.get('document_type', 'unknown')
+        doc_content = document_content[:8000]
         
-        extraction_prompt = self.prompt_engineer.get_prompt(
-            task_type=TaskType.DOCUMENT_ANALYSIS,  # Changed from NER_EXTRACTION (no template exists)
-            context={
-                "document_content": document_content[:8000],
-                "document_type": doc_type,
-                "task": f"""Extract ALL key information from this {doc_type} document. Return JSON:
-                {{
-                    "companies": ["company names"],
-                    "people": ["person names and roles"],
-                    "dates": ["important dates with context"],
-                    "costs": [{{"item": "description", "amount": "value", "type": "labor/material/equipment/etc"}}],
-                    "requirements": ["key requirements, specifications, or obligations"],
-                    "risks": ["identified risks, concerns, or issues"],
-                    "materials": ["construction materials mentioned"],
-                    "equipment": ["equipment, tools, or machinery"],
-                    "standards": ["codes, standards, or regulations"],
-                    "locations": ["project locations or site references"],
-                    "key_terms": ["important technical or legal terms"],
-                    "summary": "3-sentence summary of document"
-                }}"""
-            },
-            prompt_context=PromptContext(
-                document_type=doc_type,
-                custom_context={}
-            )
-        )
+        # Create a simple, direct prompt for JSON extraction
+        system_prompt = """You are a construction document analysis expert specializing in entity extraction.
+Extract key information and return ONLY valid JSON with no additional text or formatting.
+Your response must be pure JSON that can be parsed directly."""
+
+        user_prompt = f"""Extract ALL key information from this {doc_type} document and return ONLY a JSON object (no markdown, no code blocks, no extra text):
+
+DOCUMENT CONTENT:
+{doc_content}
+
+Return this exact JSON structure:
+{{
+    "companies": ["Company Name 1", "Company Name 2"],
+    "people": ["Person Name - Role", "Person Name - Role"],
+    "dates": ["Date description - YYYY-MM-DD", "Date description - YYYY-MM-DD"],
+    "costs": [{{"item": "description", "amount": "value", "type": "labor/material/equipment"}}],
+    "requirements": ["requirement 1", "requirement 2"],
+    "risks": ["risk 1", "risk 2"],
+    "materials": ["material 1", "material 2"],
+    "equipment": ["equipment 1", "equipment 2"],
+    "standards": ["standard 1", "standard 2"],
+    "locations": ["location 1", "location 2"],
+    "key_terms": ["term 1", "term 2"],
+    "summary": "Brief 3-sentence summary of the document"
+}}
+
+IMPORTANT: Return ONLY the JSON object, no markdown formatting, no ```json blocks, no explanations."""
         
         try:
             response = self.ai_manager.generate(
-                prompt=f"{extraction_prompt['system_prompt']}\n\n{extraction_prompt['user_prompt']}",
+                prompt=user_prompt,
+                system_prompt=system_prompt,
                 max_tokens=1500,
-                temperature=0.2,
-                task_type="extraction"
+                temperature=0.2
             )
             
             import json
             import re
             
             content = response.content.strip()
+            
+            # Check if response is empty
+            if not content:
+                logger.warning("AI returned empty response for entity extraction")
+                raise ValueError("Empty AI response")
             
             # Try multiple JSON extraction strategies
             # 1. Look for JSON in code blocks
@@ -198,14 +235,40 @@ class UniversalDocumentIntelligence:
                 start = content.find('{')
                 end = content.rfind('}') + 1
                 content = content[start:end]
+            else:
+                logger.warning(f"No JSON found in AI response. Content preview: {content[:200]}")
+                raise ValueError("No JSON object found in response")
+            
+            # Final validation
+            if not content or not content.strip():
+                logger.warning("Extracted content is empty after JSON extraction")
+                raise ValueError("Extracted JSON content is empty")
             
             entities = json.loads(content)
             logger.info(f"✅ Extracted entities from {doc_type}")
             return entities
             
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error in entity extraction: {e}")
+            logger.debug(f"Attempted to parse: {content[:500] if 'content' in locals() else 'No content'}")
+            logger.debug(f"Full AI response: {response.content if 'response' in locals() else 'No response'}")
+            return {
+                "companies": [],
+                "people": [],
+                "dates": [],
+                "costs": [],
+                "requirements": [],
+                "risks": [],
+                "materials": [],
+                "equipment": [],
+                "standards": [],
+                "locations": [],
+                "key_terms": [],
+                "summary": "Entity extraction failed - JSON parse error"
+            }
         except Exception as e:
             logger.error(f"AI entity extraction failed: {e}")
-            logger.debug(f"AI response content: {response.content[:200] if 'response' in locals() else 'No response'}")
+            logger.debug(f"AI response content: {response.content[:500] if 'response' in locals() else 'No response'}")
             return {
                 "companies": [],
                 "people": [],

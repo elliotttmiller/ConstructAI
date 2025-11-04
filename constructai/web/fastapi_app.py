@@ -766,6 +766,52 @@ def create_app():
                 os.unlink(temp_file_path)
             raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
     
+    @app.delete("/api/projects/{project_id}/documents/{document_id}")
+    async def delete_document(project_id: str, document_id: str, db: Session = Depends(get_db)):
+        """
+        🗑️ DELETE DOCUMENT
+        
+        Remove a document from a project's document list.
+        This removes the document metadata from the database.
+        """
+        from fastapi import HTTPException
+        
+        logger.info(f"🗑️ Deleting document {document_id} from project {project_id}")
+        
+        db_project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        metadata = db_project.project_metadata or {}
+        documents = metadata.get("documents", [])
+        
+        # Find and remove the document
+        original_count = len(documents)
+        documents = [doc for doc in documents if doc.get("id") != document_id]
+        
+        if len(documents) == original_count:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Update metadata
+        metadata["documents"] = documents
+        
+        # Force SQLAlchemy to detect the change
+        from sqlalchemy.orm.attributes import flag_modified
+        db_project.project_metadata = metadata
+        flag_modified(db_project, "project_metadata")
+        
+        db.commit()
+        db.refresh(db_project)
+        
+        logger.info(f"✅ Document {document_id} deleted successfully. {len(documents)} documents remaining")
+        
+        return {
+            "status": "success",
+            "message": "Document deleted successfully",
+            "document_id": document_id,
+            "remaining_documents": len(documents)
+        }
+    
     @app.post("/api/projects/{project_id}/documents/{document_id}/analyze")
     async def analyze_document(project_id: str, document_id: str, db: Session = Depends(get_db)):
         """
@@ -981,7 +1027,7 @@ Total Clauses: {len(all_clauses)}
                     ])
                     
                     prompt_data = prompt_engineer.get_prompt(
-                        task_type=TaskType.COMPLIANCE_CHECK,
+                        task_type=TaskType.RECOMMENDATION_GENERATION,  # Use existing template
                         context={
                             "project_details": project_details,
                             "specifications": specifications,
@@ -996,7 +1042,7 @@ Total Clauses: {len(all_clauses)}
                         prompt=full_prompt,
                         max_tokens=prompt_data.get("max_tokens", 1500),
                         temperature=prompt_data.get("temperature", 0.6),
-                        task_type="compliance_check"
+                        task_type=TaskType.RECOMMENDATION_GENERATION  # Use proper TaskType enum
                     )
                     
                     crit_lines = crit_response.content.strip().split('\n')
@@ -1512,7 +1558,15 @@ Total Clauses: {len(all_clauses)}
                 all_clauses = []
                 for section in classified_sections:
                     clauses = extractor.extract_clauses(section.get("content", ""))
-                    all_clauses.extend(clauses)
+                    # Convert SpecificationClause objects to dictionaries
+                    for clause in clauses:
+                        if hasattr(clause, 'to_dict'):
+                            all_clauses.append(clause.to_dict())
+                        elif isinstance(clause, dict):
+                            all_clauses.append(clause)
+                        else:
+                            # Fallback: create basic dict structure
+                            all_clauses.append({"text": str(clause), "clause_id": f"clause_{len(all_clauses)}"})
                 
                 yield send_insight("clauses_extracted", len(all_clauses), f"Extracted {len(all_clauses)} specification clauses")
                 
@@ -1653,7 +1707,7 @@ Total Clauses: {len(all_clauses)}
                         ])
                         
                         prompt_data = prompt_engineer.get_prompt(
-                            task_type=TaskType.COMPLIANCE_CHECK,
+                            task_type=TaskType.RECOMMENDATION_GENERATION,  # Use existing template
                             context={
                                 "project_details": project_details,
                                 "specifications": specifications,
@@ -1668,7 +1722,7 @@ Total Clauses: {len(all_clauses)}
                             prompt=full_prompt,
                             max_tokens=prompt_data.get("max_tokens", 1500),
                             temperature=prompt_data.get("temperature", 0.6),
-                            task_type="compliance_check"
+                            task_type=TaskType.RECOMMENDATION_GENERATION
                         )
                         
                         crit_lines = crit_response.content.strip().split('\n')
@@ -1816,15 +1870,29 @@ Total Clauses: {len(all_clauses)}
                 
                 yield send_progress(7, "✅ Analysis complete!", 100, "completed")
                 
-                # Send completion event with full results
+                # Send completion event with FULL analysis results
                 completion_event = {
+                    # Summary metrics for quick display
                     "analysis_id": analysis_result["analysis_id"],
                     "execution_time": execution_time,
                     "quality_score": quality_score,
                     "ai_decisions": ai_decisions_made,
                     "recommendations": len(recommendations_list),
                     "requirements": len(critical_requirements),
-                    "document_type": doc_type
+                    "document_type": doc_type,
+                    
+                    # Full analysis data for post-analysis dashboard
+                    "document_type": doc_type,
+                    "project_name": db_project.name,
+                    "classification": analysis_result["universal_intelligence"]["classification"],
+                    "entities": analysis_result["universal_intelligence"]["entities"],
+                    "risks": universal_entities.get("risks", []),
+                    "requirements": critical_requirements,
+                    "recommendations": recommendations_list,
+                    "quality_metrics": analysis_result["quality_metrics"],
+                    "clauses_found": len(all_clauses),
+                    "divisions_detected": len(divisions_summary),
+                    "entities_extracted": entities_count
                 }
                 logger.info(f"✅ Streaming analysis completed in {execution_time:.2f}s")
                 yield f"event: complete\ndata: {json.dumps(completion_event)}\n\n"
