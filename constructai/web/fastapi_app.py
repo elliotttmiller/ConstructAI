@@ -69,6 +69,11 @@ def create_app():
         logger.error(f"Database initialization failed: {e}")
         # Continue anyway for development
     
+    # Initialize AI Model Manager
+    from ..ai.providers import AIModelManager
+    ai_manager = AIModelManager(config_source="env")
+    logger.info(f"AI Model Manager initialized with providers: {list(ai_manager.providers.keys())}")
+    
     # Import modules
     from ..document_processing import DocumentIngestor, DocumentParser, MasterFormatClassifier
     from ..nlp import ClauseExtractor, ConstructionNER, AmbiguityAnalyzer
@@ -85,7 +90,9 @@ def create_app():
     
     @app.get("/")
     async def root():
-        """Root endpoint."""
+        """Root endpoint with AI provider information."""
+        available_providers = ai_manager.get_available_providers()
+        
         return {
             "service": "ConstructAI",
             "version": "0.2.0",
@@ -712,9 +719,84 @@ def create_app():
             "config": config
         }
     
+    # AI Provider Management Endpoints
+    @app.get("/api/ai/providers")
+    async def get_ai_providers():
+        """
+        Get list of available AI providers and their capabilities.
+        """
+        try:
+            providers = ai_manager.get_available_providers()
+            usage_stats = ai_manager.get_usage_stats()
+            
+            return {
+                "status": "success",
+                "primary_provider": ai_manager.primary_provider,
+                "fallback_order": ai_manager.fallback_order,
+                "providers": providers,
+                "usage": usage_stats
+            }
+        except Exception as e:
+            logger.error(f"Error getting AI providers: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/ai/test")
+    async def test_ai_provider(
+        provider: Optional[str] = None,
+        prompt: str = "Hello! Respond with 'OK' if you can hear me."
+    ):
+        """
+        Test an AI provider with a simple prompt.
+        
+        Args:
+            provider: Provider name (optional, uses primary if not specified)
+            prompt: Test prompt
+        """
+        try:
+            response = ai_manager.generate(
+                prompt=prompt,
+                provider=provider,
+                use_fallback=False,
+                max_tokens=50
+            )
+            
+            return {
+                "status": "success",
+                "provider": response.provider,
+                "model": response.model,
+                "response": response.content,
+                "tokens_used": response.tokens_used,
+                "metadata": response.metadata
+            }
+        except Exception as e:
+            logger.error(f"AI provider test failed: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "provider": provider or ai_manager.primary_provider
+            }
+    
+    @app.get("/api/ai/usage")
+    async def get_ai_usage(provider: Optional[str] = None):
+        """
+        Get AI usage statistics for all or specific provider.
+        
+        Args:
+            provider: Optional provider name
+        """
+        try:
+            stats = ai_manager.get_usage_stats(provider)
+            return {
+                "status": "success",
+                **stats
+            }
+        except Exception as e:
+            logger.error(f"Error getting usage stats: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
     # Enhanced AI endpoints
     @app.post("/api/ai/predict-risks")
-    async def predict_project_risks(project_data: Dict[str, Any]):
+    async def predict_project_risks(project_data: Dict[str, Any], provider: Optional[str] = None):
         """
         Predict potential risks for a construction project using AI.
         
@@ -724,6 +806,9 @@ def create_app():
         - duration_days: Project duration
         - tasks: List of tasks
         - resources: List of resources
+        
+        Query parameter:
+        - provider: AI provider to use (optional)
         """
         try:
             from ..ai import RiskPredictor

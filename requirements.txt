@@ -16,6 +16,12 @@ torch
 spacy
 sentence-transformers
 
+# AI Model Providers
+openai>=1.0.0  # OpenAI GPT models
+anthropic>=0.18.0  # Anthropic Claude models
+google-generativeai  # Google Gemini models (optional)
+# For Azure OpenAI, use openai with azure endpoint
+
 # Graph Database
 neo4j
 py2neo
