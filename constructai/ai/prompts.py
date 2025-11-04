@@ -723,6 +723,9 @@ Each recommendation must include:
 10. **Confidence Score**: 0.0-1.0 based on data quality and certainty
 
 ### PRIORITY CLASSIFICATION - DATA-DRIVEN
+NOTE: These thresholds are baseline guidelines for mid-size commercial projects ($1M-$10M).
+For larger/smaller projects, scale thresholds proportionally based on project_value context.
+
 - **CRITICAL (Priority 1)**: Immediate action required within 48 hours. Major project impact if delayed. Cost impact >$100K or schedule impact >14 days
 - **HIGH (Priority 2)**: Action required within current phase (1-2 weeks). Significant impact on project success. Cost impact $25K-$100K or schedule impact 5-14 days
 - **MEDIUM (Priority 3)**: Plan for next phase (2-4 weeks). Moderate improvement opportunity. Cost impact $5K-$25K or schedule impact 1-5 days

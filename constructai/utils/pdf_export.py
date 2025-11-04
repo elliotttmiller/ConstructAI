@@ -378,45 +378,48 @@ class ConstructAIPDFReport:
             story.extend(self._build_cover_page())
             story.append(PageBreak())
             
-            # Executive Summary - NEW: Comprehensive KPI dashboard
+            # Executive Summary - Comprehensive KPI dashboard
             story.extend(self._build_executive_summary())
             story.append(PageBreak())
             
-            # Section 1: Document Classification & Intelligence
-            story.extend(self._build_document_classification())
-            story.append(Spacer(1, 0.2*inch))
-            
-            # Section 2: Strategic Recommendations (Enhanced)
-            story.extend(self._build_strategic_recommendations())
-            story.append(PageBreak())
-            
-            # Section 3: Project Intelligence & Scope Analysis
+            # Section 1: Project Intelligence & Scope Analysis
             story.extend(self._build_project_intelligence())
             story.append(Spacer(1, 0.3*inch))
             
-            # Section 4: Risk Assessment & Mitigation
-            story.extend(self._build_risk_mitigation())
-            story.append(PageBreak())
+            # Section 2: Strategic Recommendations - only if available
+            recs = self.ai_content.get('strategic_planning', {}).get('recommendations', [])
+            if recs:
+                story.extend(self._build_strategic_recommendations())
+                story.append(PageBreak())
             
-            # Section 5: Cost & Resource Analysis
+            # Section 3: Risk Assessment & Mitigation
+            risk_section = self._build_risk_mitigation()
+            if risk_section:
+                story.extend(risk_section)
+                story.append(Spacer(1, 0.3*inch))
+            
+            # Section 4: Cost & Resource Analysis
             story.extend(self._build_cost_resource_analysis())
             story.append(Spacer(1, 0.3*inch))
             
-            # Section 6: MEP Technical Specifications (if applicable)
+            # Section 5: MEP Technical Specifications (if applicable)
             if self.project_data.get('mep_analysis'):
                 story.extend(self._build_mep_technical_specs())
                 story.append(PageBreak())
             
-            # Section 7: Construction Execution Strategy
+            # Section 6: Construction Execution Strategy
             story.extend(self._build_execution_strategy())
             story.append(Spacer(1, 0.3*inch))
             
-            # Section 8: Compliance & Standards Matrix
-            story.extend(self._build_compliance_matrix())
-            story.append(Spacer(1, 0.3*inch))
+            # Section 7: Compliance & Standards (if available)
+            standards = self.ai_content.get('deep_analysis', {}).get('standards', [])
+            if standards:
+                story.extend(self._build_compliance_matrix())
+                story.append(Spacer(1, 0.2*inch))
             
-            # Section 9: Implementation Roadmap
-            story.extend(self._build_implementation_roadmap())
+            # Section 8: Implementation Roadmap (if available)
+            if self.ai_content.get('strategic_planning', {}).get('priority_actions'):
+                story.extend(self._build_implementation_roadmap())
             
             # Build final PDF with headers/footers
             doc.build(
@@ -507,9 +510,14 @@ class ConstructAIPDFReport:
             # Create KPI grid
             kpi_data = []
             
-            # Row 1: Quality Score and Confidence
-            quality_score = metrics.get('quality_score', 0) * 100
-            confidence_score = metrics.get('confidence_score', 0) * 100
+            # Row 1: Quality Score and Confidence (handle both 0-1 and 0-100 formats)
+            quality_score = metrics.get('quality_score', 0)
+            if quality_score <= 1.0:  # If 0-1 format, convert to percentage
+                quality_score = quality_score * 100
+            
+            confidence_score = metrics.get('confidence_score', 0)
+            if confidence_score <= 1.0:  # If 0-1 format, convert to percentage
+                confidence_score = confidence_score * 100
             
             kpi_data.append([
                 [Paragraph(f"{quality_score:.0f}%", self.styles['MetricValue']),
@@ -621,33 +629,210 @@ class ConstructAIPDFReport:
         
         return elements
     
-    def _build_document_classification(self) -> List:
-        """
-        Build document classification and intelligence section - STUB.
-        Will implement full version if needed.
-        """
-        return []
-    
     def _build_strategic_recommendations(self) -> List:
         """
-        Build enhanced strategic recommendations section - STUB.
-        Will implement full version if needed.
+        Build enhanced strategic recommendations section with detailed analysis.
+        
+        Returns:
+            List of ReportLab elements for this section
         """
-        return []
+        elements = []
+        
+        elements.append(Paragraph(
+            "Strategic Recommendations", 
+            self.styles['SectionHeader']
+        ))
+        elements.append(Spacer(1, 0.2*inch))
+        
+        if not self.ai_content or not self.ai_content.get('strategic_planning'):
+            return elements  # Return empty if no data
+        
+        planning = self.ai_content['strategic_planning']
+        recommendations = planning.get('recommendations', [])
+        
+        if not recommendations:
+            return elements  # Return empty if no recommendations
+        
+        # Summary header
+        elements.append(Paragraph(
+            f"<b>Total Recommendations:</b> {len(recommendations)} strategic actions identified",
+            self.styles['BodyTextLeft']
+        ))
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # Group by priority
+        priority_groups = {'CRITICAL': [], 'HIGH': [], 'MEDIUM': [], 'LOW': []}
+        for rec in recommendations:
+            priority = rec.get('priority', 'MEDIUM').upper()
+            if priority in priority_groups:
+                priority_groups[priority].append(rec)
+            else:
+                priority_groups['MEDIUM'].append(rec)
+        
+        # Display recommendations by priority
+        for priority in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+            recs = priority_groups[priority]
+            if not recs:
+                continue
+            
+            # Priority header with color coding
+            priority_colors = {
+                'CRITICAL': '#dc2626',
+                'HIGH': '#ea580c',
+                'MEDIUM': '#2563eb',
+                'LOW': '#059669'
+            }
+            
+            elements.append(Paragraph(
+                f"<font color='{priority_colors[priority]}'><b>{priority} PRIORITY</b></font> ({len(recs)} items)",
+                self.styles['SubsectionHeader']
+            ))
+            
+            for i, rec in enumerate(recs[:5], 1):  # Limit to top 5 per priority
+                # Recommendation title
+                title = rec.get('title', 'Untitled Recommendation')
+                elements.append(Paragraph(
+                    f"<b>{i}. {title}</b>",
+                    self.styles['RecommendationTitle']
+                ))
+                
+                # Description
+                if rec.get('description'):
+                    elements.append(Paragraph(
+                        rec['description'],
+                        self.styles['BodyTextLeft']
+                    ))
+                
+                # Rationale if available
+                if rec.get('rationale'):
+                    elements.append(Paragraph(
+                        f"<i>Rationale: {rec['rationale']}</i>",
+                        self.styles['Caption']
+                    ))
+                
+                # Impact metrics if available
+                if rec.get('impact'):
+                    impact = rec['impact']
+                    impact_text = []
+                    if isinstance(impact, dict):
+                        if impact.get('cost'):
+                            impact_text.append(f"Cost Impact: ${impact['cost']:,.0f}")
+                        if impact.get('schedule'):
+                            impact_text.append(f"Schedule: {impact['schedule']} days")
+                        if impact.get('quality'):
+                            impact_text.append(f"Quality: +{impact['quality']:.1%}")
+                    
+                    if impact_text:
+                        elements.append(Paragraph(
+                            ' | '.join(impact_text),
+                            self.styles['Caption']
+                        ))
+                
+                elements.append(Spacer(1, 0.12*inch))
+            
+            if len(recs) > 5:
+                elements.append(Paragraph(
+                    f"<i>+ {len(recs) - 5} additional {priority.lower()} priority recommendations (see detailed analysis)</i>",
+                    self.styles['Caption']
+                ))
+                elements.append(Spacer(1, 0.1*inch))
+        
+        return elements
     
     def _build_compliance_matrix(self) -> List:
         """
-        Build compliance and standards matrix section - STUB.
-        Will implement full version if needed.
+        Build compliance and standards matrix section.
+        
+        Returns:
+            List of ReportLab elements for this section
         """
-        return []
+        elements = []
+        
+        elements.append(Paragraph(
+            "Compliance & Standards Matrix", 
+            self.styles['SectionHeader']
+        ))
+        elements.append(Spacer(1, 0.2*inch))
+        
+        if not self.ai_content or not self.ai_content.get('deep_analysis'):
+            return elements  # Return empty if no data
+        
+        analysis = self.ai_content['deep_analysis']
+        standards = analysis.get('standards', [])
+        
+        if not standards:
+            return elements  # Return empty if no standards
+        
+        elements.append(Paragraph(
+            f"<b>Standards Identified:</b> {len(standards)} industry standards and codes referenced",
+            self.styles['BodyTextLeft']
+        ))
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # List top standards
+        for i, std in enumerate(standards[:15], 1):
+            elements.append(Paragraph(
+                f"• {std}",
+                self.styles['BulletPoint']
+            ))
+        
+        if len(standards) > 15:
+            elements.append(Paragraph(
+                f"<i>+ {len(standards) - 15} additional standards referenced</i>",
+                self.styles['Caption']
+            ))
+        
+        return elements
     
     def _build_implementation_roadmap(self) -> List:
         """
-        Build implementation roadmap section - STUB.
-        Will implement full version if needed.
+        Build implementation roadmap section.
+        
+        Returns:
+            List of ReportLab elements for this section
         """
-        return []
+        elements = []
+        
+        elements.append(Paragraph(
+            "Implementation Roadmap", 
+            self.styles['SectionHeader']
+        ))
+        elements.append(Spacer(1, 0.2*inch))
+        
+        if not self.ai_content or not self.ai_content.get('strategic_planning'):
+            return elements  # Return empty if no data
+        
+        planning = self.ai_content['strategic_planning']
+        
+        # Priority Actions
+        if planning.get('priority_actions'):
+            elements.append(Paragraph(
+                "Immediate Priority Actions", 
+                self.styles['SubsectionHeader']
+            ))
+            
+            for i, action in enumerate(planning['priority_actions'][:10], 1):
+                elements.append(Paragraph(
+                    f"{i}. {action}",
+                    self.styles['BulletPoint']
+                ))
+            
+            elements.append(Spacer(1, 0.15*inch))
+        
+        # Critical Requirements
+        if planning.get('critical_requirements'):
+            elements.append(Paragraph(
+                "Critical Requirements", 
+                self.styles['SubsectionHeader']
+            ))
+            
+            for i, req in enumerate(planning['critical_requirements'][:10], 1):
+                elements.append(Paragraph(
+                    f"{i}. {req}",
+                    self.styles['BulletPoint']
+                ))
+        
+        return elements
     
     def _build_project_intelligence(self) -> List:
         """

@@ -1036,7 +1036,7 @@ ONTOLOGY CONTEXT:
                     "title": rec["title"],
                     "description": rec.get("description", ""),
                     "executive_summary": rec.get("executive_summary", ""),
-                    "priority": rec.get("priority", "medium").upper(),
+                    "priority": str(rec.get("priority", "MEDIUM")).upper(),  # Ensure string and normalize to uppercase
                     "category": rec.get("category", "general"),
                     "confidence": min(rec.get("confidence", 0.75), 1.0),
                     "rationale": rec.get("rationale", ""),
