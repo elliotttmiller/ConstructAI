@@ -64,6 +64,32 @@ class ProjectDB(Base):
             base_dict["mep_analysis"] = {}
         
         return base_dict
+    
+    def to_domain(self):
+        """Convert database model to domain Project object."""
+        from ..models.project import dict_to_project
+        return dict_to_project(self.to_dict())
+    
+    @staticmethod
+    def from_domain(project):
+        """Create database model from domain Project object."""
+        from ..models.project import project_to_dict, Project
+        
+        if isinstance(project, Project):
+            project_dict = project_to_dict(project)
+        else:
+            project_dict = project
+        
+        return ProjectDB(
+            id=project_dict.get("id"),
+            name=project_dict.get("name"),
+            description=project_dict.get("description", ""),
+            budget=project_dict.get("budget", 0.0),
+            total_tasks=len(project_dict.get("tasks", [])),
+            tasks=project_dict.get("tasks"),
+            resources=project_dict.get("resources"),
+            project_metadata=project_dict.get("project_metadata", {})
+        )
 
 
 class AnalysisResultDB(Base):

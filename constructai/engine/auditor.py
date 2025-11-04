@@ -171,14 +171,8 @@ class ProjectAuditor:
         
         return result
     
-    def _check_dependencies(self, project: Union[Project, Dict[str, Any]], result: AuditResult):
+    def _check_dependencies(self, project: Project, result: AuditResult):
         """Check for circular dependencies and invalid references."""
-        # Handle both Project object and dict
-        if isinstance(project, dict):
-            # For dict, just log a warning and skip dependency validation
-            logger.warning("Project audit called with dict instead of Project object - skipping dependency validation")
-            return
-        
         errors = project.validate_dependencies()
         for error in errors:
             result.add_risk(

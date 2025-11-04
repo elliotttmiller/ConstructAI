@@ -12,8 +12,7 @@ import { ErrorBoundary } from "./components/ui/error-boundary";
 import { CreateProjectModal } from "./components/data/create-project-modal";
 import { EditProjectModal } from "./components/data/edit-project-modal";
 import { ConfirmationDialog } from "./components/ui/confirmation-dialog";
-import { DocumentIntake } from "./components/data/document-intake";
-import { FolderPlus, Search, Upload } from "lucide-react";
+import { FolderPlus, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "./lib/api/client";
 import { useSidebarState } from "./lib/utils/responsive";
@@ -23,7 +22,7 @@ import type { Project } from "./lib/types";
 export default function Home() {
   const { isCollapsed, setIsCollapsed, isMobile } = useSidebarState();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"overview" | "analysis" | "upload">("upload");
+  const [viewMode, setViewMode] = useState<"overview" | "analysis">("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -163,11 +162,6 @@ export default function Home() {
 
   const handleCreateProject = () => {
     setIsCreateModalOpen(true);
-  };
-
-  const handleUploadDocuments = () => {
-    setViewMode("upload");
-    setSelectedProjectId(null);
   };
 
   const handleCreateProjectSubmit = async (projectData: {
@@ -334,21 +328,7 @@ export default function Home() {
 
           {/* Right Panel - AI Studio or Analysis View */}
           <main className="flex-1 overflow-y-auto bg-background p-6">
-            {viewMode === "upload" ? (
-              <DocumentIntake
-                onDocumentsProcessed={(docs) => {
-                  console.log("Documents processed:", docs);
-                }}
-                onCreateProject={async (data) => {
-                  await createProjectMutation.mutateAsync({
-                    name: data.name,
-                    description: data.description,
-                    budget: data.budget,
-                  });
-                  setViewMode("overview");
-                }}
-              />
-            ) : selectedProject && viewMode === "analysis" ? (
+            {selectedProject && viewMode === "analysis" ? (
               <ProjectAnalysisView
                 project={selectedProject}
                 onBack={() => setViewMode("overview")}
@@ -359,27 +339,21 @@ export default function Home() {
                 projectName={selectedProject?.name}
               />
             ) : (
-              <div className="flex h-full items-center justify-center">
+              <div className="flex h-full items-center justify-center animate-fade-in">
                 <div className="max-w-md text-center">
-                  <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-primary to-primary/60">
-                    <Upload className="h-12 w-12 text-white" />
+                  <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-primary/10 to-primary/20 animate-pulse-soft">
+                    <FolderPlus className="h-12 w-12 text-primary" />
                   </div>
-                  <h2 className="mb-4 text-2xl font-bold text-foreground">
-                    Start with Your Documents
+                  <h2 className="mb-4 text-2xl font-bold text-foreground text-gradient">
+                    Welcome to ConstructAI
                   </h2>
                   <p className="mb-8 text-neutral-600">
-                    Upload construction proposals, contracts, or project documents. Our AI will automatically analyze, audit, and optimize them for you.
+                    Create a new project to start analyzing construction documents, optimizing workflows, and managing your projects with AI-powered insights.
                   </p>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-                    <Button size="lg" onClick={handleUploadDocuments}>
-                      <Upload className="mr-2 h-5 w-5" />
-                      Upload Documents
-                    </Button>
-                    <Button size="lg" variant="outline" onClick={handleCreateProject}>
-                      <FolderPlus className="mr-2 h-5 w-5" />
-                      Create Empty Project
-                    </Button>
-                  </div>
+                  <Button size="lg" onClick={handleCreateProject} className="hover-lift">
+                    <FolderPlus className="mr-2 h-5 w-5" />
+                    Create New Project
+                  </Button>
                 </div>
               </div>
             )}

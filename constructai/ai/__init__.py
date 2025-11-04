@@ -1,35 +1,115 @@
 """
 Advanced AI modules for ConstructAI.
-Includes risk prediction, cost estimation, recommendation engine, and prompt engineering.
+Includes unified construction intelligence engine, autonomous orchestration,
+prompt engineering, universal document intelligence, and legacy utilities.
 """
 
-from .risk_predictor import RiskPredictor
-from .cost_estimator import CostEstimator  
-from .recommender import RecommendationEngine
+# Import universal document intelligence
+try:
+    from .universal_intelligence import UniversalDocumentIntelligence
+    UNIVERSAL_INTELLIGENCE_AVAILABLE = True
+except ImportError:
+    UNIVERSAL_INTELLIGENCE_AVAILABLE = False
+    UniversalDocumentIntelligence = None
+
+# Import unified construction intelligence engine
+try:
+    from .utilities import (
+        ConstructionIntelligenceEngine,
+        get_intelligence_engine,
+        RiskAssessment,
+        QuantitativeEstimate,
+        StrategicRecommendation,
+        CostCategory,
+        RiskSeverity,
+        RecommendationPriority
+    )
+    UTILITIES_AVAILABLE = True
+except ImportError:
+    UTILITIES_AVAILABLE = False
+
+# Import analysis generator
+try:
+    from .analysis_generator import AnalysisGenerator
+    ANALYSIS_GENERATOR_AVAILABLE = True
+except ImportError:
+    ANALYSIS_GENERATOR_AVAILABLE = False
+
+# Import autonomous orchestrator
+try:
+    from .autonomous_orchestrator import (
+        AutonomousAIOrchestrator,
+        get_autonomous_orchestrator,
+        AnalysisPhase,
+        ConfidenceLevel,
+        AutonomousWorkflowState
+    )
+    AUTONOMOUS_AVAILABLE = True
+except ImportError:
+    AUTONOMOUS_AVAILABLE = False
 
 # Import prompt engineering system
 try:
     from .prompts import (
-        PromptEngineer,
+        AutonomousPromptEngineer,
         TaskType,
         PromptTemplate,
         PromptContext,
+        AutonomousContext,
+        AutonomousExecution,
         ReasoningPattern,
-        get_prompt_engineer
+        ExpertPersona,
+        get_prompt_engineer,
+        get_autonomous_prompt_engineer,
+        create_autonomous_context
     )
     PROMPTS_AVAILABLE = True
 except ImportError:
     PROMPTS_AVAILABLE = False
 
-__all__ = ["RiskPredictor", "CostEstimator", "RecommendationEngine"]
+__all__ = [
+    # Legacy (deprecated)
+    "RiskPredictor", "CostEstimator", "RecommendationEngine"
+]
+
+if UTILITIES_AVAILABLE:
+    __all__.extend([
+        "ConstructionIntelligenceEngine",
+        "get_intelligence_engine",
+        "RiskAssessment",
+        "QuantitativeEstimate",
+        "StrategicRecommendation",
+        "CostCategory",
+        "RiskSeverity",
+        "RecommendationPriority",
+    ])
+
+if ANALYSIS_GENERATOR_AVAILABLE:
+    __all__.extend([
+        "AnalysisGenerator",
+    ])
+
+if AUTONOMOUS_AVAILABLE:
+    __all__.extend([
+        "AutonomousAIOrchestrator",
+        "get_autonomous_orchestrator",
+        "AnalysisPhase",
+        "ConfidenceLevel",
+        "AutonomousWorkflowState",
+    ])
 
 if PROMPTS_AVAILABLE:
     __all__.extend([
-        "PromptEngineer",
+        "AutonomousPromptEngineer",
         "TaskType",
         "PromptTemplate",
         "PromptContext",
+        "AutonomousContext",
+        "AutonomousExecution",
         "ReasoningPattern",
+        "ExpertPersona",
         "get_prompt_engineer",
+        "get_autonomous_prompt_engineer",
+        "create_autonomous_context",
     ])
 

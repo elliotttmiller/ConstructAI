@@ -9,6 +9,7 @@ import type {
   AuditResult,
   OptimizationResult,
   APIError,
+  AutonomousUploadResult,
 } from "../types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -190,13 +191,38 @@ class APIClient {
       compliance_issues: unknown[];
       bottlenecks: unknown[];
       resource_conflicts: unknown[];
+      recommendations: unknown[];
     };
     optimization: {
-      duration_reduction_days: number;
-      cost_savings: number;
-      parallel_opportunities: number;
-      bottlenecks_resolved: number;
-      optimizations_applied: unknown[];
+      improvements: Array<{
+        category: string;
+        description: string;
+        impact: string;
+        metric_change?: string;
+      }>;
+      metrics_comparison: {
+        original: {
+          total_duration: number;
+          critical_path_duration: number;
+          total_cost: number;
+          total_tasks: number;
+          avg_task_duration: number;
+        };
+        optimized: {
+          total_duration: number;
+          critical_path_duration: number;
+          total_cost: number;
+          total_tasks: number;
+          avg_task_duration: number;
+        };
+        improvements: {
+          duration_reduction_days: number;
+          duration_reduction_percent: number;
+          cost_savings: number;
+          cost_savings_percent: number;
+        };
+      };
+      optimized_project: unknown;
     };
   }> {
     const response = await fetch(`${this.baseURL}/api/projects/${projectId}/analyze`, {
@@ -285,6 +311,156 @@ class APIClient {
     }
 
     return response.body!;
+  }
+
+  /**
+   * 📤 STEP 1: Upload document (simple, fast, NO AI analysis)
+   * Returns document_id for subsequent analysis
+   */
+  async uploadDocument(
+    projectId: string,
+    file: File,
+    onProgress?: (progress: number) => void
+  ): Promise<{
+    status: string;
+    message: string;
+    document_id: string;
+    filename: string;
+    file_size: number;
+    file_type: string;
+    document_type: string;
+    project_id: string;
+    analysis_status: string;
+    next_step: string;
+  }> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // Track upload progress
+      if (onProgress) {
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const progress = (event.loaded / event.total) * 100;
+            onProgress(progress);
+          }
+        });
+      }
+
+      // Handle completion
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const result = JSON.parse(xhr.responseText);
+            resolve(result);
+          } catch (error) {
+            reject({
+              message: "Failed to parse upload response",
+              code: "PARSE_ERROR",
+              details: error,
+            } as APIError);
+          }
+        } else {
+          try {
+            const errorData = JSON.parse(xhr.responseText);
+            reject({
+              message: errorData.detail || errorData.message || `Upload failed: ${xhr.statusText}`,
+              code: xhr.status.toString(),
+              details: errorData,
+            } as APIError);
+          } catch {
+            reject({
+              message: `Upload failed: ${xhr.statusText}`,
+              code: xhr.status.toString(),
+            } as APIError);
+          }
+        }
+      });
+
+      // Handle errors
+      xhr.addEventListener("error", () => {
+        reject({
+          message: "Network error during upload",
+          code: "NETWORK_ERROR",
+        } as APIError);
+      });
+
+      xhr.addEventListener("abort", () => {
+        reject({
+          message: "Upload cancelled",
+          code: "ABORTED",
+        } as APIError);
+      });
+
+      // Send request
+      xhr.open(
+        "POST",
+        `${this.baseURL}/api/projects/${projectId}/documents/upload-simple`
+      );
+      xhr.send(formData);
+    });
+  }
+
+  /**
+   * 🤖 STEP 2: Analyze uploaded document (AI-driven, comprehensive)
+   * Triggers full AI analysis pipeline on uploaded document
+   */
+  async analyzeDocument(
+    projectId: string,
+    documentId: string
+  ): Promise<AutonomousUploadResult> {
+    const response = await fetch(
+      `${this.baseURL}/api/projects/${projectId}/documents/${documentId}/analyze`,
+      {
+        method: "POST",
+        headers: this.headers,
+      }
+    );
+    return this.handleResponse(response);
+  }
+
+  /**
+   * 📤🤖 COMBINED: Upload AND analyze in one call (convenience method)
+   * Uses the two-step workflow internally for proper separation of concerns
+   * 
+   * @param projectId - The project ID to upload to
+   * @param file - The document file to analyze
+   * @param onProgress - Optional callback for upload progress (0-100)
+   * @param onUploadComplete - Optional callback when upload completes (before analysis)
+   * @returns Complete AI analysis with quality metrics
+   */
+  async uploadAndAnalyzeDocument(
+    projectId: string,
+    file: File,
+    onProgress?: (progress: number) => void,
+    onUploadComplete?: (documentId: string) => void
+  ): Promise<AutonomousUploadResult> {
+    // Step 1: Upload document (fast)
+    const uploadResult = await this.uploadDocument(projectId, file, onProgress);
+    
+    // Notify that upload is complete, analysis starting
+    if (onUploadComplete) {
+      onUploadComplete(uploadResult.document_id);
+    }
+    
+    // Step 2: Trigger AI analysis (comprehensive)
+    const analysisResult = await this.analyzeDocument(projectId, uploadResult.document_id);
+    
+    return analysisResult;
+  }
+
+  /**
+   * @deprecated Use uploadAndAnalyzeDocument() for new code
+   * Legacy method kept for backwards compatibility
+   */
+  async uploadDocumentAutonomous(
+    projectId: string,
+    file: File,
+    onProgress?: (progress: number) => void
+  ): Promise<AutonomousUploadResult> {
+    // Use new two-step workflow internally
+    return this.uploadAndAnalyzeDocument(projectId, file, onProgress);
   }
 }
 

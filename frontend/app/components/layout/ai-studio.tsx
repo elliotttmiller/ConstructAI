@@ -100,36 +100,65 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
       compliance_issues: unknown[];
       bottlenecks: unknown[];
       resource_conflicts: unknown[];
+      recommendations: unknown[];
     };
     optimization: {
-      duration_reduction_days: number;
-      cost_savings: number;
-      parallel_opportunities: number;
-      bottlenecks_resolved: number;
-      optimizations_applied: unknown[];
+      improvements: Array<{
+        category: string;
+        description: string;
+        impact: string;
+        metric_change?: string;
+      }>;
+      metrics_comparison: {
+        original: {
+          total_duration: number;
+          critical_path_duration: number;
+          total_cost: number;
+          total_tasks: number;
+          avg_task_duration: number;
+        };
+        optimized: {
+          total_duration: number;
+          critical_path_duration: number;
+          total_cost: number;
+          total_tasks: number;
+          avg_task_duration: number;
+        };
+        improvements: {
+          duration_reduction_days: number;
+          duration_reduction_percent: number;
+          cost_savings: number;
+          cost_savings_percent: number;
+        };
+      };
+      optimized_project: unknown;
     };
   } | null>(null);
   const [documentAnalysis, setDocumentAnalysis] = useState<DocumentAnalysis | null>(null);
 
-  const handleDocumentUpload = (documentId: string, analysis: DocumentAnalysis) => {
-    console.log("Document uploaded with analysis:", { documentId, analysis });
-    setDocumentAnalysis(analysis);
+  const handleDocumentUpload = (documentId: string, analysis?: DocumentAnalysis, autonomousResult?: unknown) => {
+    console.log("Document uploaded:", { documentId, analysis, autonomousResult });
+    
+    // Track the uploaded document
     setUploadedDocs(prev => [...prev, {
       id: Date.now().toString(),
       documentId,
       name: "Uploaded document",
       size: 0,
-      analysis
+      analysis: analysis || undefined
     }]);
     
-    // Show analysis results immediately
-    alert(
-      `Document Analyzed!\n\n` +
-      `Sections Found: ${analysis.sections}\n` +
-      `Clauses Extracted: ${analysis.clauses_extracted}\n` +
-      `MasterFormat Divisions: ${Object.keys(analysis.divisions_found || {}).length}\n\n` +
-      `View detailed results in console.`
-    );
+    // Only show analysis alert if analysis is provided
+    if (analysis) {
+      alert(
+        `Document Analyzed!\n\n` +
+        `Sections Found: ${analysis.sections}\n` +
+        `Clauses Extracted: ${analysis.clauses_extracted}\n` +
+        `MasterFormat Divisions: ${Object.keys(analysis.divisions_found || {}).length}\n\n` +
+        `View detailed results in console.`
+      );
+      setDocumentAnalysis(analysis);
+    }
   };
 
   const handleConfigure = async () => {
@@ -275,12 +304,18 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
       console.log("Analysis complete:", result);
       setAnalysisResults(result);
       
+      // Extract metrics from new structure
+      const metrics = result.optimization?.metrics_comparison?.improvements || {};
+      const costSavings = metrics.cost_savings || 0;
+      const durationReduction = metrics.duration_reduction_days || 0;
+      const improvements = result.optimization?.improvements?.length || 0;
+      
       alert(
         `Analysis Complete!\n\n` +
         `Overall Score: ${result.audit.overall_score}%\n` +
-        `Cost Savings: $${result.optimization.cost_savings.toLocaleString()}\n` +
-        `Time Reduction: ${result.optimization.duration_reduction_days} days\n` +
-        `Parallel Opportunities: ${result.optimization.parallel_opportunities}\n\n` +
+        `Cost Savings: $${costSavings.toLocaleString()}\n` +
+        `Time Reduction: ${durationReduction} days\n` +
+        `Improvements Applied: ${improvements}\n\n` +
         `Detailed results displayed in console.`
       );
     } catch (error) {
@@ -780,27 +815,27 @@ export function AIStudio({ projectId, projectName }: AIStudioProps) {
                     <div className="grid grid-cols-2 gap-6">
                       <div>
                         <p className="text-3xl font-bold text-success">
-                          {analysisResults.optimization.duration_reduction_days}
+                          {analysisResults.optimization.metrics_comparison.improvements.duration_reduction_days}
                         </p>
                         <p className="text-xs text-neutral-600">Days Saved</p>
                       </div>
                       <div>
                         <p className="text-3xl font-bold text-success">
-                          ${analysisResults.optimization.cost_savings.toLocaleString()}
+                          ${analysisResults.optimization.metrics_comparison.improvements.cost_savings.toLocaleString()}
                         </p>
                         <p className="text-xs text-neutral-600">Cost Savings</p>
                       </div>
                       <div>
                         <p className="text-2xl font-bold text-primary">
-                          {analysisResults.optimization.parallel_opportunities}
+                          {analysisResults.optimization.improvements.length}
                         </p>
-                        <p className="text-xs text-neutral-600">Parallel Tasks</p>
+                        <p className="text-xs text-neutral-600">Improvements Applied</p>
                       </div>
                       <div>
                         <p className="text-2xl font-bold text-primary">
-                          {analysisResults.optimization.bottlenecks_resolved}
+                          {analysisResults.optimization.metrics_comparison.improvements.duration_reduction_percent.toFixed(1)}%
                         </p>
-                        <p className="text-xs text-neutral-600">Bottlenecks Fixed</p>
+                        <p className="text-xs text-neutral-600">Time Reduction</p>
                       </div>
                     </div>
                   </CardContent>

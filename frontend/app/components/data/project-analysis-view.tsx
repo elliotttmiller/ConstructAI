@@ -19,9 +19,18 @@ import {
   Play,
   Upload as UploadIcon,
 } from "lucide-react";
-import type { Project, AuditResult, OptimizationResult, Risk, ComplianceIssue, Bottleneck, ResourceConflict } from "@/app/lib/types";
+import type { Project, AuditResult, OptimizationResult, Risk, ComplianceIssue, Bottleneck, ResourceConflict, AutonomousUploadResult } from "@/app/lib/types";
 import { apiClient } from "@/app/lib/api/client";
 import { DocumentUpload } from "./document-upload";
+import { AutonomousAnalysisViewer } from "./autonomous-analysis-viewer";
+
+interface DocumentAnalysis {
+  sections: number;
+  clauses_extracted: number;
+  divisions_found: Record<string, number>;
+  sample_clauses: unknown[];
+  ner_analysis: unknown[];
+}
 
 interface ProjectAnalysisViewProps {
   project: Project;
@@ -37,7 +46,10 @@ export function ProjectAnalysisView({
     audit?: AuditResult;
     optimization?: OptimizationResult;
   } | null>(null);
+  const [autonomousResult, setAutonomousResult] = useState<AutonomousUploadResult | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [uploadedDocuments, setUploadedDocuments] = useState<Array<{ documentId: string; filename: string }>>([]);
+  const [isAnalyzingDocuments, setIsAnalyzingDocuments] = useState(false);
 
   const handleAnalyze = async () => {
     try {
@@ -49,6 +61,14 @@ export function ProjectAnalysisView({
         resources: []
       });
       
+      // Extract metrics from new structure
+      const metrics = result.optimization?.metrics_comparison?.improvements || {
+        duration_reduction_days: 0,
+        cost_savings: 0,
+        duration_reduction_percent: 0,
+        cost_savings_percent: 0
+      };
+      
       setAnalysisResults({
         audit: {
           overall_score: result.audit.overall_score,
@@ -59,29 +79,74 @@ export function ProjectAnalysisView({
         },
         optimization: {
           summary: {
-            duration_reduction_days: result.optimization.duration_reduction_days,
-            cost_savings: result.optimization.cost_savings,
-            parallel_opportunities: result.optimization.parallel_opportunities,
-            bottlenecks_resolved: result.optimization.bottlenecks_resolved,
+            duration_reduction_days: metrics.duration_reduction_days,
+            cost_savings: metrics.cost_savings,
+            parallel_opportunities: result.optimization.improvements?.length || 0,
+            bottlenecks_resolved: result.audit.bottlenecks?.length || 0,
           },
           optimized_project: project,
-          optimizations_applied: result.optimization.optimizations_applied as Array<{
-            type: "parallel_execution" | "bottleneck_removal" | "resource_balancing" | "cost_reduction";
-            description: string;
-            impact: string;
-          }>
+          optimizations_applied: (result.optimization.improvements || []).map(imp => ({
+            type: "parallel_execution" as const,
+            description: imp.description || "",
+            impact: imp.impact || ""
+          }))
         }
       });
       
       alert(
         `Analysis Complete!\n\n` +
         `Overall Score: ${result.audit.overall_score}%\n` +
-        `Cost Savings: $${result.optimization.cost_savings.toLocaleString()}\n` +
-        `Time Reduction: ${result.optimization.duration_reduction_days} days`
+        `Cost Savings: $${metrics.cost_savings.toLocaleString()}\n` +
+        `Time Reduction: ${metrics.duration_reduction_days} days`
       );
     } catch (error) {
       console.error("Analysis failed:", error);
       alert("Analysis failed. Please try again.");
+    }
+  };
+
+  const handleAnalyzeDocuments = async () => {
+    if (uploadedDocuments.length === 0) {
+      alert("Please upload documents first before analyzing.");
+      return;
+    }
+
+    setIsAnalyzingDocuments(true);
+    
+    try {
+      // Analyze each uploaded document
+      for (const doc of uploadedDocuments) {
+        console.log(`Starting AI analysis for document ${doc.documentId}...`);
+        
+        const result = await apiClient.analyzeDocument(project.id, doc.documentId);
+        
+        console.log(`Analysis complete for ${doc.filename}:`, result);
+        
+        // Store the latest analysis result
+        if (result.autonomous_result) {
+          setAutonomousResult({
+            status: "success",
+            analysis_type: "fully_autonomous_ai",
+            document_id: doc.documentId,
+            filename: doc.filename,
+            quality_metrics: result.quality_metrics,
+            autonomous_result: result.autonomous_result
+          });
+        }
+      }
+      
+      const lastResult = autonomousResult;
+      alert(
+        `Document Analysis Complete!\n\n` +
+        `${uploadedDocuments.length} document(s) analyzed successfully.\n\n` +
+        `Quality Score: ${lastResult ? Math.round(lastResult.quality_metrics.quality_score * 100) : 0}%\n` +
+        `View comprehensive results below.`
+      );
+    } catch (error) {
+      console.error("Document analysis failed:", error);
+      alert("Document analysis failed. Please try again.");
+    } finally {
+      setIsAnalyzingDocuments(false);
     }
   };
 
@@ -124,12 +189,12 @@ export function ProjectAnalysisView({
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-fade-in-up">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between card-hover rounded-lg border border-transparent p-4 -m-4">
         <div className="flex items-center gap-4">
           {onBack && (
-            <Button variant="ghost" size="sm" onClick={onBack}>
+            <Button variant="ghost" size="sm" onClick={onBack} className="hover-scale">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
@@ -144,6 +209,7 @@ export function ProjectAnalysisView({
             size="sm"
             onClick={handleExport}
             disabled={isExporting}
+            className="hover-lift"
           >
             <Download className="h-4 w-4" />
             {isExporting ? "Exporting..." : "Export"}
@@ -152,6 +218,7 @@ export function ProjectAnalysisView({
             size="sm"
             onClick={handleAnalyze}
             disabled={isAnalyzing}
+            className="hover-scale bg-primary text-white hover:bg-primary-hover"
           >
             <Play className="h-4 w-4" />
             {isAnalyzing ? "Analyzing..." : "Start Analysis"}
@@ -160,7 +227,7 @@ export function ProjectAnalysisView({
       </div>
 
       {/* Project Metrics */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 stagger-1">
         <MetricCard
           icon={DollarSign}
           label="Budget"
@@ -193,7 +260,13 @@ export function ProjectAnalysisView({
           steps={steps}
           overallProgress={overallProgress}
           isProcessing={isAnalyzing}
+          qualityMetrics={autonomousResult?.quality_metrics}
         />
+      )}
+
+      {/* Autonomous Analysis Results */}
+      {autonomousResult && (
+        <AutonomousAnalysisViewer analysis={autonomousResult.autonomous_result} />
       )}
 
       {/* Analysis Results */}
@@ -302,23 +375,53 @@ export function ProjectAnalysisView({
         </CardContent>
       </Card>
 
-      {/* Document Upload */}
-      <Card>
+      {/* Document Upload - Modern Card with Animation */}
+      <Card className="card-hover animate-fade-in-up stagger-2">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UploadIcon className="h-5 w-5" />
-            Project Documents
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <UploadIcon className="h-5 w-5 text-primary" />
+              <span>Project Documents</span>
+              {uploadedDocuments.length > 0 && (
+                <span className="ml-2 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary animate-fade-in-scale">
+                  {uploadedDocuments.length} uploaded
+                </span>
+              )}
+            </div>
+            {uploadedDocuments.length > 0 && (
+              <Button
+                size="sm"
+                onClick={handleAnalyzeDocuments}
+                disabled={isAnalyzingDocuments}
+                className="hover-scale bg-primary text-white hover:bg-primary-hover"
+              >
+                <Play className="h-4 w-4" />
+                {isAnalyzingDocuments ? "Analyzing..." : `Analyze ${uploadedDocuments.length} Document${uploadedDocuments.length !== 1 ? 's' : ''}`}
+              </Button>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-4 text-sm text-neutral-600">
-            Upload construction documents, contracts, or specifications to analyze with AI. Our system will automatically extract tasks, resources, and identify optimization opportunities.
+          <p className="mb-6 text-sm text-neutral-600">
+            Upload construction documents, contracts, or specifications. Click &ldquo;Analyze Documents&rdquo; when ready to process them with AI.
           </p>
           <DocumentUpload
             projectId={project.id}
-            onUploadComplete={(files) => {
-              console.log("Upload complete:", files);
-              alert(`${files.length} document(s) uploaded successfully! You can now analyze them.`);
+            onUploadComplete={(documentId: string, analysis?: DocumentAnalysis, autonomousResult?: AutonomousUploadResult) => {
+              console.log("Upload complete:", documentId);
+              
+              // Track uploaded documents (no analysis yet)
+              if (documentId) {
+                setUploadedDocuments(prev => [
+                  ...prev,
+                  { documentId, filename: `Document ${documentId.slice(0, 8)}` }
+                ]);
+              }
+              
+              // If analysis results are provided (shouldn't happen with new upload-only flow)
+              if (autonomousResult) {
+                setAutonomousResult(autonomousResult);
+              }
             }}
           />
         </CardContent>

@@ -78,74 +78,50 @@ class ConstructAIPDFReport:
         self.styles = getSampleStyleSheet()
         self._setup_custom_styles()
         
-        # Initialize AI-powered content generation
-        self.ai_content = None
-        self.ai_generator = None
-        
-        try:
-            from ..ai.analysis_generator import ConstructionAnalysisGenerator
-            self.ai_generator = ConstructionAnalysisGenerator()
-            self._generate_ai_content()
-            logger.info("AI content generator initialized successfully")
-        except Exception as e:
-            logger.warning(f"AI generator initialization failed: {e}", exc_info=True)
+        # Load pre-analyzed content from project metadata
+        self.ai_content = {}
+        self._generate_ai_content()
     
     def _generate_ai_content(self):
         """
-        Generate all AI-powered content sections for the report.
-        
-        This method calls the AI generator for each report section to ensure
-        all content is dynamically created based on actual project analysis.
-        No hardcoded or mock content is used.
+        Use pre-analyzed AI content from project metadata.
+        PDF export should NOT re-run analysis - it should format existing results.
         """
-        if not self.ai_generator:
-            logger.warning("AI generator not available, content generation skipped")
+        # Extract analysis from project metadata (set by analyze endpoint)
+        latest_analysis = self.project_data.get('project_metadata', {}).get('latest_analysis', {})
+        
+        if not latest_analysis:
+            logger.warning("No analysis results found in project. Run analysis first before exporting.")
+            self.ai_content = {}
             return
         
-        try:
-            analysis = self.project_data.get('analysis', {})
-            quality = analysis.get('quality', {})
-            
-            # Prepare comprehensive analysis data for AI
-            analysis_results = {
-                "divisions_summary": quality.get('masterformat_coverage', {}),
-                "materials": analysis.get('key_materials', []),
-                "standards": analysis.get('standards_found', []),
-                "clauses_count": quality.get('total_clauses', 0),
-                "completeness_score": quality.get('completeness_score', 0),
-                "sections_count": quality.get('sections_count', 0),
-                "mep_analysis": self.project_data.get('mep_analysis', {})
+        # Extract audit and optimization results
+        audit = latest_analysis.get('audit', {})
+        optimization = latest_analysis.get('optimization', {})
+        
+        # Format for PDF sections
+        self.ai_content = {
+            "project_intelligence": {
+                "overall_score": audit.get('overall_score', 0),
+                "risks": audit.get('risks', []),
+                "compliance_issues": audit.get('compliance_issues', []),
+                "recommendations": audit.get('recommendations', [])
+            },
+            "execution_strategy": {
+                "improvements": optimization.get('improvements', []),
+                "metrics": optimization.get('metrics_comparison', {})
+            },
+            "risk_analysis": {
+                "risks": audit.get('risks', []),
+                "bottlenecks": audit.get('bottlenecks', [])
+            },
+            "optimization_results": {
+                "metrics": optimization.get('metrics_comparison', {}),
+                "optimized_project": optimization.get('optimized_project', {})
             }
-            
-            # Generate all AI content sections
-            self.ai_content = {
-                "project_intelligence": self.ai_generator.generate_project_intelligence(
-                    self.project_data, 
-                    analysis_results
-                ),
-                "execution_strategy": self.ai_generator.generate_execution_strategy(
-                    self.project_data, 
-                    analysis_results
-                ),
-                "cost_resource_analysis": self.ai_generator.generate_cost_resource_analysis(
-                    self.project_data, 
-                    analysis_results
-                ),
-                "risk_analysis": self.ai_generator.generate_risk_analysis(
-                    self.project_data, 
-                    analysis_results
-                ),
-                "procurement_strategy": self.ai_generator.generate_procurement_strategy(
-                    self.project_data, 
-                    analysis_results
-                )
-            }
-            
-            logger.info("AI content generated successfully for all report sections")
-            
-        except Exception as e:
-            logger.error(f"Failed to generate AI content: {e}", exc_info=True)
-            self.ai_content = None
+        }
+        
+        logger.info(f"Using pre-analyzed content from {latest_analysis.get('timestamp', 'unknown')}")
     
     def _setup_custom_styles(self):
         """Configure professional paragraph styles for construction industry reports."""

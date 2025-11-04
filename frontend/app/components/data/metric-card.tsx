@@ -34,36 +34,36 @@ export function MetricCard({
 
   return (
     <div className={cn(
-      "flex h-30 min-w-[20rem] items-center gap-4 rounded-lg border border-neutral-200 bg-surface p-4 shadow-sm transition-shadow hover:shadow-md",
+      "flex h-30 min-w-[20rem] items-center gap-4 rounded-lg border border-neutral-200 bg-surface p-4 shadow-sm card-hover animate-fade-in-scale",
       className
     )}>
       {/* Icon Section (Left) */}
       <div
         className={cn(
-          "flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg",
+          "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg transition-all duration-300 group-hover:scale-110",
           colorClasses[color]
         )}
       >
-        <Icon className="h-6 w-6" />
+        <Icon className="h-6 w-6 transition-transform duration-300" />
       </div>
 
       {/* Metrics Section (Center) */}
       <div className="flex flex-1 flex-col justify-center">
-        <p className="text-xs font-medium text-neutral-600">{label}</p>
-        <p className="text-2xl font-bold text-foreground">{value}</p>
+        <p className="text-xs font-medium text-neutral-600 transition-colors duration-200">{label}</p>
+        <p className="text-2xl font-bold text-foreground transition-all duration-200">{value}</p>
       </div>
 
       {/* Trend Section (Right) */}
       {trend && (
-        <div className="flex flex-shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1 animate-fade-in">
           {trend.isPositive ? (
-            <TrendingUp className="h-4 w-4 text-success" />
+            <TrendingUp className="h-4 w-4 text-success animate-bounce-soft" />
           ) : (
-            <TrendingDown className="h-4 w-4 text-error" />
+            <TrendingDown className="h-4 w-4 text-error animate-bounce-soft" />
           )}
           <span
             className={cn(
-              "text-sm font-medium",
+              "text-sm font-medium transition-colors duration-200",
               trend.isPositive ? "text-success" : "text-error"
             )}
           >

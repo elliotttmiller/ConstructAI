@@ -37,14 +37,19 @@ class ConstructAIAPI:
         Audit a project from JSON data.
         
         Args:
-            project_data: Project data as dictionary
+            project_data: Project data as dictionary or Project object
             
         Returns:
             Audit results as dictionary
         """
         try:
-            # Convert dict to Project object
-            project = self.data_handler._dict_to_project(project_data)
+            # Convert dict to Project object if needed
+            from ..models.project import dict_to_project, project_to_dict
+            
+            if isinstance(project_data, Project):
+                project = project_data
+            else:
+                project = dict_to_project(project_data)
             
             # Run audit
             result = self.auditor.audit(project)
@@ -74,14 +79,19 @@ class ConstructAIAPI:
         Optimize a project from JSON data.
         
         Args:
-            project_data: Project data as dictionary
+            project_data: Project data as dictionary or Project object
             
         Returns:
             Optimization results as dictionary
         """
         try:
-            # Convert dict to Project object
-            project = self.data_handler._dict_to_project(project_data)
+            # Convert dict to Project object if needed
+            from ..models.project import dict_to_project, project_to_dict
+            
+            if isinstance(project_data, Project):
+                project = project_data
+            else:
+                project = dict_to_project(project_data)
             
             # Run optimization
             result = self.optimizer.optimize(project)
@@ -90,8 +100,9 @@ class ConstructAIAPI:
             return {
                 "status": "success",
                 "data": {
-                    "summary": result.generate_summary(),
-                    "optimized_project": self.data_handler._project_to_dict(result.optimized_project)
+                    "improvements": result.improvements,
+                    "metrics_comparison": result.metrics_comparison,
+                    "optimized_project": project_to_dict(result.optimized_project)
                 }
             }
         except ValueError as e:
@@ -112,14 +123,19 @@ class ConstructAIAPI:
         Check project compliance from JSON data.
         
         Args:
-            project_data: Project data as dictionary
+            project_data: Project data as dictionary or Project object
             
         Returns:
             Compliance results as dictionary
         """
         try:
-            # Convert dict to Project object
-            project = self.data_handler._dict_to_project(project_data)
+            # Convert dict to Project object if needed
+            from ..models.project import dict_to_project
+            
+            if isinstance(project_data, Project):
+                project = project_data
+            else:
+                project = dict_to_project(project_data)
             
             # Run compliance check
             results = self.compliance_checker.check_all(project)
@@ -146,14 +162,19 @@ class ConstructAIAPI:
         Run full analysis (audit + optimize + compliance).
         
         Args:
-            project_data: Project data as dictionary
+            project_data: Project data as dictionary or Project object
             
         Returns:
             Combined results as dictionary
         """
         try:
-            # Convert dict to Project object
-            project = self.data_handler._dict_to_project(project_data)
+            # Convert dict to Project object if needed
+            from ..models.project import dict_to_project, project_to_dict
+            
+            if isinstance(project_data, Project):
+                project = project_data
+            else:
+                project = dict_to_project(project_data)
             
             # Run all analyses
             audit_result = self.auditor.audit(project)
@@ -163,10 +184,18 @@ class ConstructAIAPI:
             return {
                 "status": "success",
                 "data": {
-                    "audit": audit_result.generate_summary(),
-                    "optimization": opt_result.generate_summary(),
+                    "audit": {
+                        "overall_score": audit_result.overall_score,
+                        "risks": audit_result.risks,
+                        "compliance_issues": audit_result.compliance_issues,
+                        "recommendations": audit_result.recommendations
+                    },
+                    "optimization": {
+                        "improvements": opt_result.improvements,
+                        "metrics_comparison": opt_result.metrics_comparison
+                    },
                     "compliance": compliance_results,
-                    "optimized_project": self.data_handler._project_to_dict(opt_result.optimized_project)
+                    "optimized_project": project_to_dict(opt_result.optimized_project)
                 }
             }
         except ValueError as e:

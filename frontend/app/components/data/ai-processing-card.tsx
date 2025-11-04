@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import { useState } from "react";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Brain, Target, Zap, Activity } from "lucide-react";
 import { cn } from "@/app/lib/utils";
+import type { QualityMetrics } from "@/app/lib/types";
 
 export interface AnalysisStep {
   id: string;
@@ -18,12 +19,14 @@ interface AIProcessingCardProps {
   steps: AnalysisStep[];
   overallProgress: number;
   isProcessing: boolean;
+  qualityMetrics?: QualityMetrics;
 }
 
 export function AIProcessingCard({
   steps,
   overallProgress,
   isProcessing,
+  qualityMetrics,
 }: AIProcessingCardProps) {
   return (
     <div className="w-full rounded-lg border border-neutral-200 bg-surface p-6 shadow-sm">
@@ -62,11 +65,72 @@ export function AIProcessingCard({
         ></div>
       </div>
 
+      {/* Quality Metrics Section */}
+      {qualityMetrics && !isProcessing && (
+        <div className="mb-6 rounded-lg border border-success/20 bg-success/5 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Brain className="h-5 w-5 text-success" />
+            <h4 className="text-sm font-semibold text-foreground">
+              Autonomous AI Quality Metrics
+            </h4>
+          </div>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <QualityMetricItem
+              icon={<Target className="h-4 w-4" />}
+              label="Quality Score"
+              value={qualityMetrics.quality_score}
+              color="text-success"
+            />
+            <QualityMetricItem
+              icon={<Zap className="h-4 w-4" />}
+              label="Confidence"
+              value={qualityMetrics.confidence_score}
+              color="text-primary"
+            />
+            <QualityMetricItem
+              icon={<CheckCircle className="h-4 w-4" />}
+              label="Completeness"
+              value={qualityMetrics.completeness_score}
+              color="text-info"
+            />
+            <QualityMetricItem
+              icon={<Activity className="h-4 w-4" />}
+              label="AI Activity"
+              value={null}
+              displayValue={`${qualityMetrics.ai_iterations} iter / ${qualityMetrics.ai_decisions_made} dec`}
+              color="text-accent"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Steps */}
       <div className="space-y-3">
         {steps.map((step) => (
           <AIProcessingStep key={step.id} step={step} />
         ))}
+      </div>
+    </div>
+  );
+}
+
+interface QualityMetricItemProps {
+  icon: React.ReactNode;
+  label: string;
+  value: number | null;
+  displayValue?: string;
+  color: string;
+}
+
+function QualityMetricItem({ icon, label, value, displayValue, color }: QualityMetricItemProps) {
+  const formattedValue = displayValue || (value !== null ? `${Math.round(value * 100)}%` : "N/A");
+  
+  return (
+    <div className="flex items-center gap-2">
+      <div className={cn("shrink-0", color)}>{icon}</div>
+      <div className="min-w-0">
+        <div className={cn("text-sm font-bold", color)}>{formattedValue}</div>
+        <div className="truncate text-xs text-neutral-600">{label}</div>
       </div>
     </div>
   );
@@ -97,7 +161,7 @@ function AIProcessingStep({ step }: { step: AnalysisStep }) {
       )}
     >
       {/* Status Icon */}
-      <div className="flex-shrink-0">{statusIcon}</div>
+      <div className="shrink-0">{statusIcon}</div>
 
       {/* Content */}
       <div className="flex-1">

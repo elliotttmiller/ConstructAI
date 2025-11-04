@@ -389,6 +389,18 @@ class MEPAnalyzer:
         self.plumbing_analyzer = PlumbingAnalyzer()
         logger.info("MEPAnalyzer initialized with HVAC and Plumbing modules")
     
+    def analyze_mep_systems(self, text: str) -> Dict[str, Any]:
+        """
+        Analyze MEP systems in construction documents (alias for analyze_document).
+        
+        Args:
+            text: Full document text
+            
+        Returns:
+            Complete MEP analysis results
+        """
+        return self.analyze_document(text)
+    
     def analyze_document(self, text: str) -> Dict[str, Any]:
         """
         Perform comprehensive MEP analysis on document.
