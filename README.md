@@ -50,6 +50,24 @@ Transform your construction workflow with enterprise-level AI intelligence optim
 - **Cache Hit Rate Analysis**: 80%+ target for optimal performance
 - **Memory Management**: LRU eviction with access pattern learning
 
+### 🏗️ Integrated Construction Documents + Inventory Intelligence System
+- **Unified Processing Pipeline**: Seamless integration of document analysis with inventory checking
+- **Multi-Trade Recognition**: Automatic classification across all CSI divisions and disciplines
+- **CD Phase Detection**: Identifies project phase (SD, DD, 50%, 75%, 95%, 100%, IFC)
+- **Real-Time Inventory Linkage**: Every extracted component automatically checked against inventory
+- **Cross-Discipline Coordination**: Automated conflict detection and MEP coordination checking
+- **Build Readiness Assessment**: Complete project feasibility with procurement risk analysis
+- **Component Extraction**: Unified extraction across architectural, structural, MEP, civil, and specialty
+- **Drawing Disciplines Supported**: Architectural, Structural, Mechanical, Electrical, Plumbing, Fire Protection, Civil, Landscape, Specialty
+
+**Key Integration Capabilities:**
+- **Document-to-Component Pipeline**: Extract → Classify → Match → Assess in single workflow
+- **Automatic Inventory Matching**: Real-time availability checking for all extracted components
+- **Procurement Requirement Analysis**: Critical path identification and lead time calculations
+- **Cross-Reference Validation**: Drawing-to-specification coordination checking
+- **System Integration Analysis**: MEP clearance and conflict detection
+- **Timeline Impact Assessment**: Build readiness scoring with procurement risk factors
+
 ## 🚀 Features
 
 ### 📄 Module 1: Intelligent Document Ingestion & Parsing
@@ -179,6 +197,66 @@ assessment = procurement.assess_build_readiness(
 print(f"Readiness score: {assessment.readiness_score}%")
 print(f"Status: {assessment.status}")
 print(f"Recommendations: {assessment.recommendations}")
+
+# 3. Integrated Construction Documents System
+from constructai.intelligence import (
+    IntegratedCDIntelligenceSystem,
+    CDPhase,
+    DrawingDiscipline
+)
+
+# Initialize integrated system
+integrated_system = IntegratedCDIntelligenceSystem(
+    specification_intelligence=SpecificationIntelligence(),
+    inventory_intelligence=InventoryIntelligence(),
+    procurement_intelligence=ProcurementIntelligence(),
+    component_matcher=ComponentMatcher()
+)
+
+# Process complete CD set
+documents = [
+    {"name": "A-101 Floor Plan.pdf", "content": "...", "type": "drawing"},
+    {"name": "E-201 Power Distribution.pdf", "content": "...", "type": "drawing"},
+    {"name": "Division 26 - Electrical.pdf", "content": "...", "type": "specification"},
+    # ... more documents
+]
+
+analysis = integrated_system.process_cd_set(
+    project_id="project-123",
+    project_name="Office Building Renovation",
+    documents=documents,
+    auto_inventory_check=True,
+    auto_procurement_analysis=True
+)
+
+# View comprehensive results
+print(f"\n🏗️ CD Set Analysis Results:")
+print(f"Phase: {analysis.cd_phase}")
+print(f"Total Components: {analysis.total_components}")
+print(f"Disciplines: {[d.value for d in analysis.disciplines]}")
+print(f"\n📦 Inventory Status:")
+print(f"  In Stock: {analysis.components_in_stock}")
+print(f"  Need Procurement: {analysis.components_need_procurement}")
+print(f"  Total Cost: ${analysis.total_estimated_cost:,.2f}")
+print(f"\n📊 Build Readiness:")
+print(f"  Readiness Score: {analysis.build_readiness_score:.1f}%")
+print(f"  Critical Path Items: {len(analysis.critical_path_items)}")
+print(f"  Procurement Risk Items: {len(analysis.procurement_risk_items)}")
+print(f"\n⚙️ Coordination:")
+print(f"  Coordination Checks: {len(analysis.coordination_checks)}")
+print(f"  Issues Found: {len(analysis.coordination_issues)}")
+
+# Extract specific discipline components
+from constructai.intelligence import DrawingDiscipline
+
+electrical_docs = [d for d in documents if 'electrical' in d['name'].lower()]
+electrical_analysis = integrated_system.process_cd_set(
+    project_id="project-123",
+    project_name="Electrical Only",
+    documents=electrical_docs
+)
+print(f"\nElectrical: {electrical_analysis.total_components} components found")
+
 
 # Generate purchase order
 po = procurement.generate_purchase_order(
@@ -582,10 +660,77 @@ curl http://localhost:8000/api/dashboard/metrics
 curl http://localhost:8000/api/dashboard/performance
 ```
 
+#### Integrated CD Intelligence (6 endpoints)
+
+**POST** `/api/intelligence/cd/process-set`
+- Process complete Construction Documents set with integrated analysis
+- Body: `{project_id, project_name, documents, auto_inventory_check, auto_procurement_analysis}`
+- Returns: Complete CDSetAnalysis with all components, inventory status, and build readiness
+
+**POST** `/api/intelligence/cd/extract-components`
+- Extract components from construction documents
+- Body: `{documents, discipline_filter}`
+- Returns: List of extracted components with metadata
+
+**POST** `/api/intelligence/cd/inventory-integration`
+- Integrate extracted components with inventory system
+- Body: `{components}`
+- Returns: Updated components with inventory availability data
+
+**POST** `/api/intelligence/cd/coordination-check`
+- Check for cross-discipline coordination issues
+- Body: `{components, documents}`
+- Returns: Coordination check results with issues and conflicts
+
+**GET** `/api/intelligence/cd/disciplines`
+- Get list of supported drawing disciplines
+- Returns: All supported disciplines (Architectural, Structural, Mechanical, Electrical, Plumbing, etc.)
+
+**GET** `/api/intelligence/cd/phases`
+- Get list of supported CD phases
+- Returns: All CD phases (SD, DD, 50%, 75%, 95%, 100%, IFC)
+
+### Integrated CD System Example
+
+```bash
+# Process complete CD set
+curl -X POST http://localhost:8000/api/intelligence/cd/process-set \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "proj-123",
+    "project_name": "Office Building Renovation",
+    "documents": [
+      {"name": "A-101.pdf", "content": "...", "type": "drawing"},
+      {"name": "E-201.pdf", "content": "...", "type": "drawing"}
+    ],
+    "auto_inventory_check": true,
+    "auto_procurement_analysis": true
+  }'
+
+# Extract components from specific discipline
+curl -X POST http://localhost:8000/api/intelligence/cd/extract-components \
+  -H "Content-Type: application/json" \
+  -d '{
+    "documents": [...],
+    "discipline_filter": "electrical"
+  }'
+
+# Get supported disciplines
+curl http://localhost:8000/api/intelligence/cd/disciplines
+
+# Check cross-discipline coordination
+curl -X POST http://localhost:8000/api/intelligence/cd/coordination-check \
+  -H "Content-Type: application/json" \
+  -d '{
+    "components": [...],
+    "documents": [...]
+  }'
+```
+
 ## 📞 Support
 
 For questions, issues, or feature requests, please open an issue on GitHub.
 
 ---
 
-**ConstructAI** - Enterprise-grade construction intelligence optimized for expert decision-making.
+**ConstructAI** - Enterprise-grade construction intelligence optimized for expert decision-making with comprehensive Construction Documents integration.

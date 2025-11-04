@@ -2916,7 +2916,262 @@ Total Clauses: {len(all_clauses)}
             logger.error(f"Error getting cache stats: {e}")
             raise HTTPException(status_code=500, detail=str(e))
     
-    logger.info("FastAPI app created successfully with Enterprise Intelligence capabilities")
+    # ========================================================================
+    # INTEGRATED CONSTRUCTION DOCUMENTS + INVENTORY INTELLIGENCE ENDPOINTS
+    # ========================================================================
+    
+    @app.post("/api/intelligence/cd/process-set")
+    async def process_cd_set(
+        project_id: str,
+        project_name: str,
+        documents: list,
+        auto_inventory_check: bool = True,
+        auto_procurement_analysis: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Process a complete Construction Documents set with integrated analysis.
+        
+        This endpoint orchestrates the entire integrated pipeline:
+        1. Document classification and phase detection
+        2. Specification extraction from all documents
+        3. Component identification and categorization
+        4. Real-time inventory matching
+        5. Procurement requirement analysis
+        6. Build readiness assessment
+        7. Cross-discipline coordination checking
+        
+        Returns comprehensive CDSetAnalysis with all integrated results.
+        """
+        try:
+            from ..intelligence import IntegratedCDIntelligenceSystem
+            from ..intelligence import (
+                SpecificationIntelligence,
+                InventoryIntelligence,
+                ProcurementIntelligence,
+                ComponentMatcher
+            )
+            
+            # Initialize integrated system with all intelligence modules
+            integrated_system = IntegratedCDIntelligenceSystem(
+                specification_intelligence=SpecificationIntelligence(),
+                inventory_intelligence=InventoryIntelligence() if auto_inventory_check else None,
+                procurement_intelligence=ProcurementIntelligence() if auto_procurement_analysis else None,
+                component_matcher=ComponentMatcher()
+            )
+            
+            # Process the CD set
+            analysis = integrated_system.process_cd_set(
+                project_id=project_id,
+                project_name=project_name,
+                documents=documents,
+                auto_inventory_check=auto_inventory_check,
+                auto_procurement_analysis=auto_procurement_analysis
+            )
+            
+            return {
+                "status": "success",
+                "analysis": analysis.to_dict()
+            }
+        except Exception as e:
+            logger.error(f"Error processing CD set: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/intelligence/cd/extract-components")
+    async def extract_components_from_documents(
+        documents: list,
+        discipline_filter: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Extract components from construction documents.
+        
+        Args:
+            documents: List of document dictionaries with content
+            discipline_filter: Optional discipline to filter (e.g., 'electrical', 'mechanical')
+            
+        Returns:
+            List of extracted components with metadata
+        """
+        try:
+            from ..intelligence import IntegratedCDIntelligenceSystem, DrawingDiscipline
+            from ..intelligence import SpecificationIntelligence
+            
+            integrated_system = IntegratedCDIntelligenceSystem(
+                specification_intelligence=SpecificationIntelligence()
+            )
+            
+            # Classify documents
+            classified = integrated_system._classify_documents_by_discipline(documents)
+            
+            # Filter by discipline if specified
+            if discipline_filter:
+                try:
+                    filter_discipline = DrawingDiscipline[discipline_filter.upper()]
+                    classified = [d for d in classified if d['discipline'] == filter_discipline]
+                except KeyError:
+                    pass
+            
+            # Extract components
+            components = integrated_system._extract_all_components(classified)
+            
+            return {
+                "status": "success",
+                "total_components": len(components),
+                "components": [c.to_dict() for c in components]
+            }
+        except Exception as e:
+            logger.error(f"Error extracting components: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/intelligence/cd/inventory-integration")
+    async def integrate_components_with_inventory(
+        components: list
+    ) -> Dict[str, Any]:
+        """
+        Integrate extracted components with inventory system.
+        
+        Args:
+            components: List of component dictionaries
+            
+        Returns:
+            Updated components with inventory availability data
+        """
+        try:
+            from ..intelligence import IntegratedCDIntelligenceSystem, ExtractedComponent
+            from ..intelligence import InventoryIntelligence
+            
+            integrated_system = IntegratedCDIntelligenceSystem(
+                inventory_intelligence=InventoryIntelligence()
+            )
+            
+            # Convert dictionaries to ExtractedComponent objects
+            component_objects = []
+            for comp_dict in components:
+                # Create component from dictionary (simplified)
+                from ..intelligence.integrated_cd_system import DrawingDiscipline
+                comp = ExtractedComponent(
+                    component_id=comp_dict.get('component_id', ''),
+                    name=comp_dict.get('name', ''),
+                    discipline=DrawingDiscipline[comp_dict.get('discipline', 'ARCHITECTURAL').upper()],
+                    csi_division=comp_dict.get('csi_division', '00'),
+                    specification_section=comp_dict.get('specification_section', ''),
+                    dimensions=comp_dict.get('dimensions', {}),
+                    performance_specs=comp_dict.get('performance_specs', {}),
+                    quantity=comp_dict.get('quantity', 1)
+                )
+                component_objects.append(comp)
+            
+            # Integrate with inventory
+            integrated_system._integrate_with_inventory(component_objects)
+            
+            return {
+                "status": "success",
+                "components_checked": len(component_objects),
+                "components_in_stock": len([c for c in component_objects if not c.requires_procurement]),
+                "components_need_procurement": len([c for c in component_objects if c.requires_procurement]),
+                "components": [c.to_dict() for c in component_objects]
+            }
+        except Exception as e:
+            logger.error(f"Error integrating with inventory: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/intelligence/cd/coordination-check")
+    async def check_cross_discipline_coordination(
+        components: list,
+        documents: list
+    ) -> Dict[str, Any]:
+        """
+        Check for cross-discipline coordination issues.
+        
+        Args:
+            components: List of component dictionaries
+            documents: List of document dictionaries
+            
+        Returns:
+            Coordination check results with issues and conflicts
+        """
+        try:
+            from ..intelligence import IntegratedCDIntelligenceSystem, ExtractedComponent
+            from ..intelligence.integrated_cd_system import DrawingDiscipline
+            
+            integrated_system = IntegratedCDIntelligenceSystem()
+            
+            # Convert to component objects (simplified)
+            component_objects = []
+            for comp_dict in components:
+                comp = ExtractedComponent(
+                    component_id=comp_dict.get('component_id', ''),
+                    name=comp_dict.get('name', ''),
+                    discipline=DrawingDiscipline[comp_dict.get('discipline', 'ARCHITECTURAL').upper()],
+                    csi_division=comp_dict.get('csi_division', '00'),
+                    specification_section=comp_dict.get('specification_section', ''),
+                    location_tags=comp_dict.get('location_tags', [])
+                )
+                component_objects.append(comp)
+            
+            # Classify documents
+            classified_docs = integrated_system._classify_documents_by_discipline(documents)
+            
+            # Check coordination
+            results = integrated_system._check_cross_discipline_coordination(
+                component_objects,
+                classified_docs
+            )
+            
+            return {
+                "status": "success",
+                "coordination_results": results
+            }
+        except Exception as e:
+            logger.error(f"Error checking coordination: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.get("/api/intelligence/cd/disciplines")
+    async def get_supported_disciplines() -> Dict[str, Any]:
+        """Get list of supported drawing disciplines."""
+        try:
+            from ..intelligence.integrated_cd_system import DrawingDiscipline
+            
+            disciplines = [
+                {
+                    "value": d.value,
+                    "name": d.name,
+                    "description": f"{d.value.replace('_', ' ').title()} drawings and specifications"
+                }
+                for d in DrawingDiscipline
+            ]
+            
+            return {
+                "status": "success",
+                "disciplines": disciplines
+            }
+        except Exception as e:
+            logger.error(f"Error getting disciplines: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.get("/api/intelligence/cd/phases")
+    async def get_cd_phases() -> Dict[str, Any]:
+        """Get list of supported CD phases."""
+        try:
+            from ..intelligence.integrated_cd_system import CDPhase
+            
+            phases = [
+                {
+                    "value": p.value,
+                    "name": p.name,
+                    "description": f"{p.value.replace('_', ' ').title()} phase"
+                }
+                for p in CDPhase
+            ]
+            
+            return {
+                "status": "success",
+                "phases": phases
+            }
+        except Exception as e:
+            logger.error(f"Error getting CD phases: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    logger.info("FastAPI app created successfully with Integrated CD Intelligence capabilities")
     return app
 
 
