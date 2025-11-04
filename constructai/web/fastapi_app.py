@@ -411,17 +411,17 @@ def create_app():
                 "status": "success",
                 "project_id": project_id,
                 "audit": {
-                    "overall_score": audit_result.get("overall_score", 85),
+                    "overall_score": audit_result.get("overall_score"),
                     "risks": audit_result.get("risks", []),
                     "compliance_issues": audit_result.get("compliance_issues", []),
                     "bottlenecks": audit_result.get("bottlenecks", []),
                     "resource_conflicts": audit_result.get("resource_conflicts", [])
                 },
                 "optimization": {
-                    "duration_reduction_days": optimization_result.get("duration_reduction", 0),
-                    "cost_savings": optimization_result.get("cost_savings", 0),
-                    "parallel_opportunities": optimization_result.get("parallel_tasks", 0),
-                    "bottlenecks_resolved": optimization_result.get("bottlenecks_resolved", 0),
+                    "duration_reduction_days": optimization_result.get("duration_reduction"),
+                    "cost_savings": optimization_result.get("cost_savings"),
+                    "parallel_opportunities": optimization_result.get("parallel_tasks"),
+                    "bottlenecks_resolved": optimization_result.get("bottlenecks_resolved"),
                     "optimizations_applied": optimization_result.get("optimizations", [])
                 }
             }
@@ -733,61 +733,37 @@ def create_app():
             }
             completeness_score = (sum(completeness_factors.values()) / len(completeness_factors)) * 100
             
-            # 4. Generate recommendations
-            recommendations = []
-            
-            if len(divisions_summary) < 3:
-                recommendations.append({
-                    "priority": "high",
-                    "category": "completeness",
-                    "message": "Document covers few MasterFormat divisions. Consider adding more detailed scope sections."
-                })
-            
-            if len(key_standards) == 0:
-                recommendations.append({
-                    "priority": "medium",
-                    "category": "standards",
-                    "message": "No industry standards detected (ASTM, ACI, etc.). Ensure compliance requirements are specified."
-                })
-            else:
-                recommendations.append({
-                    "priority": "low",
-                    "category": "standards",
-                    "message": f"Good! Found {len(key_standards)} industry standard references ensuring code compliance."
-                })
-            
-            if len(key_materials) == 0:
-                recommendations.append({
-                    "priority": "medium",
-                    "category": "materials",
-                    "message": "No specific materials identified. Add detailed material specifications."
-                })
-            else:
-                recommendations.append({
-                    "priority": "low",
-                    "category": "materials",
-                    "message": f"Good! Identified {len(key_materials)} different materials with specifications."
-                })
-            
-            if len(cost_mentions) == 0:
-                recommendations.append({
-                    "priority": "medium",
-                    "category": "budget",
-                    "message": "No cost information found. Consider adding budget estimates or allowances."
-                })
-            else:
-                recommendations.append({
-                    "priority": "low",
-                    "category": "budget",
-                    "message": f"Good! Found {len(cost_mentions)} cost references throughout the document."
-                })
-            
-            if len(all_clauses) < 10:
-                recommendations.append({
-                    "priority": "medium",
-                    "category": "detail",
-                    "message": "Limited specification detail found. Consider expanding technical requirements."
-                })
+            # 4. Generate AI-powered recommendations
+            try:
+                from ..ai.analysis_generator import ConstructionAnalysisGenerator
+                
+                ai_generator = ConstructionAnalysisGenerator()
+                
+                # Prepare analysis data for AI
+                analysis_for_ai = {
+                    "divisions_summary": divisions_summary,
+                    "materials": list(key_materials),
+                    "standards": list(key_standards),
+                    "clauses_count": len(all_clauses),
+                    "mep_analysis": {
+                        "hvac": mep_results['hvac'],
+                        "plumbing": mep_results['plumbing'],
+                        "overall": mep_results['overall_summary']
+                    }
+                }
+                
+                # Generate AI recommendations
+                recommendations = ai_generator.generate_recommendations(
+                    project_data={"name": "Construction Project"},
+                    analysis_results=analysis_for_ai
+                )
+                
+                logger.info(f"Generated {len(recommendations)} AI-powered recommendations")
+                
+            except Exception as e:
+                logger.error(f"AI recommendation generation failed: {e}", exc_info=True)
+                # Fall back to empty list - no hardcoded recommendations
+                recommendations = []
 
 
             return {
@@ -965,49 +941,107 @@ def create_app():
             }
             completeness_score = (sum(completeness_factors.values()) / len(completeness_factors)) * 100
 
-            # Generate recommendations
-            recommendations = []
-            if len(divisions_summary) < 3:
-                recommendations.append({
-                    "priority": "high",
-                    "category": "completeness",
-                    "description": "Document covers few MasterFormat divisions. Consider adding more detailed scope sections."
-                })
-            if len(all_standards) == 0:
-                recommendations.append({
-                    "priority": "medium",
-                    "category": "standards",
-                    "description": "No industry standards detected. Ensure compliance requirements are specified."
-                })
-            else:
-                recommendations.append({
-                    "priority": "low",
-                    "category": "standards",
-                    "description": f"Good! Found {len(all_standards)} industry standard references."
-                })
-            if len(all_materials) > 0:
-                recommendations.append({
-                    "priority": "low",
-                    "category": "materials",
-                    "description": f"Good! Identified {len(all_materials)} different materials with specifications."
-                })
-            if len(all_costs) > 0:
-                recommendations.append({
-                    "priority": "low",
-                    "category": "budget",
-                    "description": f"Good! Found {len(all_costs)} cost references throughout the document."
-                })
-
-            # Critical requirements (high severity risk indicators)
-            critical_requirements = []
-            for clause in all_clauses[:20]:
-                text = clause.get("text", "").lower()
-                if "must" in text or "shall" in text:
-                    critical_requirements.append({
-                        "severity": "MEDIUM",
-                        "requirement": "REQUIREMENT",
-                        "description": clause.get("text", "")[:200]
-                    })
+            # Generate AI-powered recommendations and insights
+            from ..ai.providers.manager import AIModelManager
+            ai_manager = AIModelManager()
+            
+            # Prepare context for AI analysis
+            analysis_context = {
+                "project_name": db_project.name,
+                "divisions": divisions_summary,
+                "total_sections": len(classified_sections),
+                "total_clauses": len(all_clauses),
+                "materials": list(all_materials)[:50],
+                "standards": list(all_standards),
+                "costs_found": len(all_costs),
+                "mep_hvac_equipment": len(mep_results['hvac']['equipment']),
+                "mep_plumbing_fixtures": len(mep_results['plumbing']['fixtures'])
+            }
+            
+            # Generate AI-powered recommendations and insights
+            try:
+                from ..ai.analysis_generator import ConstructionAnalysisGenerator
+                
+                ai_generator = ConstructionAnalysisGenerator()
+                
+                # Prepare analysis data for AI
+                analysis_for_ai = {
+                    "divisions_summary": divisions_summary,
+                    "materials": list(all_materials),
+                    "standards": list(all_standards),
+                    "clauses_count": len(all_clauses),
+                    "mep_analysis": {
+                        "hvac": mep_results['hvac'],
+                        "plumbing": mep_results['plumbing'],
+                        "overall": mep_results['overall_summary']
+                    }
+                }
+                
+                # Generate AI-powered recommendations
+                recommendations = ai_generator.generate_recommendations(
+                    project_data={"name": db_project.name},
+                    analysis_results=analysis_for_ai
+                )
+                
+                # Generate AI-powered critical requirements
+                # Parse from clauses with AI understanding
+                critical_requirements = []
+                if all_clauses:
+                    # Use first 20 clauses for critical analysis
+                    sample_clauses = all_clauses[:20]
+                    critical_prompt_context = {
+                        "clauses": [c.get("text", "")[:300] for c in sample_clauses],
+                        "divisions": divisions_summary,
+                        "standards": list(all_standards)[:10]
+                    }
+                    
+                    try:
+                        from ..ai.prompts import get_prompt_engineer, TaskType, PromptContext
+                        prompt_engineer = get_prompt_engineer()
+                        
+                        context = PromptContext(
+                            document_type="construction_specification",
+                            project_phase="compliance_review",
+                            user_role="compliance_officer"
+                        )
+                        
+                        prompt_data = prompt_engineer.generate_prompt(
+                            task_type=TaskType.COMPLIANCE_CHECK,
+                            context=context,
+                            input_data={
+                                "project_name": db_project.name,
+                                "clauses": critical_prompt_context["clauses"],
+                                "task": "Identify 5-10 critical requirements from these clauses that have significant legal, safety, quality, schedule, or permit implications. Return specific, actionable requirements."
+                            }
+                        )
+                        
+                        crit_response = ai_manager.generate(
+                            prompt=prompt_data["full_prompt"],
+                            max_tokens=1500,
+                            temperature=0.6,
+                            task_type="compliance_check"
+                        )
+                        
+                        # Parse critical requirements from AI response
+                        crit_lines = crit_response.content.strip().split('\n')
+                        for line in crit_lines[:10]:
+                            line = line.strip()
+                            if line and not line.startswith('#'):
+                                severity = "HIGH" if any(w in line.lower() for w in ['critical', 'must', 'shall', 'required']) else "MEDIUM"
+                                critical_requirements.append({
+                                    "severity": severity,
+                                    "requirement": "COMPLIANCE",
+                                    "description": line.lstrip('-•* ')
+                                })
+                    except Exception as e:
+                        logger.error(f"Critical requirements AI generation failed: {e}")
+                
+                logger.info(f"Generated {len(recommendations)} AI recommendations and {len(critical_requirements)} critical requirements")
+                
+            except Exception as e:
+                logger.error(f"AI analysis generation failed: {e}", exc_info=True)
+                recommendations = []
+                critical_requirements = []
 
             # Build comprehensive analysis data structure
             analysis_data = {
