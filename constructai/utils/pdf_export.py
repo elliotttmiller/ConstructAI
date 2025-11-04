@@ -1,28 +1,41 @@
 """
-AI-Powered Construction Intelligence Report Generator for ConstructAI.
+AI-Powered Construction Intelligence Report Generator for ConstructAI - PROFESSIONAL EDITION.
 
 ⚠️ CRITICAL: THIS MODULE DOES **ZERO** AI ANALYSIS ⚠️
 
 This is ONLY a formatter/exporter. It takes the already-completed AI analysis results
 from the database (stored by the /documents/{document_id}/analyze endpoint) and 
-formats them into a professional PDF report.
+formats them into a PROFESSIONAL, EXECUTIVE-LEVEL PDF report.
+
+ENHANCED FEATURES (Professional Edition):
+- Executive summary with KPIs and strategic insights
+- Multi-page detailed analysis with professional formatting
+- Quantitative metrics and data visualization
+- Risk matrices and priority frameworks
+- Implementation roadmaps with timelines
+- Comprehensive technical specifications
+- Industry-standard professional presentation
 
 The AI analysis workflow (7-phase autonomous intelligence) runs in:
 - constructai.ai.universal_intelligence
 - constructai.ai.analysis_generator  
 - constructai.web.fastapi_app (analyze_document endpoint)
 
-This module's ONLY job: Read stored analysis → Format → Export PDF
+This module's ONLY job: Read stored analysis → Format → Export PROFESSIONAL PDF
 
-Report Sections:
-- Project Intelligence & Scope Analysis
-- Construction Execution Strategy
-- Cost Breakdown & Resource Planning
-- Risk Mitigation & Safety Analysis
-- MEP Systems Technical Specifications
-- Procurement & Material Recommendations
+Report Sections (Enhanced):
+1. Executive Summary & Key Insights
+2. Project Intelligence & Classification
+3. Technical Analysis & Specifications
+4. Strategic Recommendations (Prioritized & Detailed)
+5. Risk Assessment & Mitigation Strategy
+6. Cost Intelligence & Resource Planning
+7. MEP Systems Technical Specifications (when applicable)
+8. Compliance & Standards Matrix
+9. Implementation Roadmap
 
 All content is dynamically generated using AI analysis - no hardcoded or mock responses.
+Professional formatting suitable for C-level executives and board presentations.
 """
 
 from typing import Dict, Any, List, Optional
@@ -189,28 +202,43 @@ class ConstructAIPDFReport:
         logger.info(f"Using pre-analyzed content from {analysis.get('timestamp', 'unknown')}")
     
     def _setup_custom_styles(self):
-        """Configure professional paragraph styles for construction industry reports."""
+        """Configure professional paragraph styles for construction industry reports - ENHANCED."""
         
         # Main title - Bold, professional blue
         self.styles.add(ParagraphStyle(
             name='CustomTitle',
             parent=self.styles['Heading1'],
-            fontSize=24,
+            fontSize=28,
             textColor=colors.HexColor('#1e40af'),
-            spaceAfter=30,
+            spaceAfter=20,
+            spaceBefore=10,
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
+        ))
+        
+        # Subtitle - Professional
+        self.styles.add(ParagraphStyle(
+            name='Subtitle',
+            parent=self.styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#4b5563'),
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            fontName='Helvetica'
         ))
         
         # Section headers - Construction industry standard
         self.styles.add(ParagraphStyle(
             name='SectionHeader',
             parent=self.styles['Heading2'],
-            fontSize=16,
+            fontSize=18,
             textColor=colors.HexColor('#1e40af'),
-            spaceAfter=12,
-            spaceBefore=12,
-            fontName='Helvetica-Bold'
+            spaceAfter=14,
+            spaceBefore=18,
+            fontName='Helvetica-Bold',
+            borderWidth=0,
+            borderColor=colors.HexColor('#1e40af'),
+            borderPadding=5
         ))
         
         # Subsection headers
@@ -220,6 +248,17 @@ class ConstructAIPDFReport:
             fontSize=14,
             textColor=colors.HexColor('#2563eb'),
             spaceAfter=10,
+            spaceBefore=12,
+            fontName='Helvetica-Bold'
+        ))
+        
+        # Priority headers (for recommendations)
+        self.styles.add(ParagraphStyle(
+            name='PriorityHeader',
+            parent=self.styles['Heading4'],
+            fontSize=12,
+            textColor=colors.HexColor('#dc2626'),
+            spaceAfter=6,
             fontName='Helvetica-Bold'
         ))
         
@@ -229,15 +268,36 @@ class ConstructAIPDFReport:
             parent=self.styles['BodyText'],
             fontSize=10,
             alignment=TA_JUSTIFY,
-            spaceAfter=6,
+            spaceAfter=8,
             leading=14
+        ))
+        
+        # Body text - Left aligned
+        self.styles.add(ParagraphStyle(
+            name='BodyTextLeft',
+            parent=self.styles['BodyText'],
+            fontSize=10,
+            alignment=TA_LEFT,
+            spaceAfter=6,
+            leading=13
+        ))
+        
+        # Bullet points - Professional
+        self.styles.add(ParagraphStyle(
+            name='BulletPoint',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            leftIndent=20,
+            spaceAfter=4,
+            bulletIndent=10,
+            leading=13
         ))
         
         # Metric values - Large, prominent numbers
         self.styles.add(ParagraphStyle(
             name='MetricValue',
             parent=self.styles['Normal'],
-            fontSize=36,
+            fontSize=32,
             textColor=colors.HexColor('#4f46e5'),
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
@@ -247,9 +307,44 @@ class ConstructAIPDFReport:
         self.styles.add(ParagraphStyle(
             name='MetricLabel',
             parent=self.styles['Normal'],
-            fontSize=10,
+            fontSize=9,
+            textColor=colors.HexColor('#6b7280'),
+            alignment=TA_CENTER,
+            spaceAfter=4
+        ))
+        
+        # Key insights box
+        self.styles.add(ParagraphStyle(
+            name='InsightBox',
+            parent=self.styles['Normal'],
+            fontSize=11,
+            textColor=colors.HexColor('#1f2937'),
+            alignment=TA_LEFT,
+            spaceAfter=8,
+            leftIndent=10,
+            rightIndent=10,
+            leading=15,
+            fontName='Helvetica'
+        ))
+        
+        # Recommendation title
+        self.styles.add(ParagraphStyle(
+            name='RecommendationTitle',
+            parent=self.styles['Normal'],
+            fontSize=11,
+            textColor=colors.HexColor('#1e40af'),
+            spaceAfter=4,
+            fontName='Helvetica-Bold'
+        ))
+        
+        # Small caption
+        self.styles.add(ParagraphStyle(
+            name='Caption',
+            parent=self.styles['Normal'],
+            fontSize=8,
             textColor=colors.gray,
-            alignment=TA_CENTER
+            alignment=TA_LEFT,
+            spaceAfter=3
         ))
     
     def generate(self, output_path: str) -> str:
@@ -283,29 +378,48 @@ class ConstructAIPDFReport:
             story.extend(self._build_cover_page())
             story.append(PageBreak())
             
+            # Executive Summary - Comprehensive KPI dashboard
+            story.extend(self._build_executive_summary())
+            story.append(PageBreak())
+            
             # Section 1: Project Intelligence & Scope Analysis
             story.extend(self._build_project_intelligence())
             story.append(Spacer(1, 0.3*inch))
             
-            # Section 2: Construction Execution Strategy
-            story.extend(self._build_execution_strategy())
-            story.append(PageBreak())
+            # Section 2: Strategic Recommendations - only if available
+            recs = self.ai_content.get('strategic_planning', {}).get('recommendations', [])
+            if recs:
+                story.extend(self._build_strategic_recommendations())
+                story.append(PageBreak())
             
-            # Section 3: Cost & Resource Analysis
+            # Section 3: Risk Assessment & Mitigation
+            risk_section = self._build_risk_mitigation()
+            if risk_section:
+                story.extend(risk_section)
+                story.append(Spacer(1, 0.3*inch))
+            
+            # Section 4: Cost & Resource Analysis
             story.extend(self._build_cost_resource_analysis())
             story.append(Spacer(1, 0.3*inch))
             
-            # Section 4: MEP Technical Specifications (if applicable)
+            # Section 5: MEP Technical Specifications (if applicable)
             if self.project_data.get('mep_analysis'):
                 story.extend(self._build_mep_technical_specs())
                 story.append(PageBreak())
             
-            # Section 5: Risk Mitigation & Safety
-            story.extend(self._build_risk_mitigation())
+            # Section 6: Construction Execution Strategy
+            story.extend(self._build_execution_strategy())
             story.append(Spacer(1, 0.3*inch))
             
-            # Section 6: Procurement & Material Strategy
-            story.extend(self._build_procurement_recommendations())
+            # Section 7: Compliance & Standards (if available)
+            standards = self.ai_content.get('deep_analysis', {}).get('standards', [])
+            if standards:
+                story.extend(self._build_compliance_matrix())
+                story.append(Spacer(1, 0.2*inch))
+            
+            # Section 8: Implementation Roadmap (if available)
+            if self.ai_content.get('strategic_planning', {}).get('priority_actions'):
+                story.extend(self._build_implementation_roadmap())
             
             # Build final PDF with headers/footers
             doc.build(
@@ -370,6 +484,353 @@ class ConstructAIPDFReport:
         recommendations to guide your construction team from planning through completion.
         """
         elements.append(Paragraph(summary_text, self.styles['BodyTextJustify']))
+        
+        return elements
+    
+    def _build_executive_summary(self) -> List:
+        """
+        Build comprehensive executive summary with KPIs and strategic insights.
+        
+        Returns:
+            List of ReportLab elements for executive summary
+        """
+        elements = []
+        
+        elements.append(Paragraph(
+            "Executive Summary", 
+            self.styles['SectionHeader']
+        ))
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # KPI Dashboard
+        if self.ai_content and self.ai_content.get('quality_metrics'):
+            metrics = self.ai_content['quality_metrics']
+            proj_intel = self.ai_content.get('project_intelligence', {})
+            
+            # Create KPI grid
+            kpi_data = []
+            
+            # Row 1: Quality Score and Confidence (handle both 0-1 and 0-100 formats)
+            quality_score = metrics.get('quality_score', 0)
+            if quality_score <= 1.0:  # If 0-1 format, convert to percentage
+                quality_score = quality_score * 100
+            
+            confidence_score = metrics.get('confidence_score', 0)
+            if confidence_score <= 1.0:  # If 0-1 format, convert to percentage
+                confidence_score = confidence_score * 100
+            
+            kpi_data.append([
+                [Paragraph(f"{quality_score:.0f}%", self.styles['MetricValue']),
+                 Paragraph("ANALYSIS QUALITY", self.styles['MetricLabel'])],
+                [Paragraph(f"{confidence_score:.0f}%", self.styles['MetricValue']),
+                 Paragraph("AI CONFIDENCE", self.styles['MetricLabel'])]
+            ])
+            
+            # Row 2: AI Decisions and Execution Time
+            ai_decisions = proj_intel.get('ai_decisions', 0)
+            exec_time = proj_intel.get('execution_time', 0)
+            
+            kpi_data.append([
+                [Paragraph(f"{ai_decisions}", self.styles['MetricValue']),
+                 Paragraph("AI DECISIONS MADE", self.styles['MetricLabel'])],
+                [Paragraph(f"{exec_time:.1f}s", self.styles['MetricValue']),
+                 Paragraph("ANALYSIS TIME", self.styles['MetricLabel'])]
+            ])
+            
+            kpi_table = Table(kpi_data, colWidths=[3*inch, 3*inch])
+            kpi_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('TOPPADDING', (0, 0), (-1, -1), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ]))
+            
+            elements.append(kpi_table)
+            elements.append(Spacer(1, 0.3*inch))
+        
+        # Project Classification
+        if self.ai_content and self.ai_content.get('project_intelligence'):
+            intel = self.ai_content['project_intelligence']
+            
+            elements.append(Paragraph(
+                "Project Classification", 
+                self.styles['SubsectionHeader']
+            ))
+            
+            class_data = [
+                ["<b>Document Type:</b>", intel.get('document_type', 'Unknown').replace('_', ' ').title()],
+                ["<b>Structure Type:</b>", intel.get('structure_type', 'Unknown').replace('_', ' ').title()],
+                ["<b>Classification Confidence:</b>", f"{intel.get('confidence', 0):.1%}"],
+            ]
+            
+            class_table = Table(class_data, colWidths=[2*inch, 4*inch])
+            class_table.setStyle(TableStyle([
+                ('FONT', (0, 0), (0, -1), 'Helvetica-Bold', 10),
+                ('FONT', (1, 0), (1, -1), 'Helvetica', 10),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1f2937')),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ]))
+            
+            elements.append(class_table)
+            elements.append(Spacer(1, 0.2*inch))
+        
+        # Key Insights Summary
+        elements.append(Paragraph(
+            "Key Insights", 
+            self.styles['SubsectionHeader']
+        ))
+        
+        if self.ai_content and self.ai_content.get('project_intelligence', {}).get('summary'):
+            summary_text = self.ai_content['project_intelligence']['summary']
+            elements.append(Paragraph(
+                summary_text, 
+                self.styles['BodyTextJustify']
+            ))
+        else:
+            elements.append(Paragraph(
+                "Comprehensive AI analysis completed. Detailed insights available in subsequent sections.",
+                self.styles['BodyTextJustify']
+            ))
+        
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Strategic Overview
+        if self.ai_content and self.ai_content.get('deep_analysis'):
+            analysis = self.ai_content['deep_analysis']
+            
+            overview_items = []
+            
+            if analysis.get('divisions_summary'):
+                divisions_count = len(analysis['divisions_summary'])
+                overview_items.append(f"• <b>CSI Divisions Identified:</b> {divisions_count} major divisions")
+            
+            if analysis.get('materials'):
+                materials_count = len(analysis['materials'])
+                overview_items.append(f"• <b>Materials Cataloged:</b> {materials_count} unique materials")
+            
+            if analysis.get('standards'):
+                standards_count = len(analysis['standards'])
+                overview_items.append(f"• <b>Standards Referenced:</b> {standards_count} industry standards")
+            
+            if analysis.get('costs'):
+                costs_count = len(analysis['costs'])
+                overview_items.append(f"• <b>Cost Items Identified:</b> {costs_count} line items")
+            
+            if overview_items:
+                elements.append(Paragraph(
+                    "Analysis Scope", 
+                    self.styles['SubsectionHeader']
+                ))
+                for item in overview_items:
+                    elements.append(Paragraph(item, self.styles['BodyTextLeft']))
+                elements.append(Spacer(1, 0.1*inch))
+        
+        return elements
+    
+    def _build_strategic_recommendations(self) -> List:
+        """
+        Build enhanced strategic recommendations section with detailed analysis.
+        
+        Returns:
+            List of ReportLab elements for this section
+        """
+        elements = []
+        
+        elements.append(Paragraph(
+            "Strategic Recommendations", 
+            self.styles['SectionHeader']
+        ))
+        elements.append(Spacer(1, 0.2*inch))
+        
+        if not self.ai_content or not self.ai_content.get('strategic_planning'):
+            return elements  # Return empty if no data
+        
+        planning = self.ai_content['strategic_planning']
+        recommendations = planning.get('recommendations', [])
+        
+        if not recommendations:
+            return elements  # Return empty if no recommendations
+        
+        # Summary header
+        elements.append(Paragraph(
+            f"<b>Total Recommendations:</b> {len(recommendations)} strategic actions identified",
+            self.styles['BodyTextLeft']
+        ))
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # Group by priority
+        priority_groups = {'CRITICAL': [], 'HIGH': [], 'MEDIUM': [], 'LOW': []}
+        for rec in recommendations:
+            priority = rec.get('priority', 'MEDIUM').upper()
+            if priority in priority_groups:
+                priority_groups[priority].append(rec)
+            else:
+                priority_groups['MEDIUM'].append(rec)
+        
+        # Display recommendations by priority
+        for priority in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+            recs = priority_groups[priority]
+            if not recs:
+                continue
+            
+            # Priority header with color coding
+            priority_colors = {
+                'CRITICAL': '#dc2626',
+                'HIGH': '#ea580c',
+                'MEDIUM': '#2563eb',
+                'LOW': '#059669'
+            }
+            
+            elements.append(Paragraph(
+                f"<font color='{priority_colors[priority]}'><b>{priority} PRIORITY</b></font> ({len(recs)} items)",
+                self.styles['SubsectionHeader']
+            ))
+            
+            for i, rec in enumerate(recs[:5], 1):  # Limit to top 5 per priority
+                # Recommendation title
+                title = rec.get('title', 'Untitled Recommendation')
+                elements.append(Paragraph(
+                    f"<b>{i}. {title}</b>",
+                    self.styles['RecommendationTitle']
+                ))
+                
+                # Description
+                if rec.get('description'):
+                    elements.append(Paragraph(
+                        rec['description'],
+                        self.styles['BodyTextLeft']
+                    ))
+                
+                # Rationale if available
+                if rec.get('rationale'):
+                    elements.append(Paragraph(
+                        f"<i>Rationale: {rec['rationale']}</i>",
+                        self.styles['Caption']
+                    ))
+                
+                # Impact metrics if available
+                if rec.get('impact'):
+                    impact = rec['impact']
+                    impact_text = []
+                    if isinstance(impact, dict):
+                        if impact.get('cost'):
+                            impact_text.append(f"Cost Impact: ${impact['cost']:,.0f}")
+                        if impact.get('schedule'):
+                            impact_text.append(f"Schedule: {impact['schedule']} days")
+                        if impact.get('quality'):
+                            impact_text.append(f"Quality: +{impact['quality']:.1%}")
+                    
+                    if impact_text:
+                        elements.append(Paragraph(
+                            ' | '.join(impact_text),
+                            self.styles['Caption']
+                        ))
+                
+                elements.append(Spacer(1, 0.12*inch))
+            
+            if len(recs) > 5:
+                elements.append(Paragraph(
+                    f"<i>+ {len(recs) - 5} additional {priority.lower()} priority recommendations (see detailed analysis)</i>",
+                    self.styles['Caption']
+                ))
+                elements.append(Spacer(1, 0.1*inch))
+        
+        return elements
+    
+    def _build_compliance_matrix(self) -> List:
+        """
+        Build compliance and standards matrix section.
+        
+        Returns:
+            List of ReportLab elements for this section
+        """
+        elements = []
+        
+        elements.append(Paragraph(
+            "Compliance & Standards Matrix", 
+            self.styles['SectionHeader']
+        ))
+        elements.append(Spacer(1, 0.2*inch))
+        
+        if not self.ai_content or not self.ai_content.get('deep_analysis'):
+            return elements  # Return empty if no data
+        
+        analysis = self.ai_content['deep_analysis']
+        standards = analysis.get('standards', [])
+        
+        if not standards:
+            return elements  # Return empty if no standards
+        
+        elements.append(Paragraph(
+            f"<b>Standards Identified:</b> {len(standards)} industry standards and codes referenced",
+            self.styles['BodyTextLeft']
+        ))
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # List top standards
+        for i, std in enumerate(standards[:15], 1):
+            elements.append(Paragraph(
+                f"• {std}",
+                self.styles['BulletPoint']
+            ))
+        
+        if len(standards) > 15:
+            elements.append(Paragraph(
+                f"<i>+ {len(standards) - 15} additional standards referenced</i>",
+                self.styles['Caption']
+            ))
+        
+        return elements
+    
+    def _build_implementation_roadmap(self) -> List:
+        """
+        Build implementation roadmap section.
+        
+        Returns:
+            List of ReportLab elements for this section
+        """
+        elements = []
+        
+        elements.append(Paragraph(
+            "Implementation Roadmap", 
+            self.styles['SectionHeader']
+        ))
+        elements.append(Spacer(1, 0.2*inch))
+        
+        if not self.ai_content or not self.ai_content.get('strategic_planning'):
+            return elements  # Return empty if no data
+        
+        planning = self.ai_content['strategic_planning']
+        
+        # Priority Actions
+        if planning.get('priority_actions'):
+            elements.append(Paragraph(
+                "Immediate Priority Actions", 
+                self.styles['SubsectionHeader']
+            ))
+            
+            for i, action in enumerate(planning['priority_actions'][:10], 1):
+                elements.append(Paragraph(
+                    f"{i}. {action}",
+                    self.styles['BulletPoint']
+                ))
+            
+            elements.append(Spacer(1, 0.15*inch))
+        
+        # Critical Requirements
+        if planning.get('critical_requirements'):
+            elements.append(Paragraph(
+                "Critical Requirements", 
+                self.styles['SubsectionHeader']
+            ))
+            
+            for i, req in enumerate(planning['critical_requirements'][:10], 1):
+                elements.append(Paragraph(
+                    f"{i}. {req}",
+                    self.styles['BulletPoint']
+                ))
         
         return elements
     

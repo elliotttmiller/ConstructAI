@@ -1023,30 +1023,79 @@ ONTOLOGY CONTEXT:
         parsed: Dict[str, Any],
         confidence_threshold: float
     ) -> Dict[str, Any]:
-        """Validate structured recommendations from JSON response."""
+        """Validate structured recommendations from JSON response - ENHANCED for professional output."""
         recommendations = parsed.get("recommendations", [])
         
-        # Validate and normalize recommendations
+        # Validate and normalize recommendations with enhanced structure
         validated_recs = []
         for rec in recommendations:
             if isinstance(rec, dict) and rec.get('title'):
-                validated_recs.append({
+                # Build comprehensive recommendation structure
+                validated_rec = {
                     "id": rec.get("id", f"REC-{len(validated_recs) + 1:03d}"),
                     "title": rec["title"],
                     "description": rec.get("description", ""),
-                    "priority": rec.get("priority", "medium"),
+                    "executive_summary": rec.get("executive_summary", ""),
+                    "priority": str(rec.get("priority", "MEDIUM")).upper(),  # Ensure string and normalize to uppercase
                     "category": rec.get("category", "general"),
                     "confidence": min(rec.get("confidence", 0.75), 1.0),
                     "rationale": rec.get("rationale", ""),
-                    "expected_impact": rec.get("expected_impact", {})
-                })
+                    "priority_rationale": rec.get("priority_rationale", "")
+                }
+                
+                # Add detailed analysis if available
+                if rec.get("detailed_analysis"):
+                    validated_rec["detailed_analysis"] = rec["detailed_analysis"]
+                
+                # Add quantified benefits if available
+                if rec.get("quantified_benefits"):
+                    validated_rec["quantified_benefits"] = rec["quantified_benefits"]
+                elif rec.get("expected_impact"):  # Fallback to old format
+                    validated_rec["impact"] = rec["expected_impact"]
+                
+                # Add implementation plan if available
+                if rec.get("implementation_plan"):
+                    validated_rec["implementation_plan"] = rec["implementation_plan"]
+                
+                # Add success metrics if available
+                if rec.get("success_metrics"):
+                    validated_rec["success_metrics"] = rec["success_metrics"]
+                
+                # Add risk assessment if available
+                if rec.get("risk_assessment"):
+                    validated_rec["risk_assessment"] = rec["risk_assessment"]
+                
+                # Add stakeholder impact if available
+                if rec.get("stakeholder_impact"):
+                    validated_rec["stakeholder_impact"] = rec["stakeholder_impact"]
+                
+                # Add standards references if available
+                if rec.get("standards_references"):
+                    validated_rec["standards_references"] = rec["standards_references"]
+                
+                validated_recs.append(validated_rec)
         
-        return {
+        # Build enhanced response structure
+        result = {
             "recommendations": validated_recs,
             "confidence_score": parsed.get("overall_confidence", 0.75),
             "total_recommendations": len(validated_recs),
             "parsing_method": "structured_json"
         }
+        
+        # Add executive summary if available
+        if parsed.get("executive_summary"):
+            result["executive_summary"] = parsed["executive_summary"]
+        
+        # Add implementation roadmap if available
+        if parsed.get("implementation_roadmap"):
+            result["implementation_roadmap"] = parsed["implementation_roadmap"]
+        
+        # Add risk mitigation strategy if available
+        if parsed.get("risk_mitigation_strategy"):
+            result["risk_mitigation_strategy"] = parsed["risk_mitigation_strategy"]
+        
+        return result
 
     async def _generate_structured_fallback_recommendations(
         self,
