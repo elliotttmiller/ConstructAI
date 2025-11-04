@@ -1,8 +1,54 @@
-# ConstructAI - AI-Powered Construction Workflow Optimization
+# ConstructAI - Single-User Enterprise Intelligence Platform
 
-**Full-Stack Construction Intelligence Platform**
+**Expert-Grade Construction Intelligence System**
 
-Transform your construction workflow from start to finish with autonomous AI. ConstructAI provides comprehensive document analysis, specification intelligence, and data-driven execution strategies.
+Transform your construction workflow with enterprise-level AI intelligence optimized for maximum precision and expert decision-making. ConstructAI provides comprehensive specification extraction, inventory management, procurement optimization, and automated workflows.
+
+## 🏗️ Enterprise Intelligence Features
+
+### 🎯 Expert-Grade Specification Intelligence
+- **Multi-Layered Extraction**: Regex patterns + AI-powered context analysis
+- **Ultra-Precise Parsing**: Construction-specific ontology matching
+- **Dimensional Normalization**: Automatic unit conversion (imperial ↔ metric)
+- **Compliance Standards**: Automatic identification of ASTM, ACI, AISC, ISO, OSHA standards
+- **Completeness Assessment**: Gap analysis with specific recommendations
+- **Confidence Scoring**: Validation with detailed issue reporting
+
+### 📦 Comprehensive Inventory Intelligence
+- **Deep System Integration**: Real-time inventory sync and monitoring
+- **Fuzzy Component Matching**: Manufacturer/model variation handling
+- **Availability Analysis**: Multi-location stock tracking with lead times
+- **Procurement Urgency**: Intelligent classification (immediate, normal, advance)
+- **Alternative Identification**: Compatible component recommendations
+- **Cost Optimization**: Multi-supplier price comparison and analysis
+
+### 🚀 Expert Procurement Intelligence
+- **Criticality Assessment**: BLOCKING, CRITICAL_PATH, IMPORTANT, OPTIONAL
+- **Strategic Priority Calculation**: Risk-based procurement scheduling
+- **Build Readiness Scoring**: Complete project feasibility assessment
+- **Automated Purchase Orders**: Template-based PO generation
+- **Supplier Performance Analytics**: Reliability, quality, cost metrics
+- **Recommendation Engine**: Intelligent supplier matching
+
+### 🔧 Advanced Component Matching
+- **Fuzzy Logic Matching**: Handles name variations and aliases
+- **Dimensional Validation**: Tolerance-based compatibility checking
+- **Specification Compliance**: Standards and performance verification
+- **Alternative Discovery**: Equivalent component identification
+- **Compatibility Scoring**: Multi-factor assessment
+
+### 📊 Expert Dashboard & Analytics
+- **Real-Time Metrics**: Inventory health, procurement status, project readiness
+- **Key Performance Indicators**: 6 tracked KPIs for business intelligence
+- **Trend Analysis**: Historical performance tracking and forecasting
+- **Critical Alerts**: Severity-based notifications (critical, high, medium, low)
+- **Activity Timeline**: Complete audit trail of all operations
+
+### ⚡ Performance Optimization
+- **Intelligent Caching**: Pattern-based optimization for single-user workloads
+- **Response Time Tracking**: P50, P95, P99 percentile monitoring
+- **Cache Hit Rate Analysis**: 80%+ target for optimal performance
+- **Memory Management**: LRU eviction with access pattern learning
 
 ## 🚀 Features
 
@@ -88,7 +134,114 @@ pip install -e .
 
 ## 🎯 Quick Start
 
-### Document Analysis (New!)
+### Enterprise Intelligence System
+
+```python
+from constructai.intelligence import (
+    InventoryIntelligence,
+    ProcurementIntelligence,
+    SpecificationIntelligence,
+    ComponentMatcher
+)
+
+# 1. Inventory Intelligence
+inventory = InventoryIntelligence()
+inventory.sync_inventory()
+
+# Find matching components
+matches = inventory.find_matching_components(
+    specification={"psi": 5000, "slump_in": 4},
+    tolerance=0.1,
+    min_confidence=0.7
+)
+print(f"Found {len(matches)} matching components")
+
+# Analyze availability
+analysis = inventory.analyze_availability(
+    component_name="Concrete Mix",
+    required_quantity=100,
+    specifications={"psi": 5000}
+)
+print(f"Availability: {analysis.is_available}")
+print(f"Estimated delivery: {analysis.estimated_delivery}")
+print(f"Urgency: {analysis.procurement_urgency}")
+
+# 2. Procurement Intelligence
+procurement = ProcurementIntelligence()
+
+# Assess build readiness
+assessment = procurement.assess_build_readiness(
+    project_id="proj-001",
+    required_components=[...],
+    availability_data={...},
+    project_start_date=datetime(2024, 12, 1)
+)
+print(f"Readiness score: {assessment.readiness_score}%")
+print(f"Status: {assessment.status}")
+print(f"Recommendations: {assessment.recommendations}")
+
+# Generate purchase order
+po = procurement.generate_purchase_order(
+    item=procurement_item,
+    supplier_id="SUP-001",
+    user_details={"company_name": "My Company"}
+)
+print(f"PO Number: {po['po_number']}")
+
+# 3. Specification Intelligence
+spec_intel = SpecificationIntelligence()
+
+# Extract specifications
+text = "Structural steel shall be ASTM A992 grade..."
+specs = spec_intel.extract_specifications(text)
+print(f"Extracted {len(specs)} specifications")
+
+# Validate specification
+is_valid, issues = spec_intel.validate_specification(specs[0])
+print(f"Valid: {is_valid}, Issues: {issues}")
+
+# 4. Component Matching
+matcher = ComponentMatcher()
+
+matches = matcher.find_matches(
+    required_component={"name": "Steel Beam", "grade": "A992"},
+    available_components=[...],
+    tolerance=0.1,
+    include_alternatives=True
+)
+print(f"Found {len(matches)} matches with {matches[0].match_score} confidence")
+```
+
+### REST API Usage
+
+```bash
+# Start the API server
+uvicorn constructai.web.fastapi_app:app --reload
+
+# Inventory Intelligence
+curl -X POST http://localhost:8000/api/intelligence/inventory/match \
+  -H "Content-Type: application/json" \
+  -d '{
+    "component_name": "Concrete Mix",
+    "specifications": {"psi": 5000, "slump_in": 4},
+    "tolerance": 0.1
+  }'
+
+# Procurement Intelligence
+curl -X POST http://localhost:8000/api/intelligence/procurement/build-readiness \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "proj-001",
+    "required_components": [...],
+    "project_start_date": "2024-12-01T00:00:00"
+  }'
+
+# Expert Dashboard
+curl http://localhost:8000/api/dashboard/metrics
+curl http://localhost:8000/api/dashboard/performance
+```
+
+### Document Analysis
 
 ```python
 from constructai.document_processing import DocumentIngestor, MasterFormatClassifier
@@ -310,13 +463,124 @@ MIT License - see LICENSE file for details
 - 📋 MS Project / Primavera P6 file import/export
 - 📋 BIM integration (Revit, Navisworks APIs)
 - 📋 Document parsing (PDFs, CAD drawings)
-- 📋 RESTful API for third-party integrations
+- ✅ RESTful API for third-party integrations (COMPLETED)
 
 ### Phase 4 - Advanced Features
 - 📋 Sustainability optimization (LEED/BREEAM)
-- 📋 Supply chain intelligence
+- ✅ Supply chain intelligence (COMPLETED)
 - 📋 Real-time project monitoring
 - 📋 Generative design alternatives
+
+## 📡 API Reference
+
+### Enterprise Intelligence Endpoints
+
+#### Inventory Intelligence (7 endpoints)
+
+**GET** `/api/intelligence/inventory/health`
+- Get inventory system health metrics
+- Returns: status, total_items, stock_coverage, etc.
+
+**POST** `/api/intelligence/inventory/match`
+- Find matching components for specifications
+- Body: `{component_name, specifications, tolerance, min_confidence}`
+- Returns: List of matching items with confidence scores
+
+**POST** `/api/intelligence/inventory/availability`
+- Analyze component availability
+- Body: `{component_name, required_quantity, specifications, required_date}`
+- Returns: Availability analysis with risk assessment
+
+#### Procurement Intelligence (6 endpoints)
+
+**POST** `/api/intelligence/procurement/assess-criticality`
+- Assess component criticality to project timeline
+- Body: `{component, project_timeline, dependencies}`
+- Returns: Criticality level (BLOCKING, CRITICAL_PATH, etc.)
+
+**POST** `/api/intelligence/procurement/build-readiness`
+- Complete build readiness assessment
+- Body: `{project_id, required_components, availability_data, project_start_date}`
+- Returns: Readiness score, status, recommendations
+
+**POST** `/api/intelligence/procurement/generate-po`
+- Generate automated purchase order
+- Body: Purchase order details
+- Returns: Complete PO document
+
+**GET** `/api/intelligence/procurement/suppliers`
+- Get all suppliers with performance metrics
+- Returns: List of suppliers with ratings
+
+**POST** `/api/intelligence/procurement/recommend-supplier`
+- Get supplier recommendations
+- Body: `{component, requirements}`
+- Returns: Ranked supplier recommendations
+
+#### Specification Intelligence (3 endpoints)
+
+**POST** `/api/intelligence/specifications/extract`
+- Extract specifications using multi-layered approach
+- Body: `{text, context}`
+- Returns: List of extracted specifications
+
+**POST** `/api/intelligence/specifications/validate`
+- Validate specification completeness
+- Body: Specification details
+- Returns: Validation status and issues
+
+**POST** `/api/intelligence/specifications/assess-completeness`
+- Assess specification completeness for component type
+- Body: `{specifications, component_type}`
+- Returns: Completeness score and missing requirements
+
+#### Component Matching (1 endpoint)
+
+**POST** `/api/intelligence/components/match`
+- Advanced fuzzy component matching
+- Body: `{required_component, available_components, tolerance, include_alternatives}`
+- Returns: Matched components with compatibility scores
+
+#### Expert Dashboard (3 endpoints)
+
+**GET** `/api/dashboard/metrics`
+- Comprehensive dashboard metrics
+- Returns: Inventory, procurement, project status, KPIs, alerts, trends
+
+**GET** `/api/dashboard/performance`
+- System performance metrics
+- Returns: Response times, operation stats, health status
+
+**GET** `/api/dashboard/cache/stats`
+- Cache statistics and hit rates
+- Returns: Cache storage and performance metrics
+
+### Example API Calls
+
+```bash
+# Get inventory health
+curl http://localhost:8000/api/intelligence/inventory/health
+
+# Match components
+curl -X POST http://localhost:8000/api/intelligence/inventory/match \
+  -H "Content-Type: application/json" \
+  -d '{
+    "component_name": "Structural Steel Beam",
+    "specifications": {
+      "length_ft": 20,
+      "weight_lb_ft": 45,
+      "grade": "A992"
+    },
+    "tolerance": 0.1,
+    "min_confidence": 0.7
+  }'
+
+# Get dashboard metrics
+curl http://localhost:8000/api/dashboard/metrics
+
+# Get performance stats
+curl http://localhost:8000/api/dashboard/performance
+```
 
 ## 📞 Support
 
@@ -324,4 +588,4 @@ For questions, issues, or feature requests, please open an issue on GitHub.
 
 ---
 
-**ConstructAI** - Achieve faster timelines and lower costs with an AI-powered expert partner.
+**ConstructAI** - Enterprise-grade construction intelligence optimized for expert decision-making.

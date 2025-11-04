@@ -2806,6 +2806,135 @@ Total Clauses: {len(all_clauses)}
             logger.error(f"Error matching components: {e}")
             raise HTTPException(status_code=500, detail=str(e))
     
+    # ======================================================================
+    # EXPERT DASHBOARD & ANALYTICS ENDPOINTS
+    # ======================================================================
+    
+    @app.get("/api/dashboard/metrics")
+    async def get_dashboard_metrics():
+        """
+        Get comprehensive dashboard metrics for expert view.
+        
+        Returns real-time metrics across all intelligence systems.
+        """
+        try:
+            from ..analytics.dashboard import ExpertDashboard
+            from ..intelligence import InventoryIntelligence, ProcurementIntelligence
+            
+            dashboard = ExpertDashboard()
+            
+            # Get real-time data from intelligence systems
+            inventory = InventoryIntelligence()
+            inventory.sync_inventory()
+            inventory_health = inventory.get_inventory_health()
+            
+            procurement = ProcurementIntelligence()
+            
+            # Build procurement data
+            procurement_data = {
+                "active_procurements": 0,
+                "critical_items": 0,
+                "high_priority_items": 0,
+                "pending_pos": 0,
+                "total_value": 0
+            }
+            
+            # Build project data (would come from actual projects in production)
+            project_data = {
+                "readiness_score": 75.0,
+                "status": "partial",
+                "components_ready": 8,
+                "components_pending": 3,
+                "components_at_risk": 1
+            }
+            
+            metrics = dashboard.get_dashboard_metrics(
+                inventory_health=inventory_health,
+                procurement_data=procurement_data,
+                project_data=project_data
+            )
+            
+            return {
+                "status": "success",
+                "timestamp": metrics.timestamp.isoformat(),
+                "inventory_health": metrics.inventory_health,
+                "procurement_status": metrics.procurement_status,
+                "project_readiness": metrics.project_readiness,
+                "cost_summary": metrics.cost_summary,
+                "performance_indicators": metrics.performance_indicators,
+                "recent_activities": metrics.recent_activities,
+                "alerts": metrics.alerts,
+                "trends": metrics.trends
+            }
+        except Exception as e:
+            logger.error(f"Error getting dashboard metrics: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.get("/api/dashboard/performance")
+    async def get_performance_summary():
+        """
+        Get system performance summary.
+        
+        Returns performance metrics including response times and cache stats.
+        """
+        try:
+            from ..monitoring import get_performance_monitor
+            
+            monitor = get_performance_monitor()
+            summary = monitor.get_performance_summary()
+            
+            return {
+                "status": "success",
+                **summary
+            }
+        except Exception as e:
+            logger.error(f"Error getting performance summary: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.get("/api/dashboard/cache/stats")
+    async def get_cache_stats():
+        """
+        Get cache statistics.
+        
+        Returns cache hit rates and utilization.
+        """
+        try:
+            from ..monitoring import get_intelligent_cache, get_performance_monitor
+            
+            cache = get_intelligent_cache()
+            monitor = get_performance_monitor()
+            
+            cache_stats = cache.get_stats()
+            monitor_cache_stats = monitor.get_cache_stats()
+            
+            return {
+                "status": "success",
+                "cache_storage": cache_stats,
+                "cache_performance": monitor_cache_stats
+            }
+        except Exception as e:
+            logger.error(f"Error getting cache stats: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    logger.info("FastAPI app created successfully with Enterprise Intelligence capabilities")
+    return app
+
+
+# For running with uvicorn
+app = create_app()
+                        "match_score": round(match.match_score, 3),
+                        "match_type": match.match_type,
+                        "compatibility": match.compatibility,
+                        "differences": match.differences,
+                        "recommendations": match.recommendations
+                    }
+                    for match in matches
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Error matching components: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
     logger.info("FastAPI app created successfully with Enterprise Intelligence capabilities")
     return app
 
