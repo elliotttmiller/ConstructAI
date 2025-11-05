@@ -209,21 +209,7 @@ class SocketService {
 
     } catch (error) {
       console.error('Error calling AI service:', error);
-
-      // Fallback to a basic response if AI service fails
-      return {
-        id: `ai_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        content: `I apologize, but I'm experiencing technical difficulties. I'm working in offline mode and can provide basic assistance. Please try again in a moment for full AI capabilities.`,
-        role: 'assistant',
-        agentType: message.agentType || 'suna',
-        userId: 'ai_system',
-        timestamp: new Date(),
-        projectId: message.projectId,
-        metadata: {
-          model: 'fallback-mode',
-          error: 'AI service unavailable'
-        }
-      };
+      throw error; // Re-throw instead of returning fallback
     }
   }
 
@@ -339,14 +325,8 @@ class SocketService {
         this.initializeSocket();
       }, 1000 * this.reconnectAttempts);
     } else {
-      console.error('❌ Max reconnection attempts reached. Switching to offline mode.');
-      this.fallbackToOfflineMode();
+      console.error('❌ Max reconnection attempts reached.');
     }
-  }
-
-  private fallbackToOfflineMode() {
-    // Implement offline functionality
-    console.log('📱 Running in offline mode with cached data');
   }
 
   // Agent status simulation

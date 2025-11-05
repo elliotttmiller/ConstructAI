@@ -74,7 +74,7 @@ class Hunyuan3DService {
       quality: 'standard',
       maxRetries: 3,
       timeout: 120000, // 2 minutes
-      fallbackMode: true
+      fallbackMode: false
     };
 
     // Check service availability on initialization
@@ -122,7 +122,7 @@ class Hunyuan3DService {
         return this._isAvailable;
       }
     } catch (error) {
-      console.warn('🔄 Hunyuan3D service not available, will use fallback mode');
+      console.warn('⚠️ Hunyuan3D service not available at:', this.config.baseUrl);
     }
 
     this._isAvailable = false;
@@ -223,15 +223,11 @@ class Hunyuan3DService {
         }
       }
 
-      // Fallback to browser-based analysis
-      console.log('🔄 Using fallback analysis mode');
-      return await this.fallbackBlueprintAnalysis(file);
+      throw new Error('Hunyuan3D service is not available. Please check the service configuration and try again.');
 
     } catch (error) {
       ErrorTracker.trackError('blueprint-analysis-real', error as Error, { fileName: file.name });
-
-      // Fallback to browser-based analysis
-      return await this.fallbackBlueprintAnalysis(file);
+      throw error;
     }
   }
 
@@ -296,17 +292,10 @@ class Hunyuan3DService {
         };
       }
 
-      // Fallback mode
-      console.log('🔄 Using fallback mode for 3D conversion');
-      return await this.fallbackConversion(file, options);
+      throw new Error('Hunyuan3D service is not available. Please check the service configuration and try again.');
 
     } catch (error) {
       ErrorTracker.trackError('blueprint-to-3d-real', error as Error, { fileName: file.name });
-
-      if (this.config.fallbackMode) {
-        console.log('🔄 Real conversion failed, using fallback mode');
-        return await this.fallbackConversion(file, options);
-      }
 
       return {
         success: false,
@@ -353,108 +342,6 @@ class Hunyuan3DService {
     }
 
     throw new Error('Job polling timeout');
-  }
-
-  /**
-   * Fallback blueprint analysis using browser-based computer vision
-   */
-  private async fallbackBlueprintAnalysis(file: File): Promise<BlueprintAnalysisResult> {
-    // Import the production blueprint analyzer
-    const { productionBlueprintAnalyzer } = await import('./blueprint-analyzer-production');
-
-    const result = await productionBlueprintAnalyzer.analyzeBlueprint(file, {
-      enableOCR: true,
-      enhanceImage: true,
-      detectScale: true,
-      classifyElements: true,
-      maxImageSize: 2048
-    });
-
-    // Convert to new BlueprintAnalysisResult interface
-    return {
-      complexity: result.complexity,
-      detectedElements: result.detectedElements.map((element, index) => ({
-        id: `element_${index}`,
-        type: 'unknown' as const,
-        x: 0,
-        y: 0,
-        width: 50,
-        height: 50,
-        confidence: 0.8,
-        properties: { description: element }
-      })),
-      enhancedFeatures: {
-        drawingType: result.drawingType,
-        projection: 'plan',
-        roomCount: result.textRegions.roomLabels.length,
-        doorCount: result.lineAnalysis.doorCount,
-        windowCount: result.lineAnalysis.windowCount,
-        scaleDetected: false,
-        scaleRatio: 50,
-        scaleUnit: 'm',
-        ocrConfidence: result.textRegions.confidence,
-        textRegions: result.textRegions.count,
-        structuralComplexity: Math.round(result.lineAnalysis.totalLines / 10),
-        remoteAnalysisAvailable: false
-      },
-      metadata: {
-        version: '2.0',
-        timestamp: Date.now(),
-        processingMethod: 'simulation',
-        imageProperties: {
-          width: result.imageSize.width,
-          height: result.imageSize.height,
-          format: 'unknown'
-        },
-        conversionSettings: {}
-      },
-      confidence: result.processingQuality.overallScore,
-      processingTime: Date.now()
-    };
-  }
-
-  /**
-   * Fallback 3D conversion simulation
-   */
-  private async fallbackConversion(
-    file: File,
-    options: Hunyuan3DConversionOptions
-  ): Promise<Hunyuan3DResult> {
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Analyze the blueprint to generate realistic metadata
-    const analysis = await this.fallbackBlueprintAnalysis(file);
-
-    const estimatedVertices = 15000 + (analysis.enhancedFeatures?.roomCount || 4) * 2000;
-    const estimatedFaces = Math.floor(estimatedVertices * 0.6);
-
-    return {
-      success: true,
-      metadata: {
-        modelStats: {
-          vertices: estimatedVertices,
-          faces: estimatedFaces,
-          materials: options.includeTextures ? 3 : 1,
-          textures: options.includeTextures ? 2 : 0,
-          hasTexture: options.includeTextures || false,
-          fileSize: estimatedFaces * 0.1, // Rough estimate in KB
-          conversionAccuracy: 85,
-          boundingBox: {
-            min: [-25, -2, -20],
-            max: [25, 30, 20]
-          }
-        },
-        performance: {
-          gpuMemoryUsed: 0,
-          processingTime: 3000,
-          inferenceSteps: 5,
-          batchSize: 1
-        }
-      },
-      fallbackUsed: true,
-      processingTime: 3000
-    };
   }
 
   private generateDetectedElements(analysis: any): string[] {

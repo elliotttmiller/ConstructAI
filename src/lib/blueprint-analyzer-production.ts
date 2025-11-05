@@ -167,7 +167,7 @@ export class ProductionBlueprintAnalyzer {
       });
 
       console.error('❌ Blueprint analysis failed:', error);
-      return this.getFallbackAnalysis(file, error as Error);
+      throw error;
     }
   }
 
@@ -761,41 +761,6 @@ export class ProductionBlueprintAnalyzer {
       confidence: 0,
       roomLabels: [],
       dimensions: []
-    };
-  }
-
-  private getFallbackAnalysis(file: File, error?: Error): BlueprintAnalysisResult {
-    console.warn('Using fallback analysis due to error:', error?.message);
-
-    // Generate reasonable fallback based on file properties
-    const baseComplexity = file.size > 5 * 1024 * 1024 ? 'high' : file.size > 1024 * 1024 ? 'medium' : 'low';
-    const roomCount = baseComplexity === 'high' ? 6 : baseComplexity === 'medium' ? 4 : 2;
-
-    return {
-      imageSize: { width: 1600, height: 1200 }, // Reasonable default
-      detectedElements: ['walls', 'basic_elements', 'plan_view'],
-      complexity: baseComplexity,
-      textRegions: {
-        count: roomCount + 2,
-        confidence: 25, // Low confidence for fallback
-        roomLabels: ['Living Room', 'Kitchen', 'Bedroom', 'Bathroom'].slice(0, roomCount),
-        dimensions: ['Length', 'Width']
-      },
-      lineAnalysis: {
-        wallCount: roomCount * 2,
-        doorCount: Math.max(2, roomCount - 1),
-        windowCount: Math.max(3, roomCount),
-        totalLines: roomCount * 4
-      },
-      drawingType: 'architectural',
-      architecturalStyle: 'contemporary',
-      estimatedConversionTime: 45000,
-      processingQuality: {
-        imageClarity: 50,
-        textReadability: 40,
-        lineDefinition: 60,
-        overallScore: 50
-      }
     };
   }
 }
