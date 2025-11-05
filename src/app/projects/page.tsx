@@ -1,8 +1,13 @@
+'use client';
+
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Building2,
   Calendar,
@@ -20,7 +25,8 @@ import {
   MoreHorizontal,
   Eye,
   Edit,
-  Archive
+  Archive,
+  Loader2
 } from "lucide-react";
 
 interface Project {
@@ -40,72 +46,7 @@ interface Project {
   lastActivity: Date;
 }
 
-const mockProjects: Project[] = [
-  {
-    id: '1',
-    name: 'Downtown Office Complex',
-    description: 'Modern 25-story commercial office building with retail space',
-    status: 'construction',
-    progress: 85,
-    startDate: new Date('2023-06-01'),
-    endDate: new Date('2024-01-15'),
-    budget: 45000000,
-    spent: 38250000,
-    location: 'Downtown District, City Center',
-    teamMembers: 24,
-    documentsCount: 156,
-    phase: 'Foundation & Structure',
-    lastActivity: new Date(Date.now() - 300000)
-  },
-  {
-    id: '2',
-    name: 'Residential Tower Alpha',
-    description: 'Luxury residential tower with 200 units and amenities',
-    status: 'design',
-    progress: 45,
-    startDate: new Date('2023-09-15'),
-    endDate: new Date('2024-03-20'),
-    budget: 28000000,
-    spent: 12600000,
-    location: 'Riverside District',
-    teamMembers: 18,
-    documentsCount: 89,
-    phase: 'Design Development',
-    lastActivity: new Date(Date.now() - 1800000)
-  },
-  {
-    id: '3',
-    name: 'Shopping Mall Renovation',
-    description: 'Complete renovation and modernization of existing mall',
-    status: 'planning',
-    progress: 15,
-    startDate: new Date('2024-01-01'),
-    endDate: new Date('2024-06-30'),
-    budget: 15000000,
-    spent: 2250000,
-    location: 'Suburban Plaza',
-    teamMembers: 12,
-    documentsCount: 34,
-    phase: 'Planning',
-    lastActivity: new Date(Date.now() - 3600000)
-  },
-  {
-    id: '4',
-    name: 'Industrial Warehouse',
-    description: 'State-of-the-art logistics and distribution center',
-    status: 'construction',
-    progress: 72,
-    startDate: new Date('2023-08-01'),
-    endDate: new Date('2024-02-28'),
-    budget: 18000000,
-    spent: 12960000,
-    location: 'Industrial Zone East',
-    teamMembers: 16,
-    documentsCount: 78,
-    phase: 'MEP Installation',
-    lastActivity: new Date(Date.now() - 900000)
-  }
-];
+// Projects will be fetched from API
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -132,10 +73,91 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function ProjectsPage() {
-  const totalProjects = mockProjects.length;
-  const activeProjects = mockProjects.filter(p => p.status !== 'completed').length;
-  const totalBudget = mockProjects.reduce((sum, p) => sum + p.budget, 0);
-  const totalSpent = mockProjects.reduce((sum, p) => sum + p.spent, 0);
+  const { data: session } = useSession();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!session?.user) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchProjects = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/projects');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch projects');
+        }
+
+        const data = await response.json();
+        
+        // Transform the data to match the expected format
+        const transformedProjects = data.projects.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          status: p.status,
+          progress: p.progress,
+          startDate: new Date(p.start_date),
+          endDate: new Date(p.end_date),
+          budget: p.budget,
+          spent: p.spent,
+          location: p.location,
+          teamMembers: p.team_members?.length || 0,
+          documentsCount: 0, // This would need a separate query or be included in the API response
+          phase: p.phase,
+          lastActivity: new Date(p.updated_at || p.created_at)
+        }));
+        
+        setProjects(transformedProjects);
+        setError(null);
+      } catch (err: any) {
+        console.error('Error fetching projects:', err);
+        setError(err.message || 'Failed to load projects');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, [session]);
+
+  const totalProjects = projects.length;
+  const activeProjects = projects.filter(p => p.status !== 'completed').length;
+  const totalBudget = projects.reduce((sum, p) => sum + p.budget, 0);
+  const totalSpent = projects.reduce((sum, p) => sum + p.spent, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session?.user) {
+    return (
+      <Alert>
+        <AlertDescription>
+          Please sign in to view your projects.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          Error loading projects: {error}
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -211,7 +233,7 @@ export default function ProjectsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.round(mockProjects.reduce((sum, p) => sum + p.progress, 0) / mockProjects.length)}%
+              {projects.length > 0 ? Math.round(projects.reduce((sum, p) => sum + p.progress, 0) / projects.length) : 0}%
             </div>
             <p className="text-xs text-muted-foreground">
               Overall completion
@@ -325,7 +347,7 @@ export default function ProjectsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockProjects.map((project) => (
+                {projects.map((project) => (
                   <div key={project.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                     <div className="flex-1">
                       <div className="flex items-center space-x-4">
@@ -382,11 +404,11 @@ export default function ProjectsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                {mockProjects.map((project, index) => (
+                {projects.map((project, index) => (
                   <div key={project.id} className="relative flex items-center space-x-4">
                     <div className="flex flex-col items-center">
                       <div className="w-4 h-4 bg-primary rounded-full"></div>
-                      {index < mockProjects.length - 1 && (
+                      {index < projects.length - 1 && (
                         <div className="w-0.5 h-16 bg-border mt-2"></div>
                       )}
                     </div>
@@ -422,13 +444,13 @@ export default function ProjectsPage() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm">{status}</CardTitle>
                   <CardDescription>
-                    {mockProjects.filter(p =>
+                    {projects.filter(p =>
                       p.status === status.toLowerCase().replace(' ', '')
                     ).length} projects
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {mockProjects
+                  {projects
                     .filter(p => p.status === status.toLowerCase().replace(' ', ''))
                     .map((project) => (
                       <Card key={project.id} className="cursor-pointer hover:shadow-sm">

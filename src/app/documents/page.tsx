@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Upload,
   FileText,
@@ -22,7 +24,8 @@ import {
   FileImage,
   FileSpreadsheet,
   RotateCcw,
-  Zap
+  Zap,
+  Loader2
 } from "lucide-react";
 import FileUpload from "@/components/documents/FileUpload";
 
@@ -39,66 +42,7 @@ interface Document {
   confidence?: number;
 }
 
-const mockDocuments: Document[] = [
-  {
-    id: '1',
-    name: 'architectural-floor-plans.dwg',
-    type: 'dwg',
-    status: 'completed',
-    size: '2.4 MB',
-    uploadDate: new Date(Date.now() - 3600000),
-    processedDate: new Date(Date.now() - 3400000),
-    category: 'Architectural Drawings',
-    extractedText: 45,
-    confidence: 94
-  },
-  {
-    id: '2',
-    name: 'structural-details.pdf',
-    type: 'pdf',
-    status: 'processing',
-    size: '1.8 MB',
-    uploadDate: new Date(Date.now() - 1800000),
-    category: 'Structural Drawings',
-    extractedText: 0,
-    confidence: 0
-  },
-  {
-    id: '3',
-    name: 'project-specs.xlsx',
-    type: 'xlsx',
-    status: 'completed',
-    size: '456 KB',
-    uploadDate: new Date(Date.now() - 7200000),
-    processedDate: new Date(Date.now() - 7000000),
-    category: 'Project Specifications',
-    extractedText: 128,
-    confidence: 98
-  },
-  {
-    id: '4',
-    name: 'site-photos.zip',
-    type: 'image',
-    status: 'completed',
-    size: '12.3 MB',
-    uploadDate: new Date(Date.now() - 10800000),
-    processedDate: new Date(Date.now() - 10200000),
-    category: 'Site Documentation',
-    extractedText: 23,
-    confidence: 87
-  },
-  {
-    id: '5',
-    name: 'electrical-schematics.dxf',
-    type: 'dxf',
-    status: 'error',
-    size: '3.1 MB',
-    uploadDate: new Date(Date.now() - 14400000),
-    category: 'Electrical Drawings',
-    extractedText: 0,
-    confidence: 0
-  }
-];
+// Documents will be fetched from API
 
 const getFileIcon = (type: string) => {
   switch (type) {
@@ -133,8 +77,61 @@ const getStatusBadge = (status: string) => {
 };
 
 export default function DocumentsPage() {
-  const [documents] = useState<Document[]>(mockDocuments);
+  const { data: session } = useSession();
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+
+  useEffect(() => {
+    if (!session?.user) {
+      setLoading(false);
+      return;
+    }
+
+    fetchDocuments();
+  }, [session]);
+
+  const fetchDocuments = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/documents');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents');
+      }
+
+      const data = await response.json();
+      
+      // Transform the data to match the expected format
+      const transformedDocuments = data.documents.map((d: any) => ({
+        id: d.id,
+        name: d.name,
+        type: d.type,
+        status: d.status,
+        size: formatFileSize(d.size),
+        uploadDate: new Date(d.created_at),
+        processedDate: d.updated_at ? new Date(d.updated_at) : undefined,
+        category: d.category,
+        extractedText: d.metadata?.extractedTextBlocks || 0,
+        confidence: d.confidence || 0
+      }));
+      
+      setDocuments(transformedDocuments);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error fetching documents:', err);
+      setError(err.message || 'Failed to load documents');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -157,6 +154,34 @@ export default function DocumentsPage() {
   const processingCount = documents.filter(d => d.status === 'processing').length;
   const completedCount = documents.filter(d => d.status === 'completed').length;
   const errorCount = documents.filter(d => d.status === 'error').length;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session?.user) {
+    return (
+      <Alert>
+        <AlertDescription>
+          Please sign in to view documents.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          Error loading documents: {error}
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -232,9 +257,10 @@ export default function DocumentsPage() {
       {/* Upload Area */}
       <FileUpload
         projectId="default-project"
-        onUploadComplete={(documents) => {
-          console.log('Upload completed:', documents);
-          // In a real app, this would refresh the document list
+        onUploadComplete={(uploadedDocuments) => {
+          console.log('Upload completed:', uploadedDocuments);
+          // Refresh the document list
+          fetchDocuments();
         }}
         onUploadError={(error) => {
           console.error('Upload error:', error);
