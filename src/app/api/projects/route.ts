@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient, getUserIdFromSession } from '@/lib/supabase';
+import { AIWorkflowOrchestrator } from '@/lib/ai-workflow-orchestrator';
 
 export async function GET(request: NextRequest) {
   try {
@@ -85,6 +86,22 @@ export async function POST(request: NextRequest) {
       console.error('Error creating project:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // Trigger AI workflow orchestration for new project
+    const orchestrator = AIWorkflowOrchestrator.getInstance();
+    orchestrator.handleProjectCreation(project.id, {
+      userId,
+      projectId: project.id
+    }).then(async (workflowResult) => {
+      if (workflowResult.success && workflowResult.actions && workflowResult.actions.length > 0) {
+        await orchestrator.executeActions(workflowResult.actions, {
+          userId,
+          projectId: project.id
+        });
+      }
+    }).catch((error) => {
+      console.error('AI workflow orchestration failed:', error);
+    });
 
     return NextResponse.json({ project }, { status: 201 });
   } catch (error: unknown) {

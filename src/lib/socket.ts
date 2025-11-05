@@ -329,6 +329,57 @@ class SocketService {
     }
   }
 
+  // Workflow notification methods
+  public notifyWorkflowStart(workflowType: string, entityId: string, agentType: string) {
+    this.emit('workflow_started', {
+      workflowType,
+      entityId,
+      agentType,
+      timestamp: new Date()
+    });
+
+    this.emit('agent_status_changed', {
+      agentType,
+      status: 'processing',
+      lastActivity: new Date(),
+      message: `Running ${workflowType} workflow...`
+    });
+  }
+
+  public notifyWorkflowComplete(workflowType: string, entityId: string, agentType: string, result: any) {
+    this.emit('workflow_completed', {
+      workflowType,
+      entityId,
+      agentType,
+      result,
+      timestamp: new Date()
+    });
+
+    this.emit('agent_status_changed', {
+      agentType,
+      status: 'online',
+      lastActivity: new Date(),
+      message: 'Ready to assist'
+    });
+  }
+
+  public notifyWorkflowError(workflowType: string, entityId: string, agentType: string, error: string) {
+    this.emit('workflow_error', {
+      workflowType,
+      entityId,
+      agentType,
+      error,
+      timestamp: new Date()
+    });
+
+    this.emit('agent_status_changed', {
+      agentType,
+      status: 'offline',
+      lastActivity: new Date(),
+      message: 'Workflow encountered an error'
+    });
+  }
+
   // Agent status simulation
   public simulateAgentActivity() {
     const agents = ['suna', 'document-processor', 'bim-analyzer', 'cost-estimator', 'safety-monitor'];

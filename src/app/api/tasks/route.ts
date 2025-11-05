@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { AIWorkflowOrchestrator } from '@/lib/ai-workflow-orchestrator';
 
 // GET /api/tasks - Fetch tasks
 export async function GET(request: NextRequest) {
@@ -116,6 +117,22 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to create task' },
         { status: 500 }
       );
+    }
+
+    // If task not assigned and AI auto-assignment is enabled, trigger AI assignment
+    if (!task.assigned_to && task.project_id) {
+      const orchestrator = AIWorkflowOrchestrator.getInstance();
+      orchestrator.handleTaskAutoAssignment(task.id, {
+        userId: session.user.id,
+        projectId: task.project_id,
+        taskId: task.id
+      }).then(async (workflowResult) => {
+        if (workflowResult.success && workflowResult.data?.assignedTo) {
+          console.log(`Task ${task.id} auto-assigned to ${workflowResult.data.assignedTo.name}`);
+        }
+      }).catch((error) => {
+        console.error('AI task auto-assignment failed:', error);
+      });
     }
 
     return NextResponse.json({
