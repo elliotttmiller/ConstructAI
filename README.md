@@ -43,128 +43,142 @@ A comprehensive Next.js application that integrates Revit API with intelligent a
 
 ## 🚀 Quick Start
 
-### Demo Access
-Try the platform immediately with these demo credentials:
-- **System Administrator**: `admin@constructai.demo`
-- **Project Manager**: `manager@constructai.demo`
-- **Senior Architect**: `architect@constructai.demo`
+### User Authentication
+The platform uses Supabase Authentication for secure user management:
 
-**Password**: See `.env.local` file (default: `ConstructAI2025!`)
+1. **Create users via Supabase Dashboard:**
+   - Go to Authentication > Users in your Supabase project
+   - Add users with email and password
+   - Assign roles and permissions in the `users` table
+
+2. **Or enable Supabase Auth signup:**
+   - Users can register via the signup page
+   - Configure email templates in Supabase dashboard
+
+**Note:** Demo users with hardcoded passwords have been removed for security. All authentication now goes through Supabase.
 
 ### Local Development
 
-#### Option 1: Quick Start (Recommended)
+#### Quick Start (Recommended)
 ```bash
 # Clone the repository
 git clone https://github.com/elliotttmiller/ConstructAI.git
 cd ConstructAI
 
-# Install Python dependencies (for backend and start.py)
+# Install Python dependencies (for start.py)
 pip install -r requirements.txt
 
-# Install Node.js dependencies (for frontend)
+# Install Node.js dependencies
 npm install
 
 # Copy environment template
 cp .env.example .env.local
-# Edit .env.local with your credentials
+# Edit .env.local with your Supabase credentials and other secrets
 
-# Start both backend and frontend servers
+# Start the application
 python start.py
 ```
 
 The `start.py` script will:
-- ✅ Kill any existing processes on ports 8000 and 3000
+- ✅ Load environment variables from .env and .env.local
+- ✅ Validate all required configuration is present
+- ✅ Kill any existing processes on port 3000
 - ✅ Verify all dependencies are installed
-- ✅ Start FastAPI backend on port 8000
-- ✅ Start Next.js frontend on port 3000
-- ✅ Perform health checks on both services
-- ✅ Monitor processes with auto-reload enabled
-
-#### Option 2: Manual Start
-```bash
-# Terminal 1: Start backend
-cd backend
-python -m uvicorn constructai.web.fastapi_app:app --reload --port 8000
-
-# Terminal 2: Start frontend
-npm run dev
-```
+- ✅ Start Next.js application (frontend + API routes)
+- ✅ Perform health checks on the application
+- ✅ Monitor the process with auto-reload enabled
 
 **Access the platform:**
-- Frontend: [http://localhost:3000](http://localhost:3000)
-- Backend API: [http://localhost:8000](http://localhost:8000)
-- API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Application: [http://localhost:3000](http://localhost:3000)
+- API Routes: [http://localhost:3000/api/*](http://localhost:3000/api/)
 
-## � Deployment Options
+## 🏗️ Architecture
 
-### Supabase Deployment (Recommended)
+### Modern Full-Stack Next.js
+ConstructAI uses **Next.js 15** with integrated API routes - no separate backend server needed:
 
-This platform is optimized for **complete Supabase deployment** using Edge Functions for both frontend and backend.
+- **Frontend:** React 18 components with Server-Side Rendering
+- **API Routes:** Built-in Next.js API routes at `/api/*`
+- **Database:** Supabase (PostgreSQL) with real-time subscriptions  
+- **Authentication:** NextAuth.js with Supabase adapter
+- **Deployment:** Can deploy to any Node.js hosting platform
+
+## 📦 Deployment Options
+
+### Vercel (Recommended for Next.js)
 
 ```bash
-# Install Supabase CLI
-npm install -g supabase
+# Install Vercel CLI
+npm install -g vercel
 
-# Login and link to your project
-supabase login
-supabase link --project-ref your-project-ref
-
-# Deploy database schema
-supabase db push
-
-# Deploy Edge Functions
-supabase functions deploy
+# Deploy
+vercel
 ```
 
-### Alternative Deployments
+### Railway
 
-- **Backend (FastAPI)**: Deploy to Railway, Heroku, or any Python hosting
-- **Frontend (Next.js)**: Deploy to Vercel, Railway, or any Node.js hosting
-- **Database**: Supabase (PostgreSQL) or any PostgreSQL instance
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login and deploy
+railway login
+railway up
+```
+
+### Other Platforms
+
+- **Next.js:** Deploy to any Node.js hosting (Vercel, Railway, Render, etc.)
+- **Database:** Supabase (PostgreSQL) or any PostgreSQL instance
+- **Configuration:** Set environment variables in your deployment platform
 
 📖 **Complete Instructions**: See [`docs/DEPLOYMENT_GUIDE.md`](./docs/DEPLOYMENT_GUIDE.md)
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **Next.js 14+** - React framework with App Router
-- **TypeScript** - Type-safe development
+- **Next.js 15** - React framework with App Router
+- **TypeScript 5.8** - Type-safe development  
+- **React 18** - Modern React with Server Components
 - **Tailwind CSS** - Utility-first styling
 - **Shadcn/UI** - Modern component library
 - **Three.js** - 3D visualization and WebGL
 
-### Backend
-- **FastAPI** - Modern Python web framework
-- **Uvicorn** - Lightning-fast ASGI server
-- **PostgreSQL** - Relational database via Supabase
-- **Pydantic** - Data validation and settings management
-
-### Infrastructure
-- **Supabase** - Complete backend solution with PostgreSQL, Auth, Storage
-- **Edge Functions** - Serverless functions for API endpoints
+### Backend (Integrated)
+- **Next.js API Routes** - Serverless API endpoints at `/api/*`
 - **NextAuth.js** - Authentication and session management
-- **Socket.IO** - Real-time bidirectional communication
+- **Supabase Client** - Database and real-time subscriptions
+
+### Infrastructure  
+- **Supabase** - PostgreSQL database with Auth, Storage, Real-time
+- **Vercel/Railway** - Node.js hosting platforms
+- **Socket.IO** - Real-time bidirectional communication (optional)
 
 ### AI & Processing
 - **OpenAI API** - GPT models for intelligent responses
 - **Google AI** - Gemini models for enhanced capabilities
 - **Tesseract.js** - Client-side OCR processing
-- **Hunyuan3D** - 2D to 3D conversion service
+- **Hunyuan3D** - 2D to 3D conversion service (optional)
 
 ### Development Tools
-- **start.py** - Unified startup script for backend + frontend
-- **Docker** - Containerization support (optional)
+- **start.py** - Unified startup script with environment validation
+- **python-dotenv** - Environment variable management  
 - **psutil** - Process monitoring and management
+- **TypeScript** - Static type checking
+- **ESLint & Biome** - Code linting and formatting
 
 ## 📋 Project Structure
 
 ```
-construction-ai-platform/
+ConstructAI/
 ├── src/
-│   ├── app/                 # Next.js App Router pages
-│   │   ├── (auth)/          # Authentication pages
-│   │   ├── api/             # API routes and endpoints
+│   ├── app/                 # Next.js App Router
+│   │   ├── (auth)/          # Authentication pages  
+│   │   ├── api/             # API routes (integrated backend)
+│   │   │   ├── auth/        # NextAuth endpoints
+│   │   │   ├── ai-chat/     # AI chat endpoints
+│   │   │   ├── upload/      # File upload handling
+│   │   │   └── hunyuan3d/   # 3D conversion endpoints
 │   │   ├── bim/             # 3D BIM viewer
 │   │   ├── chat/            # Suna AI chat interface
 │   │   ├── projects/        # Project management

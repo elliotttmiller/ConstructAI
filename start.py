@@ -2,18 +2,18 @@
 """
 ConstructAI Professional Startup Script
 
-This script manages the complete startup process for both backend and frontend servers:
-1. Loads environment variables from .env files
-2. Gracefully terminates any existing processes on required ports
-3. Validates dependencies and environment
-4. Starts backend FastAPI server (port 8000)
-5. Verifies backend health before proceeding
-6. Starts frontend Next.js server (port 3000)
-7. Verifies frontend health
-8. Provides real-time status updates and error handling
+This script manages the startup process for the Next.js application with integrated API routes:
+1. Loads environment variables from .env files (.env, .env.local)
+2. Validates that required environment variables are set
+3. Gracefully terminates any existing process on port 3000
+4. Validates Node.js dependencies
+5. Starts the Next.js development server (frontend + API routes)
+6. Verifies application health
+7. Provides real-time status updates and error handling
 
 Author: ConstructAI Team
-Version: 1.0.0
+Version: 2.0.0
+Architecture: Next.js 15 with integrated API routes (no separate backend)
 """
 
 # ============================================================================
@@ -21,6 +21,7 @@ Version: 1.0.0
 # This ensures all modules have access to environment configuration
 # ============================================================================
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -33,12 +34,17 @@ env_file = PROJECT_ROOT / ".env"
 if env_file.exists():
     load_dotenv(env_file, override=False)
     print(f"✓ Loaded environment from: {env_file}")
+else:
+    print(f"ℹ No .env file found (optional)")
 
-# 2. .env.local (local overrides)
+# 2. .env.local (local overrides - takes precedence)
 env_local_file = PROJECT_ROOT / ".env.local"
 if env_local_file.exists():
     load_dotenv(env_local_file, override=True)
     print(f"✓ Loaded local environment overrides from: {env_local_file}")
+else:
+    print(f"⚠ No .env.local file found - using .env.example as reference")
+    print(f"  Run: cp .env.example .env.local")
 
 print("✓ Environment variables loaded successfully\n")
 
@@ -46,28 +52,22 @@ print("✓ Environment variables loaded successfully\n")
 # Now import everything else
 # ============================================================================
 import subprocess
-import sys
 import time
 import signal
 import platform
 import psutil
 import requests
-import asyncio
-import httpx
-from typing import Optional, List, Tuple
+from typing import Optional, List
 from datetime import datetime
 
 
 # Configuration - Load from environment with defaults
-BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8000"))
-FRONTEND_PORT = int(os.getenv("FRONTEND_PORT", "3000"))
-BACKEND_HOST = os.getenv("BACKEND_HOST", "127.0.0.1")
+FRONTEND_PORT = int(os.getenv("PORT", os.getenv("FRONTEND_PORT", "3000")))
 FRONTEND_HOST = os.getenv("FRONTEND_HOST", "localhost")
-BACKEND_HEALTH_ENDPOINT = f"http://{BACKEND_HOST}:{BACKEND_PORT}/api/v2/health"
-FRONTEND_HEALTH_ENDPOINT = f"http://{FRONTEND_HOST}:{FRONTEND_PORT}"
+FRONTEND_URL = f"http://{FRONTEND_HOST}:{FRONTEND_PORT}"
 MAX_HEALTH_CHECK_ATTEMPTS = int(os.getenv("MAX_HEALTH_CHECK_ATTEMPTS", "30"))
 HEALTH_CHECK_INTERVAL = float(os.getenv("HEALTH_CHECK_INTERVAL", "2"))  # seconds
-STARTUP_DELAY = float(os.getenv("STARTUP_DELAY", "3"))  # seconds to wait for process initialization
+STARTUP_DELAY = float(os.getenv("STARTUP_DELAY", "5"))  # seconds for Next.js initialization
 
 
 class Colors:
@@ -98,6 +98,356 @@ def print_success(message: str):
 
 def print_info(message: str):
     """Print an info message."""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    print(f"{Colors.OKCYAN}ℹ [{timestamp}] {message}{Colors.ENDC}")
+
+
+def print_warning(message: str):
+    """Print a warning message."""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    print(f"{Colors.WARNING}⚠ [{timestamp}] {message}{Colors.ENDC}")
+
+
+def print_error(message: str):
+    """Print an error message."""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    print(f"{Colors.FAIL}✗ [{timestamp}] {message}{Colors.ENDC}")
+
+
+def validate_environment() -> bool:
+    """
+    Validate that required environment variables are set.
+    
+    Returns:
+        True if all required variables are set, False otherwise
+    """
+    print_info("Validating environment variables...")
+    
+    required_vars = [
+        'NEXT_PUBLIC_SUPABASE_URL',
+        'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+        'SUPABASE_SERVICE_ROLE_KEY',
+        'NEXTAUTH_SECRET',
+    ]
+    
+    missing_vars = []
+    for var in required_vars:
+        if not os.getenv(var):
+            missing_vars.append(var)
+    
+    if missing_vars:
+        print_error(f"Missing required environment variables:")
+        for var in missing_vars:
+            print_error(f"  - {var}")
+        print_info("\nPlease create .env.local file with these variables.")
+        print_info("See .env.example for reference.")
+        return False
+    
+    print_success("All required environment variables are set")
+    
+    # Check optional but recommended variables
+    optional_vars = ['OPENAI_API_KEY', 'GOOGLE_AI_API_KEY']
+    missing_optional = [var for var in optional_vars if not os.getenv(var)]
+    
+    if missing_optional:
+        print_warning("Optional AI API keys not set:")
+        for var in missing_optional:
+            print_warning(f"  - {var}")
+        print_info("AI features may have limited functionality without API keys.")
+    
+    return True
+
+
+def find_process_by_port(port: int) -> List[psutil.Process]:
+    """
+    Find processes using a specific port.
+    
+    Args:
+        port: Port number to check
+        
+    Returns:
+        List of Process objects using the port
+    """
+    processes = []
+    for proc in psutil.process_iter(['pid', 'name']):
+        try:
+            if proc.pid in (0, 4):
+                continue
+            
+            connections = proc.net_connections()
+            for conn in connections:
+                if hasattr(conn, 'laddr') and conn.laddr and conn.laddr.port == port:
+                    processes.append(proc)
+                    break
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, AttributeError):
+            continue
+    
+    return processes
+
+
+def kill_processes_on_port(port: int, service_name: str) -> bool:
+    """
+    Kill all processes running on a specific port.
+    
+    Args:
+        port: Port number to clear
+        service_name: Name of the service for logging
+        
+    Returns:
+        True if port was cleared successfully, False otherwise
+    """
+    print_info(f"Checking for existing {service_name} processes on port {port}...")
+    
+    processes = find_process_by_port(port)
+    
+    if not processes:
+        print_success(f"Port {port} is available")
+        return True
+    
+    print_warning(f"Found {len(processes)} process(es) on port {port}")
+    
+    for proc in processes:
+        try:
+            proc_info = f"PID {proc.pid} ({proc.name()})"
+            print_info(f"Terminating {proc_info}...")
+            proc.terminate()
+            
+            # Wait up to 5 seconds for graceful termination
+            try:
+                proc.wait(timeout=5)
+                print_success(f"Process {proc_info} terminated gracefully")
+            except psutil.TimeoutExpired:
+                print_warning(f"Force killing {proc_info}...")
+                proc.kill()
+                proc.wait()
+                print_success(f"Process {proc_info} force killed")
+        except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+            print_warning(f"Could not terminate process: {e}")
+            continue
+    
+    # Verify port is now clear
+    time.sleep(1)
+    remaining = find_process_by_port(port)
+    if remaining:
+        print_error(f"Failed to clear port {port}")
+        return False
+    
+    print_success(f"Successfully cleared port {port}")
+    return True
+
+
+def check_node_dependencies() -> bool:
+    """
+    Verify that Node.js dependencies are installed.
+    
+    Returns:
+        True if dependencies are installed, False otherwise
+    """
+    print_info("Checking Node.js dependencies...")
+    
+    node_modules = PROJECT_ROOT / "node_modules"
+    
+    if not node_modules.exists():
+        print_error("Node modules not installed")
+        print_info("Run: npm install")
+        return False
+    
+    # Check for critical Next.js dependencies
+    critical_modules = ['next', 'react', 'react-dom']
+    missing = []
+    
+    for module in critical_modules:
+        module_path = node_modules / module
+        if not module_path.exists():
+            missing.append(module)
+    
+    if missing:
+        print_error(f"Missing critical modules: {', '.join(missing)}")
+        print_info("Run: npm install")
+        return False
+    
+    print_success("Node.js dependencies are installed")
+    return True
+
+
+def check_health(url: str, max_attempts: int = MAX_HEALTH_CHECK_ATTEMPTS) -> bool:
+    """
+    Check if the application is responding to health checks.
+    
+    Args:
+        url: Application URL to check
+        max_attempts: Maximum number of health check attempts
+        
+    Returns:
+        True if application is healthy, False otherwise
+    """
+    print_info(f"Waiting for application to be ready at {url}...")
+    
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = requests.get(url, timeout=5)
+            if response.status_code in [200, 304]:
+                print_success(f"Application is ready! (attempt {attempt}/{max_attempts})")
+                return True
+        except requests.RequestException:
+            pass
+        
+        if attempt % 5 == 0:
+            print_info(f"  Still waiting... (attempt {attempt}/{max_attempts})")
+        
+        time.sleep(HEALTH_CHECK_INTERVAL)
+    
+    print_error(f"Application failed to start after {max_attempts} attempts")
+    return False
+
+
+def start_nextjs() -> Optional[subprocess.Popen]:
+    """
+    Start the Next.js application (frontend + API routes).
+    
+    Returns:
+        Process object if successful, None otherwise
+    """
+    print_info("Starting Next.js application (frontend + API routes)...")
+    
+    try:
+        # Determine the npm command based on platform
+        npm_cmd = "npm.cmd" if platform.system() == "Windows" else "npm"
+        
+        # Create environment with PORT set
+        app_env = os.environ.copy()
+        app_env["PORT"] = str(FRONTEND_PORT)
+        
+        # Start Next.js development server
+        process = subprocess.Popen(
+            [npm_cmd, "run", "dev"],
+            cwd=str(PROJECT_ROOT),
+            env=app_env,
+            shell=True if platform.system() == "Windows" else False
+        )
+        
+        print_success(f"Next.js process started (PID: {process.pid})")
+        print_info("Next.js is running with Fast Refresh enabled")
+        print_info("Changes to code will automatically refresh in the browser")
+        
+        # Wait for Next.js to initialize
+        time.sleep(STARTUP_DELAY)
+        
+        # Check if process is still running
+        if process.poll() is not None:
+            print_error("Next.js process terminated unexpectedly")
+            return None
+        
+        return process
+        
+    except Exception as e:
+        print_error(f"Failed to start Next.js: {e}")
+        return None
+
+
+def cleanup_process(process: Optional[subprocess.Popen]):
+    """
+    Clean up running process on exit.
+    
+    Args:
+        process: Process object to clean up
+    """
+    if not process or process.poll() is not None:
+        return
+    
+    print_warning("\nShutting down application...")
+    print_info("Stopping Next.js server...")
+    
+    process.terminate()
+    
+    try:
+        process.wait(timeout=5)
+        print_success("Next.js server stopped")
+    except subprocess.TimeoutExpired:
+        process.kill()
+        print_warning("Next.js server force killed")
+
+
+def monitor_process(process: subprocess.Popen):
+    """
+    Monitor running process and display status.
+    
+    Args:
+        process: Process object to monitor
+    """
+    print_header("Application Running Successfully")
+    print_success(f"Frontend + API: {FRONTEND_URL}")
+    print_info(f"API Routes:     {FRONTEND_URL}/api/*")
+    print_info("\nPress Ctrl+C to stop the application\n")
+    
+    try:
+        while True:
+            time.sleep(5)
+    except KeyboardInterrupt:
+        print_info("\nReceived shutdown signal (Ctrl+C)")
+        return True
+
+
+def main():
+    """Main execution function."""
+    print_header("ConstructAI Startup Script v2.0")
+    print_info(f"Platform: {platform.system()}")
+    print_info(f"Python: {sys.version.split()[0]}")
+    print_info(f"Working Directory: {PROJECT_ROOT}")
+    print_info(f"Architecture: Next.js 15 with integrated API routes")
+    
+    process = None
+    
+    try:
+        # Step 1: Validate environment
+        print_header("Step 1: Validating Environment")
+        if not validate_environment():
+            print_error("\nEnvironment validation failed!")
+            print_info("Please set up your .env.local file with required variables.")
+            print_info("See .env.example for reference.")
+            return 1
+        
+        # Step 2: Clear existing processes
+        print_header("Step 2: Clearing Existing Processes")
+        if not kill_processes_on_port(FRONTEND_PORT, "Next.js"):
+            print_error("Failed to clear port. Please manually close the process.")
+            return 1
+        
+        # Step 3: Verify dependencies
+        print_header("Step 3: Verifying Dependencies")
+        if not check_node_dependencies():
+            return 1
+        
+        # Step 4: Start Next.js
+        print_header("Step 4: Starting Next.js Application")
+        process = start_nextjs()
+        if not process:
+            return 1
+        
+        # Step 5: Verify application health
+        print_header("Step 5: Verifying Application Health")
+        if not check_health(FRONTEND_URL):
+            return 1
+        
+        # Step 6: Monitor process
+        monitor_process(process)
+        
+        return 0
+        
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+        
+    finally:
+        # Always cleanup process
+        cleanup_process(process)
+        print_header("Shutdown Complete")
+
+
+if __name__ == "__main__":
+    sys.exit(main())
     timestamp = datetime.now().strftime("%H:%M:%S")
     print(f"{Colors.OKCYAN}ℹ [{timestamp}] {message}{Colors.ENDC}")
 
