@@ -52,25 +52,56 @@ Try the platform immediately with these demo credentials:
 **Password**: See `.env.local` file (default: `ConstructAI2025!`)
 
 ### Local Development
+
+#### Option 1: Quick Start (Recommended)
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/construction-ai-platform.git
-cd construction-ai-platform
+git clone https://github.com/elliotttmiller/ConstructAI.git
+cd ConstructAI
 
-# Install dependencies
-bun install
+# Install Python dependencies (for backend and start.py)
+pip install -r requirements.txt
 
-# Start development server
-bun dev
+# Install Node.js dependencies (for frontend)
+npm install
+
+# Copy environment template
+cp .env.example .env.local
+# Edit .env.local with your credentials
+
+# Start both backend and frontend servers
+python start.py
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the platform.
+The `start.py` script will:
+- ✅ Kill any existing processes on ports 8000 and 3000
+- ✅ Verify all dependencies are installed
+- ✅ Start FastAPI backend on port 8000
+- ✅ Start Next.js frontend on port 3000
+- ✅ Perform health checks on both services
+- ✅ Monitor processes with auto-reload enabled
 
-## 🗄️ Full Supabase Deployment
+#### Option 2: Manual Start
+```bash
+# Terminal 1: Start backend
+cd backend
+python -m uvicorn constructai.web.fastapi_app:app --reload --port 8000
 
-This platform is optimized for **complete Supabase deployment** using Edge Functions for both frontend and backend - a unified, powerful solution.
+# Terminal 2: Start frontend
+npm run dev
+```
 
-### Quick Deploy
+**Access the platform:**
+- Frontend: [http://localhost:3000](http://localhost:3000)
+- Backend API: [http://localhost:8000](http://localhost:8000)
+- API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+## � Deployment Options
+
+### Supabase Deployment (Recommended)
+
+This platform is optimized for **complete Supabase deployment** using Edge Functions for both frontend and backend.
+
 ```bash
 # Install Supabase CLI
 npm install -g supabase
@@ -79,18 +110,20 @@ npm install -g supabase
 supabase login
 supabase link --project-ref your-project-ref
 
-# Run automated deployment script
-./deploy.sh
+# Deploy database schema
+supabase db push
+
+# Deploy Edge Functions
+supabase functions deploy
 ```
 
-### Manual Setup
-1. **Create Supabase Project** at [supabase.com](https://supabase.com)
-2. **Install & Link Supabase CLI** to your project
-3. **Deploy Database Schema** via `supabase db push`
-4. **Deploy Edge Functions** via `supabase functions deploy`
-5. **Configure Authentication** and storage buckets
+### Alternative Deployments
 
-📖 **Complete Instructions**: See [`DEPLOYMENT_GUIDE.md`](./DEPLOYMENT_GUIDE.md)
+- **Backend (FastAPI)**: Deploy to Railway, Heroku, or any Python hosting
+- **Frontend (Next.js)**: Deploy to Vercel, Railway, or any Node.js hosting
+- **Database**: Supabase (PostgreSQL) or any PostgreSQL instance
+
+📖 **Complete Instructions**: See [`docs/DEPLOYMENT_GUIDE.md`](./docs/DEPLOYMENT_GUIDE.md)
 
 ## 🛠️ Tech Stack
 
@@ -101,17 +134,28 @@ supabase link --project-ref your-project-ref
 - **Shadcn/UI** - Modern component library
 - **Three.js** - 3D visualization and WebGL
 
-### Backend & Infrastructure
-- **Supabase** - Complete backend solution with PostgreSQL, Auth, Storage, Edge Functions
-- **Edge Functions** - Serverless functions for frontend hosting and API endpoints
+### Backend
+- **FastAPI** - Modern Python web framework
+- **Uvicorn** - Lightning-fast ASGI server
+- **PostgreSQL** - Relational database via Supabase
+- **Pydantic** - Data validation and settings management
+
+### Infrastructure
+- **Supabase** - Complete backend solution with PostgreSQL, Auth, Storage
+- **Edge Functions** - Serverless functions for API endpoints
 - **NextAuth.js** - Authentication and session management
 - **Socket.IO** - Real-time bidirectional communication
-- **Tesseract.js** - Client-side OCR processing
 
 ### AI & Processing
-- **OpenAI API** - (Optional) Enhanced AI responses
-- **Google Document AI** - (Optional) Advanced OCR
-- **Autodesk Forge** - (Optional) CAD file processing
+- **OpenAI API** - GPT models for intelligent responses
+- **Google AI** - Gemini models for enhanced capabilities
+- **Tesseract.js** - Client-side OCR processing
+- **Hunyuan3D** - 2D to 3D conversion service
+
+### Development Tools
+- **start.py** - Unified startup script for backend + frontend
+- **Docker** - Containerization support (optional)
+- **psutil** - Process monitoring and management
 
 ## 📋 Project Structure
 
