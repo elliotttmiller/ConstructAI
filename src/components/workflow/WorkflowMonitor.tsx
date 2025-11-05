@@ -120,13 +120,10 @@ export default function WorkflowMonitor() {
   };
 
   const triggerWorkflow = async (workflowType: string) => {
-    try {
-      // This would need additional context in a real implementation
-      console.log(`Triggering workflow: ${workflowType}`);
-      // In a real app, would show a dialog to collect entity_id and other context
-    } catch (error) {
-      console.error('Failed to trigger workflow:', error);
-    }
+    // Placeholder for manual workflow triggering
+    // In a real implementation, would show a dialog to collect entity_id and context
+    console.log(`Manual workflow trigger not yet implemented: ${workflowType}`);
+    alert('Manual workflow triggering coming soon! Workflows trigger automatically on relevant actions.');
   };
 
   const getStatusIcon = (status: string) => {

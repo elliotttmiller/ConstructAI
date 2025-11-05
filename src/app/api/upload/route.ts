@@ -106,6 +106,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Helper function to trigger AI workflow
+    const triggerAIWorkflow = async () => {
+      try {
+        const orchestrator = AIWorkflowOrchestrator.getInstance();
+        const workflowResult = await orchestrator.handleDocumentUpload(fileId, {
+          userId: session.user.id,
+          projectId: projectId,
+          documentId: fileId
+        });
+
+        // Execute any generated actions
+        if (workflowResult.success && workflowResult.actions && workflowResult.actions.length > 0) {
+          await orchestrator.executeActions(workflowResult.actions, {
+            userId: session.user.id,
+            projectId: projectId,
+            documentId: fileId
+          });
+        }
+      } catch (error) {
+        console.error('AI workflow orchestration failed:', error);
+      }
+    };
+
     // Start OCR processing for supported files
     if (isImageFile(file.name) || file.type === 'application/pdf') {
       processOCR(fileId, filePath, file.type)
@@ -122,21 +145,7 @@ export async function POST(request: NextRequest) {
             .eq('id', fileId);
 
           // Trigger AI workflow orchestration
-          const orchestrator = AIWorkflowOrchestrator.getInstance();
-          const workflowResult = await orchestrator.handleDocumentUpload(fileId, {
-            userId: session.user.id,
-            projectId: projectId,
-            documentId: fileId
-          });
-
-          // Execute any generated actions
-          if (workflowResult.success && workflowResult.actions && workflowResult.actions.length > 0) {
-            await orchestrator.executeActions(workflowResult.actions, {
-              userId: session.user.id,
-              projectId: projectId,
-              documentId: fileId
-            });
-          }
+          await triggerAIWorkflow();
         })
         .catch(async (error) => {
           console.error('OCR processing failed:', error);
@@ -159,23 +168,8 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', fileId);
 
-      // Trigger AI workflow orchestration for non-OCR files too
-      const orchestrator = AIWorkflowOrchestrator.getInstance();
-      orchestrator.handleDocumentUpload(fileId, {
-        userId: session.user.id,
-        projectId: projectId,
-        documentId: fileId
-      }).then(async (workflowResult) => {
-        if (workflowResult.success && workflowResult.actions && workflowResult.actions.length > 0) {
-          await orchestrator.executeActions(workflowResult.actions, {
-            userId: session.user.id,
-            projectId: projectId,
-            documentId: fileId
-          });
-        }
-      }).catch((error) => {
-        console.error('AI workflow orchestration failed:', error);
-      });
+      // Trigger AI workflow orchestration for non-OCR files
+      await triggerAIWorkflow();
     }
 
     return NextResponse.json({

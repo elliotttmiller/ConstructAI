@@ -5,6 +5,7 @@
 
 import ConstructionAIService, { AIResponse } from './ai-services';
 import { supabaseAdmin } from './supabase';
+import socketService from './socket';
 
 export interface WorkflowContext {
   userId: string;
@@ -56,6 +57,9 @@ export class AIWorkflowOrchestrator {
     documentId: string,
     context: WorkflowContext
   ): Promise<WorkflowResult> {
+    // Notify workflow start
+    socketService.notifyWorkflowStart('document_analysis', documentId, 'document-processor');
+
     try {
       // 1. Fetch document details
       const { data: document, error: fetchError } = await supabaseAdmin
@@ -99,6 +103,12 @@ export class AIWorkflowOrchestrator {
         actions: actions.length
       });
 
+      // Notify workflow completion
+      socketService.notifyWorkflowComplete('document_analysis', documentId, 'document-processor', {
+        insights: insights.length,
+        actions: actions.length
+      });
+
       return {
         success: true,
         data: { document, aiAnalysis },
@@ -108,6 +118,15 @@ export class AIWorkflowOrchestrator {
 
     } catch (error) {
       console.error('Document upload workflow error:', error);
+
+      // Notify workflow error
+      socketService.notifyWorkflowError(
+        'document_analysis',
+        documentId,
+        'document-processor',
+        error instanceof Error ? error.message : 'Workflow failed'
+      );
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Workflow failed'
@@ -123,6 +142,9 @@ export class AIWorkflowOrchestrator {
     modelId: string,
     context: WorkflowContext
   ): Promise<WorkflowResult> {
+    // Notify workflow start
+    socketService.notifyWorkflowStart('bim_analysis', modelId, 'bim-analyzer');
+
     try {
       // 1. Fetch BIM model details
       const { data: model, error: fetchError } = await supabaseAdmin
@@ -170,6 +192,12 @@ export class AIWorkflowOrchestrator {
         actions: actions.length
       });
 
+      // Notify workflow completion
+      socketService.notifyWorkflowComplete('bim_analysis', modelId, 'bim-analyzer', {
+        insights: insights.length,
+        actions: actions.length
+      });
+
       return {
         success: true,
         data: { model, aiAnalysis },
@@ -179,6 +207,15 @@ export class AIWorkflowOrchestrator {
 
     } catch (error) {
       console.error('BIM analysis workflow error:', error);
+
+      // Notify workflow error
+      socketService.notifyWorkflowError(
+        'bim_analysis',
+        modelId,
+        'bim-analyzer',
+        error instanceof Error ? error.message : 'Workflow failed'
+      );
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Workflow failed'
@@ -194,6 +231,9 @@ export class AIWorkflowOrchestrator {
     projectId: string,
     context: WorkflowContext
   ): Promise<WorkflowResult> {
+    // Notify workflow start
+    socketService.notifyWorkflowStart('project_insights', projectId, 'pm-bot');
+
     try {
       // 1. Fetch project details
       const { data: project, error: fetchError } = await supabaseAdmin
@@ -244,6 +284,12 @@ export class AIWorkflowOrchestrator {
         actions: actions.length
       });
 
+      // Notify workflow completion
+      socketService.notifyWorkflowComplete('project_insights', projectId, 'pm-bot', {
+        insights: insights.length,
+        actions: actions.length
+      });
+
       return {
         success: true,
         data: { project, aiInsights },
@@ -253,6 +299,15 @@ export class AIWorkflowOrchestrator {
 
     } catch (error) {
       console.error('Project creation workflow error:', error);
+
+      // Notify workflow error
+      socketService.notifyWorkflowError(
+        'project_insights',
+        projectId,
+        'pm-bot',
+        error instanceof Error ? error.message : 'Workflow failed'
+      );
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Workflow failed'
@@ -268,6 +323,9 @@ export class AIWorkflowOrchestrator {
     taskId: string,
     context: WorkflowContext
   ): Promise<WorkflowResult> {
+    // Notify workflow start
+    socketService.notifyWorkflowStart('task_assignment', taskId, 'team-coordinator');
+
     try {
       // 1. Fetch task and project details
       const { data: task, error: fetchError } = await supabaseAdmin
@@ -337,6 +395,11 @@ Based on the task requirements and team members' roles, who should be assigned t
         assigned_to: suggestedMember.id
       });
 
+      // Notify workflow completion
+      socketService.notifyWorkflowComplete('task_assignment', taskId, 'team-coordinator', {
+        assignedTo: suggestedMember.name
+      });
+
       return {
         success: true,
         data: { task, assignedTo: suggestedMember, aiReason: response.content },
@@ -345,6 +408,15 @@ Based on the task requirements and team members' roles, who should be assigned t
 
     } catch (error) {
       console.error('Task auto-assignment workflow error:', error);
+
+      // Notify workflow error
+      socketService.notifyWorkflowError(
+        'task_assignment',
+        taskId,
+        'team-coordinator',
+        error instanceof Error ? error.message : 'Workflow failed'
+      );
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Workflow failed'
@@ -360,6 +432,9 @@ Based on the task requirements and team members' roles, who should be assigned t
     projectId: string,
     context: WorkflowContext
   ): Promise<WorkflowResult> {
+    // Notify workflow start
+    socketService.notifyWorkflowStart('compliance_check', projectId, 'compliance-checker');
+
     try {
       // 1. Fetch project details
       const { data: project, error: fetchError } = await supabaseAdmin
@@ -410,6 +485,12 @@ Based on the task requirements and team members' roles, who should be assigned t
         actions: actions.length
       });
 
+      // Notify workflow completion
+      socketService.notifyWorkflowComplete('compliance_check', projectId, 'compliance-checker', {
+        insights: insights.length,
+        actions: actions.length
+      });
+
       return {
         success: true,
         data: { project, complianceAnalysis },
@@ -419,6 +500,15 @@ Based on the task requirements and team members' roles, who should be assigned t
 
     } catch (error) {
       console.error('Compliance check workflow error:', error);
+
+      // Notify workflow error
+      socketService.notifyWorkflowError(
+        'compliance_check',
+        projectId,
+        'compliance-checker',
+        error instanceof Error ? error.message : 'Workflow failed'
+      );
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Workflow failed'
