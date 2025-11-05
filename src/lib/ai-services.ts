@@ -78,7 +78,7 @@ Respond as a knowledgeable construction industry expert with access to advanced 
       };
     } catch (error) {
       console.error('OpenAI API error:', error);
-      return this.getFallbackResponse(message, 'suna');
+      throw new Error('Failed to get AI response. Please check your OpenAI API configuration and try again.');
     }
   }
 
@@ -113,7 +113,7 @@ Provide structured, actionable insights for construction professionals.`;
       };
     } catch (error) {
       console.error('Google AI API error:', error);
-      return this.getFallbackResponse(documentText, 'upload');
+      throw new Error('Failed to analyze document. Please check your Google AI API configuration and try again.');
     }
   }
 
@@ -159,7 +159,7 @@ Provide detailed compliance analysis with specific code references and recommend
       };
     } catch (error) {
       console.error('Building code compliance error:', error);
-      return this.getFallbackResponse(JSON.stringify(projectDetails), 'compliance');
+      throw new Error('Failed to check building code compliance. Please check your API configuration and try again.');
     }
   }
 
@@ -196,7 +196,7 @@ Provide detailed technical analysis with actionable recommendations.`;
       };
     } catch (error) {
       console.error('BIM analysis error:', error);
-      return this.getFallbackResponse(JSON.stringify(modelData), 'bim');
+      throw new Error('Failed to analyze BIM model. Please check your API configuration and try again.');
     }
   }
 
@@ -242,7 +242,7 @@ Provide actionable project management recommendations.`;
       };
     } catch (error) {
       console.error('Project management error:', error);
-      return this.getFallbackResponse(JSON.stringify(projectData), 'pm');
+      throw new Error('Failed to generate project insights. Please check your API configuration and try again.');
     }
   }
 
@@ -280,7 +280,7 @@ Provide risk levels (Low/Medium/High/Critical) and specific mitigation strategie
       };
     } catch (error) {
       console.error('Risk assessment error:', error);
-      return this.getFallbackResponse(JSON.stringify(projectData), 'risk');
+      throw new Error('Failed to assess project risks. Please check your API configuration and try again.');
     }
   }
 
@@ -306,23 +306,6 @@ Provide risk levels (Low/Medium/High/Critical) and specific mitigation strategie
       default:
         return this.getSunaResponse(messages[messages.length - 1].content, context);
     }
-  }
-
-  // Fallback responses when AI APIs are unavailable
-  private getFallbackResponse(message: string, agentType: string): AIResponse {
-    const fallbackResponses = {
-      suna: "I'm Suna AI, your construction management assistant. While I'm currently operating in offline mode, I can still help coordinate your project tasks and provide basic guidance. Please check your internet connection for full AI capabilities.",
-      upload: "Document uploaded successfully. Basic processing completed. For advanced AI analysis, please ensure your AI API keys are configured.",
-      compliance: "Building code compliance check initiated. Please consult with local authorities and building code experts for detailed compliance verification.",
-      bim: "BIM model analysis in progress. Basic structural validation completed. For detailed AI-powered analysis, please verify your AI service configuration.",
-      pm: "Project management analysis available. Consider reviewing your project timeline, resource allocation, and milestone progress for optimization opportunities.",
-      risk: "Risk assessment framework initiated. Please review standard construction risk categories: safety, environmental, financial, schedule, technical, and regulatory factors."
-    };
-
-    return {
-      content: fallbackResponses[agentType as keyof typeof fallbackResponses] || fallbackResponses.suna,
-      model: "fallback-mode"
-    };
   }
 
   // Check if AI services are properly configured

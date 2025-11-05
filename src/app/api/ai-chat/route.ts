@@ -28,19 +28,16 @@ export async function POST(request: NextRequest) {
       );
     } catch (error) {
       console.error('AI service error:', error);
-
-      // Return a fallback response with service status info
-      return NextResponse.json({
-        content: `I'm currently operating in offline mode. ${
-          !serviceStatus.openai && !serviceStatus.google
-            ? 'Please configure your AI API keys to enable full AI capabilities.'
-            : 'Experiencing temporary issues with AI services.'
-        }`,
-        model: 'fallback-mode',
-        serviceStatus,
-        timestamp: new Date().toISOString(),
-        agentType: agentType || 'suna'
-      });
+      
+      // Return proper error instead of fallback
+      return NextResponse.json(
+        { 
+          error: error instanceof Error ? error.message : 'Failed to process AI request',
+          serviceStatus,
+          agentType: agentType || 'suna'
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({

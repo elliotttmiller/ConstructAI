@@ -145,8 +145,42 @@ export default function ChatPage() {
 
   // Initialize socket connection and event listeners
   useEffect(() => {
-    const initializeChat = () => {
+    const initializeChat = async () => {
       setConnectionStatus('connecting');
+
+      // Load message history from database
+      try {
+        if (session?.user?.email) {
+          const response = await fetch('/api/messages');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.messages && data.messages.length > 0) {
+              // Transform messages to match ChatMessage interface
+              const transformedMessages = data.messages.map((msg: any) => ({
+                id: msg.id,
+                content: msg.content,
+                role: msg.role,
+                agentType: msg.agent_type,
+                userId: msg.user_id,
+                timestamp: new Date(msg.created_at),
+                projectId: msg.project_id,
+                metadata: msg.metadata || {}
+              }));
+              setMessages(transformedMessages);
+            } else {
+              // Only add welcome message if no history exists
+              addWelcomeMessage();
+            }
+          } else {
+            addWelcomeMessage();
+          }
+        } else {
+          addWelcomeMessage();
+        }
+      } catch (error) {
+        console.error('Failed to load message history:', error);
+        addWelcomeMessage();
+      }
 
       // Listen for connection status
       socketService.on('connection_status', (data: any) => {
@@ -190,12 +224,10 @@ export default function ChatPage() {
       }
     };
 
-    initializeChat();
-
-    // Add welcome message
-    const welcomeMessage: ChatMessage = {
-      id: 'welcome_' + Date.now(),
-      content: `Welcome to ConstructAI! I'm Suna, your AI construction coordinator. I can help you with:
+    const addWelcomeMessage = () => {
+      const welcomeMessage: ChatMessage = {
+        id: 'welcome_' + Date.now(),
+        content: `Welcome to ConstructAI! I'm Suna, your AI construction coordinator. I can help you with:
 
 🏗️ **Project Management** - Coordinate tasks, timelines, and resources
 📋 **Document Processing** - Analyze plans, specs, and building codes
@@ -205,17 +237,20 @@ export default function ChatPage() {
 👥 **Team Coordination** - Manage assignments, track progress, facilitate communication
 
 What would you like to work on today?`,
-      role: 'assistant',
-      agentType: 'suna',
-      userId: 'system',
-      timestamp: new Date(),
-      metadata: {
-        confidence: 100,
-        processingTime: 0
-      }
+        role: 'assistant',
+        agentType: 'suna',
+        userId: 'system',
+        timestamp: new Date(),
+        metadata: {
+          confidence: 100,
+          processingTime: 0
+        }
+      };
+
+      setMessages([welcomeMessage]);
     };
 
-    setMessages([welcomeMessage]);
+    initializeChat();
 
     // Cleanup
     return () => {
@@ -248,6 +283,23 @@ What would you like to work on today?`,
     // Add user message immediately
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
+
+    // Save user message to database
+    try {
+      await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: userMessage.content,
+          role: userMessage.role,
+          agent_type: userMessage.agentType,
+          project_id: userMessage.projectId,
+          metadata: userMessage.metadata || {}
+        })
+      });
+    } catch (error) {
+      console.error('Failed to save message:', error);
+    }
 
     // Show processing indicator
     setProcessingIndicator({

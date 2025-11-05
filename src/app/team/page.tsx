@@ -1,8 +1,13 @@
+'use client';
+
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Users,
   Plus,
@@ -19,7 +24,8 @@ import {
   Edit,
   Trash2,
   Shield,
-  Star
+  Star,
+  Loader2
 } from "lucide-react";
 
 interface TeamMember {
@@ -40,88 +46,7 @@ interface TeamMember {
   rating: number;
 }
 
-const mockTeamMembers: TeamMember[] = [
-  {
-    id: '1',
-    name: 'Alex Morgan',
-    email: 'admin@constructai.demo',
-    phone: '+1 (555) 123-4567',
-    role: 'System Administrator',
-    department: 'IT Administration',
-    status: 'active',
-    joinDate: new Date('2023-01-15'),
-    location: 'Seattle, WA',
-    projects: ['Downtown Office Complex', 'Residential Tower Alpha', 'Tech Campus Phase 2'],
-    permissions: ['full_access', 'system_config', 'user_manage', 'project_create', 'team_manage', 'budget_view'],
-    lastActive: new Date(Date.now() - 300000),
-    tasksCompleted: 256,
-    rating: 4.9
-  },
-  {
-    id: '2',
-    name: 'Jordan Chen',
-    email: 'manager@constructai.demo',
-    phone: '+1 (555) 234-5678',
-    role: 'Project Manager',
-    department: 'Project Management',
-    status: 'busy',
-    joinDate: new Date('2022-08-20'),
-    location: 'Austin, TX',
-    projects: ['Shopping Mall Renovation', 'Industrial Warehouse'],
-    permissions: ['project_create', 'team_manage', 'budget_view', 'schedule_edit'],
-    lastActive: new Date(Date.now() - 900000),
-    tasksCompleted: 189,
-    rating: 4.8
-  },
-  {
-    id: '3',
-    name: 'Taylor Davis',
-    email: 'architect@constructai.demo',
-    phone: '+1 (555) 345-6789',
-    role: 'Senior Architect',
-    department: 'Design & Architecture',
-    status: 'active',
-    joinDate: new Date('2023-03-10'),
-    location: 'San Francisco, CA',
-    projects: ['Downtown Office Complex', 'Tech Campus Phase 2'],
-    permissions: ['design_approve', 'model_edit', 'compliance_check', 'blueprint_upload'],
-    lastActive: new Date(Date.now() - 600000),
-    tasksCompleted: 214,
-    rating: 4.9
-  },
-  {
-    id: '4',
-    name: 'Lisa Coordinator',
-    email: 'lisa@constructai.com',
-    phone: '+1 (555) 456-7890',
-    role: 'Site Coordinator',
-    department: 'Operations',
-    status: 'active',
-    joinDate: new Date('2023-05-01'),
-    location: 'Houston, TX',
-    projects: ['Industrial Warehouse', 'Residential Tower Alpha'],
-    permissions: ['site_access', 'safety_manage', 'progress_update'],
-    lastActive: new Date(Date.now() - 1200000),
-    tasksCompleted: 134,
-    rating: 4.6
-  },
-  {
-    id: '5',
-    name: 'David Contractor',
-    email: 'david@constructai.com',
-    phone: '+1 (555) 567-8901',
-    role: 'General Contractor',
-    department: 'Construction',
-    status: 'offline',
-    joinDate: new Date('2022-11-15'),
-    location: 'Miami, FL',
-    projects: ['Shopping Mall Renovation'],
-    permissions: ['construction_manage', 'vendor_coord', 'quality_control'],
-    lastActive: new Date(Date.now() - 7200000),
-    tasksCompleted: 198,
-    rating: 4.5
-  }
-];
+// Team members will be fetched from API
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -156,10 +81,91 @@ const getRoleIcon = (role: string) => {
 };
 
 export default function TeamPage() {
-  const totalMembers = mockTeamMembers.length;
-  const activeMembers = mockTeamMembers.filter(m => m.status === 'active').length;
-  const avgRating = mockTeamMembers.reduce((sum, m) => sum + m.rating, 0) / mockTeamMembers.length;
-  const totalTasks = mockTeamMembers.reduce((sum, m) => sum + m.tasksCompleted, 0);
+  const { data: session } = useSession();
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!session?.user) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchTeamMembers = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/team');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch team members');
+        }
+
+        const data = await response.json();
+        
+        // Transform the data to match the expected format
+        const transformedMembers = data.users.map((u: any) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          phone: u.phone || '',
+          role: u.role,
+          department: u.department,
+          status: u.status || 'active',
+          joinDate: new Date(u.created_at),
+          location: u.location || '',
+          projects: [], // Would need to fetch project names separately
+          permissions: u.permissions || [],
+          lastActive: new Date(u.updated_at || u.created_at),
+          tasksCompleted: u.tasksCompleted || 0,
+          rating: 4.5 // Default rating, could be calculated from performance metrics
+        }));
+        
+        setTeamMembers(transformedMembers);
+        setError(null);
+      } catch (err: any) {
+        console.error('Error fetching team members:', err);
+        setError(err.message || 'Failed to load team members');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeamMembers();
+  }, [session]);
+
+  const totalMembers = teamMembers.length;
+  const activeMembers = teamMembers.filter(m => m.status === 'active').length;
+  const avgRating = teamMembers.length > 0 ? teamMembers.reduce((sum, m) => sum + m.rating, 0) / teamMembers.length : 0;
+  const totalTasks = teamMembers.reduce((sum, m) => sum + m.tasksCompleted, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session?.user) {
+    return (
+      <Alert>
+        <AlertDescription>
+          Please sign in to view team members.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          Error loading team members: {error}
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -253,7 +259,7 @@ export default function TeamPage() {
 
         <TabsContent value="members" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {mockTeamMembers.map((member) => (
+            {teamMembers.map((member: TeamMember) => (
               <Card key={member.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -262,7 +268,7 @@ export default function TeamPage() {
                         <Avatar className="h-12 w-12">
                           <AvatarImage src={member.avatar} alt={member.name} />
                           <AvatarFallback>
-                            {member.name.split(' ').map(n => n[0]).join('')}
+                            {member.name.split(' ').map((n: string) => n[0]).join('')}
                           </AvatarFallback>
                         </Avatar>
                         <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${getStatusIndicator(member.status)}`}></div>
@@ -309,7 +315,7 @@ export default function TeamPage() {
                       <span className="font-medium">{member.projects.length}</span>
                     </div>
                     <div className="space-y-1">
-                      {member.projects.slice(0, 2).map((project, index) => (
+                      {member.projects.slice(0, 2).map((project: string, index: number) => (
                         <div key={index} className="text-xs text-muted-foreground truncate">
                           • {project}
                         </div>
@@ -368,13 +374,13 @@ export default function TeamPage() {
                       <div>
                         <h3 className="font-medium">{role}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {mockTeamMembers.filter(m => m.role === role).length} members
+                          {teamMembers.filter(m => m.role === role).length} members
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Badge variant="secondary">
-                        {mockTeamMembers.find(m => m.role === role)?.permissions.length || 0} permissions
+                        {teamMembers.find(m => m.role === role)?.permissions.length || 0} permissions
                       </Badge>
                       <Button size="sm" variant="outline">
                         <Edit className="h-3 w-3" />
@@ -394,12 +400,12 @@ export default function TeamPage() {
                 <CardHeader>
                   <CardTitle className="text-base">{dept}</CardTitle>
                   <CardDescription>
-                    {mockTeamMembers.filter(m => m.department === dept).length} team members
+                    {teamMembers.filter(m => m.department === dept).length} team members
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {mockTeamMembers
+                    {teamMembers
                       .filter(m => m.department === dept)
                       .map((member) => (
                         <div key={member.id} className="flex items-center space-x-3">
@@ -432,7 +438,7 @@ export default function TeamPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockTeamMembers.map((member) => (
+                {teamMembers.map((member) => (
                   <div key={member.id} className="flex items-center space-x-4 p-3 border rounded-lg">
                     <Avatar className="h-10 w-10">
                       <AvatarFallback>
