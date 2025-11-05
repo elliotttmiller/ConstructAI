@@ -259,7 +259,7 @@ export default function TeamPage() {
 
         <TabsContent value="members" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {mockTeamMembers.map((member) => (
+            {teamMembers.map((member: TeamMember) => (
               <Card key={member.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -268,7 +268,7 @@ export default function TeamPage() {
                         <Avatar className="h-12 w-12">
                           <AvatarImage src={member.avatar} alt={member.name} />
                           <AvatarFallback>
-                            {member.name.split(' ').map(n => n[0]).join('')}
+                            {member.name.split(' ').map((n: string) => n[0]).join('')}
                           </AvatarFallback>
                         </Avatar>
                         <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${getStatusIndicator(member.status)}`}></div>
@@ -315,7 +315,7 @@ export default function TeamPage() {
                       <span className="font-medium">{member.projects.length}</span>
                     </div>
                     <div className="space-y-1">
-                      {member.projects.slice(0, 2).map((project, index) => (
+                      {member.projects.slice(0, 2).map((project: string, index: number) => (
                         <div key={index} className="text-xs text-muted-foreground truncate">
                           • {project}
                         </div>

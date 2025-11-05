@@ -253,7 +253,7 @@ export default function ProjectsPage() {
 
         <TabsContent value="grid" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {mockProjects.map((project) => (
+            {projects.map((project: Project) => (
               <Card key={project.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
