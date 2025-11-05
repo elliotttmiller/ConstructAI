@@ -113,7 +113,7 @@ export default function DocumentsPage() {
         uploadDate: new Date(d.created_at),
         processedDate: d.updated_at ? new Date(d.updated_at) : undefined,
         category: d.category,
-        extractedText: d.metadata?.extractedTextBlocks || 0,
+        extractedText: d.metadata?.extractedText || d.metadata?.extractedTextBlocks || 0,
         confidence: d.confidence || 0
       }));
       

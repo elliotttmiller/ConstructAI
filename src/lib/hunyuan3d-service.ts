@@ -74,7 +74,7 @@ class Hunyuan3DService {
       quality: 'standard',
       maxRetries: 3,
       timeout: 120000, // 2 minutes
-      fallbackMode: false
+
     };
 
     // Check service availability on initialization

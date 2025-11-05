@@ -243,7 +243,7 @@ export interface Hunyuan3DConfig {
   quality: 'fast' | 'standard' | 'high';
   maxRetries: number;
   timeout: number;
-  fallbackMode: boolean;
+
   debugMode?: boolean;
 }
 
