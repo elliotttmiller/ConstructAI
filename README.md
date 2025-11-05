@@ -16,6 +16,8 @@ A comprehensive Next.js application that integrates Revit API with intelligent a
 - **Multi-Agent Dashboard** - Coordinate Data Upload Bot, PM Bot, Design Converter
 - **Real-time WebSocket** - Live agent interactions and status updates
 - **Task Routing** - Intelligent distribution of work across specialized agents
+- **AI Workflow Orchestration** - End-to-end automated workflows across all platform operations
+- **Intelligent Auto-Assignment** - AI-powered task assignment based on team capabilities
 
 ### 🏢 3D BIM Visualization
 - **Interactive 3D Viewer** - Three.js WebGL rendering with sample building model
@@ -28,6 +30,8 @@ A comprehensive Next.js application that integrates Revit API with intelligent a
 - **OCR Processing** - Real Tesseract.js text extraction with confidence scoring
 - **Smart Classification** - Automatic document categorization
 - **Progress Tracking** - Live upload and processing status
+- **AI-Powered Analysis** - Automatic document analysis with insights extraction
+- **Follow-up Actions** - AI-generated tasks and recommendations based on document content
 
 ### 👥 Project Management
 - **Multiple Views** - Grid, List, Timeline, and Kanban project views
@@ -277,6 +281,7 @@ Comprehensive guides are available in the [`/docs`](./docs) folder:
 - **[Production Deployment](./docs/PRODUCTION_DEPLOYMENT.md)** - Production environment guide
 
 ### Features & Integrations
+- **[AI Workflow Orchestration](./docs/AI_WORKFLOW_ORCHESTRATION.md)** - End-to-end AI workflow integration guide
 - **[Hunyuan3D Complete Guide](./docs/HUNYUAN3D_COMPLETE_GUIDE.md)** - Complete 2D to 3D conversion setup and deployment
 - **[Blueprint Recognition](./docs/BLUEPRINT_RECOGNITION_ENHANCEMENTS.md)** - AI-powered blueprint processing
 - **[Enhancement Summary](./docs/ENHANCEMENT_SUMMARY.md)** - Platform improvements overview
