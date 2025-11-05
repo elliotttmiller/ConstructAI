@@ -27,57 +27,71 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Demo credentials for platform testing
-          // In production, you'd verify against Supabase Auth
-          const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'ConstructAI2025!';
-          
-          const demoUsers = [
-            {
-              id: '11111111-1111-1111-1111-111111111111',
-              email: 'admin@constructai.demo',
-              password: DEMO_PASSWORD,
-              name: 'Alex Morgan',
-              role: 'System Administrator',
-              department: 'IT Administration',
-              permissions: ['full_access', 'system_config', 'user_manage', 'project_create', 'team_manage', 'budget_view']
-            },
-            {
-              id: '22222222-2222-2222-2222-222222222222',
-              email: 'manager@constructai.demo',
-              password: DEMO_PASSWORD,
-              name: 'Jordan Chen',
-              role: 'Project Manager',
-              department: 'Project Management',
-              permissions: ['project_create', 'team_manage', 'budget_view', 'schedule_edit']
-            },
-            {
-              id: '33333333-3333-3333-3333-333333333333',
-              email: 'architect@constructai.demo',
-              password: DEMO_PASSWORD,
-              name: 'Taylor Davis',
-              role: 'Senior Architect',
-              department: 'Design & Architecture',
-              permissions: ['design_approve', 'model_edit', 'compliance_check', 'blueprint_upload']
+          // Authenticate against Supabase Auth
+          const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+            email: credentials.email,
+            password: credentials.password,
+          });
+
+          if (error) {
+            console.log('❌ Supabase auth error:', error.message);
+            return null;
+          }
+
+          if (!data.user) {
+            console.log('❌ No user returned from Supabase');
+            return null;
+          }
+
+          // Fetch user profile from database
+          const { data: profile, error: profileError } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
+
+          if (profileError || !profile) {
+            console.log('⚠️ User authenticated but profile not found, creating default profile');
+            
+            // Create a default profile for the user
+            const { data: newProfile, error: createError } = await supabaseAdmin
+              .from('users')
+              .insert({
+                id: data.user.id,
+                email: data.user.email || credentials.email,
+                name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User',
+                role: 'team_member',
+                department: 'general',
+                permissions: []
+              })
+              .select()
+              .single();
+
+            if (createError) {
+              console.error('❌ Failed to create user profile:', createError);
+              return null;
             }
-          ];
 
-          const user = demoUsers.find(u => u.email === credentials.email);
-          console.log('🔍 User found:', !!user);
-
-          if (user && credentials.password === user.password) {
-            console.log('✅ Authentication successful for:', user.email);
+            console.log('✅ Authentication successful for:', data.user.email);
             return {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              role: user.role,
-              department: user.department,
-              permissions: user.permissions
+              id: newProfile.id,
+              email: newProfile.email,
+              name: newProfile.name,
+              role: newProfile.role,
+              department: newProfile.department,
+              permissions: newProfile.permissions || []
             };
           }
 
-          console.log('❌ Invalid credentials');
-          return null;
+          console.log('✅ Authentication successful for:', profile.email);
+          return {
+            id: profile.id,
+            email: profile.email,
+            name: profile.name,
+            role: profile.role,
+            department: profile.department,
+            permissions: profile.permissions || []
+          };
         } catch (error) {
           console.error('🚨 Auth error:', error);
           return null;

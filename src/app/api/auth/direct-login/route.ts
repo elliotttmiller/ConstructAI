@@ -1,52 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SignJWT } from 'jose';
+import { createClient } from '@supabase/supabase-js';
 
 const secret = new TextEncoder().encode(
   process.env.NEXTAUTH_SECRET || 'fallback-secret-for-development'
 );
 
-interface DemoUser {
-  id: string;
-  email: string;
-  password: string;
-  name: string;
-  role: string;
-  department: string;
-  permissions: string[];
-}
-
-// Get demo password from environment variable
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'ConstructAI2025!';
-
-const demoUsers: DemoUser[] = [
+// Initialize Supabase client for server-side authentication
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
   {
-    id: '11111111-1111-1111-1111-111111111111',
-    email: 'admin@constructai.demo',
-    password: DEMO_PASSWORD,
-    name: 'Alex Morgan',
-    role: 'System Administrator',
-    department: 'IT Administration',
-    permissions: ['full_access', 'system_config', 'user_manage', 'project_create', 'team_manage', 'budget_view']
-  },
-  {
-    id: '22222222-2222-2222-2222-222222222222',
-    email: 'manager@constructai.demo',
-    password: DEMO_PASSWORD,
-    name: 'Jordan Chen',
-    role: 'Project Manager',
-    department: 'Project Management',
-    permissions: ['project_create', 'team_manage', 'budget_view', 'schedule_edit']
-  },
-  {
-    id: '33333333-3333-3333-3333-333333333333',
-    email: 'architect@constructai.demo',
-    password: DEMO_PASSWORD,
-    name: 'Taylor Davis',
-    role: 'Senior Architect',
-    department: 'Design & Architecture',
-    permissions: ['design_approve', 'model_edit', 'compliance_check', 'blueprint_upload']
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
   }
-];
+);
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,27 +31,67 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user in demo users
-    const user = demoUsers.find(u => u.email === email);
+    // Authenticate with Supabase
+    const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-    if (!user || user.password !== password) {
-      console.log('❌ Invalid credentials for direct login');
+    if (authError || !authData.user) {
+      console.log('❌ Invalid credentials for direct login:', authError?.message);
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
       );
     }
 
-    console.log('✅ Direct login successful for:', user.email);
+    // Fetch user profile
+    const { data: profileData, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('*')
+      .eq('id', authData.user.id)
+      .single();
+
+    let profile = profileData;
+
+    if (profileError || !profile) {
+      console.log('⚠️ User authenticated but profile not found');
+      
+      // Create default profile
+      const { data: newProfile, error: createError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          id: authData.user.id,
+          email: authData.user.email || email,
+          name: authData.user.user_metadata?.name || email.split('@')[0],
+          role: 'team_member',
+          department: 'general',
+          permissions: []
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('❌ Failed to create user profile:', createError);
+        return NextResponse.json(
+          { error: 'Failed to create user profile' },
+          { status: 500 }
+        );
+      }
+
+      profile = newProfile;
+    }
+
+    console.log('✅ Direct login successful for:', profile.email);
 
     // Create JWT token
     const token = await new SignJWT({
-      sub: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      department: user.department,
-      permissions: user.permissions,
+      sub: profile.id,
+      email: profile.email,
+      name: profile.name,
+      role: profile.role,
+      department: profile.department,
+      permissions: profile.permissions || [],
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -92,12 +102,12 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       success: true,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        department: user.department,
-        permissions: user.permissions,
+        id: profile.id,
+        email: profile.email,
+        name: profile.name,
+        role: profile.role,
+        department: profile.department,
+        permissions: profile.permissions || [],
       },
     });
 
