@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from "next/link";
 import {
   MessageSquare,
   Upload,
@@ -18,7 +19,8 @@ import {
   Play,
   Pause,
   RefreshCw,
-  BarChart3
+  BarChart3,
+  Workflow
 } from "lucide-react";
 
 interface Agent {
@@ -158,6 +160,12 @@ export default function AgentsPage() {
           </p>
         </div>
         <div className="flex space-x-2">
+          <Link href="/workflows">
+            <Button variant="outline">
+              <Workflow className="mr-2 h-4 w-4" />
+              View Workflows
+            </Button>
+          </Link>
           <Button variant="outline">
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh Status

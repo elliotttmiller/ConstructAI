@@ -217,6 +217,22 @@ export default function ChatPage() {
         }));
       });
 
+      // Listen for workflow events
+      socketService.on('workflow_started', (data: any) => {
+        console.log('Workflow started:', data);
+        // Could add workflow notifications to UI
+      });
+
+      socketService.on('workflow_completed', (data: any) => {
+        console.log('Workflow completed:', data);
+        // Could add success notification to UI
+      });
+
+      socketService.on('workflow_error', (data: any) => {
+        console.error('Workflow error:', data);
+        // Could add error notification to UI
+      });
+
       // Initial connection check
       if (socketService.isSocketConnected()) {
         setIsConnected(true);
@@ -258,6 +274,9 @@ What would you like to work on today?`,
       socketService.off('new_message');
       socketService.off('user_typing');
       socketService.off('agent_status_changed');
+      socketService.off('workflow_started');
+      socketService.off('workflow_completed');
+      socketService.off('workflow_error');
     };
   }, []);
 
