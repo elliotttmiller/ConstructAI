@@ -261,6 +261,9 @@ DEMO_PASSWORD=your-demo-password
 
 ## 📚 Documentation
 
+**📖 Complete Documentation Index**: [PLATFORM_DOCUMENTATION_INDEX.md](./PLATFORM_DOCUMENTATION_INDEX.md)  
+**🏗️ Architecture & Workflows**: [PLATFORM_ARCHITECTURE.md](./PLATFORM_ARCHITECTURE.md)
+
 Comprehensive guides are available in the [`/docs`](./docs) folder:
 
 ### Setup & Configuration
@@ -269,14 +272,12 @@ Comprehensive guides are available in the [`/docs`](./docs) folder:
 - **[Change Repository Guide](./docs/CHANGE_REPO_GUIDE.md)** - How to move to your own Git repository
 
 ### Deployment
-- **[Deployment Guide](./docs/DEPLOYMENT_GUIDE.md)** - General deployment instructions
-- **[Supabase Deployment](./docs/SUPABASE_DEPLOYMENT.md)** - Supabase-specific setup
+- **[Deployment Guide](./docs/DEPLOYMENT_GUIDE.md)** - Supabase deployment instructions
+- **[Supabase Deployment](./docs/SUPABASE_DEPLOYMENT.md)** - Database-specific setup
 - **[Production Deployment](./docs/PRODUCTION_DEPLOYMENT.md)** - Production environment guide
-- **[Hunyuan3D Deployment](./docs/PRODUCTION_HUNYUAN3D_DEPLOYMENT.md)** - 3D service deployment
 
 ### Features & Integrations
-- **[Hunyuan3D Integration](./docs/HUNYUAN3D_INTEGRATION.md)** - 2D to 3D conversion setup
-- **[Real Hunyuan3D Integration](./docs/REAL_HUNYUAN3D_INTEGRATION.md)** - Advanced 3D integration
+- **[Hunyuan3D Complete Guide](./docs/HUNYUAN3D_COMPLETE_GUIDE.md)** - Complete 2D to 3D conversion setup and deployment
 - **[Blueprint Recognition](./docs/BLUEPRINT_RECOGNITION_ENHANCEMENTS.md)** - AI-powered blueprint processing
 - **[Enhancement Summary](./docs/ENHANCEMENT_SUMMARY.md)** - Platform improvements overview
 

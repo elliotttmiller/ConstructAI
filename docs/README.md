@@ -4,6 +4,9 @@ Welcome to the comprehensive documentation for the ConstructAI Platform. This fo
 
 ## 🚀 Getting Started
 
+**📖 Main Documentation Index**: [../PLATFORM_DOCUMENTATION_INDEX.md](../PLATFORM_DOCUMENTATION_INDEX.md)  
+**🏗️ Platform Architecture**: [../PLATFORM_ARCHITECTURE.md](../PLATFORM_ARCHITECTURE.md)
+
 Start here if you're new to the platform:
 
 1. **[Environment Setup Guide](./ENV_SETUP_GUIDE.md)** ⭐ START HERE
@@ -35,13 +38,12 @@ Choose the deployment guide that matches your target platform:
 
 ### Platform-Specific
 - **[Supabase Deployment](./SUPABASE_DEPLOYMENT.md)** - Supabase Edge Functions & Database
-- **[Production Hunyuan3D Deployment](./PRODUCTION_HUNYUAN3D_DEPLOYMENT.md)** - 3D service in production
+- **[Hunyuan3D Complete Guide](./HUNYUAN3D_COMPLETE_GUIDE.md)** - Complete 3D service setup and deployment
 
 ## 🎨 Features & Integrations
 
 ### 3D Capabilities
-- **[Hunyuan3D Integration](./HUNYUAN3D_INTEGRATION.md)** - Basic 2D to 3D conversion
-- **[Real Hunyuan3D Integration](./REAL_HUNYUAN3D_INTEGRATION.md)** - Advanced 3D features
+- **[Hunyuan3D Complete Guide](./HUNYUAN3D_COMPLETE_GUIDE.md)** - Comprehensive 2D to 3D conversion setup (Basic + Advanced + Production)
 
 ### AI & Document Processing
 - **[Blueprint Recognition Enhancements](./BLUEPRINT_RECOGNITION_ENHANCEMENTS.md)** - AI-powered blueprint analysis
@@ -80,7 +82,7 @@ docs/
 4. Deploy application
 
 #### Adding 3D Features
-1. Read [HUNYUAN3D_INTEGRATION.md](./HUNYUAN3D_INTEGRATION.md)
+1. Read [HUNYUAN3D_COMPLETE_GUIDE.md](./HUNYUAN3D_COMPLETE_GUIDE.md)
 2. Set up Python environment
 3. Configure Hunyuan3D server
 4. Update environment variables
@@ -102,7 +104,7 @@ docs/
 - Production setup → [PRODUCTION_DEPLOYMENT.md](./PRODUCTION_DEPLOYMENT.md)
 
 **Features**
-- 3D conversion → [HUNYUAN3D_INTEGRATION.md](./HUNYUAN3D_INTEGRATION.md)
+- 3D conversion → [HUNYUAN3D_COMPLETE_GUIDE.md](./HUNYUAN3D_COMPLETE_GUIDE.md)
 - Blueprint AI → [BLUEPRINT_RECOGNITION_ENHANCEMENTS.md](./BLUEPRINT_RECOGNITION_ENHANCEMENTS.md)
 - What's new → [ENHANCEMENT_SUMMARY.md](./ENHANCEMENT_SUMMARY.md)
 
@@ -142,7 +144,7 @@ Available in the project root:
 - Review [SUPABASE_DEPLOYMENT.md](./SUPABASE_DEPLOYMENT.md) for backend problems
 
 **3D features not working**
-- Verify Hunyuan3D setup in [HUNYUAN3D_INTEGRATION.md](./HUNYUAN3D_INTEGRATION.md)
+- Verify Hunyuan3D setup in [HUNYUAN3D_COMPLETE_GUIDE.md](./HUNYUAN3D_COMPLETE_GUIDE.md)
 - Check Python environment configuration
 
 **Git/Repository issues**
@@ -184,4 +186,5 @@ All documentation files follow these standards:
 
 ---
 
-*Last updated: November 4, 2025*
+*Last updated: November 5, 2025*  
+*Documentation Structure: Optimized & Consolidated*
