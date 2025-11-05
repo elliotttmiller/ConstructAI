@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
-import AuthGuard from "@/components/auth/AuthGuard";
+// import AuthGuard from "@/components/auth/AuthGuard"; // COMMENTED OUT FOR EASIER TESTING/DEVELOPMENT
 import { Toaster } from "@/components/ui/sonner";
 import { initializeProduction } from "@/lib/production-config";
 
@@ -28,7 +28,9 @@ export default function ClientBody({
 
   return (
     <div className="antialiased">
-      <AuthGuard>
+      {/* AuthGuard COMMENTED OUT FOR EASIER TESTING/DEVELOPMENT */}
+      {/* To re-enable authentication, uncomment the AuthGuard wrapper below */}
+      {/* <AuthGuard> */}
         {isAuthRoute ? (
           // Don't wrap auth pages with AppLayout
           children
@@ -38,7 +40,7 @@ export default function ClientBody({
             {children}
           </AppLayout>
         )}
-      </AuthGuard>
+      {/* </AuthGuard> */}
       <Toaster />
     </div>
   );
