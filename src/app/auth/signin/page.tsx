@@ -162,8 +162,8 @@ export default function SignInPage() {
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
-                  type="email"
-                  placeholder="admin@constructai.demo"
+                  type="text"
+                  placeholder="admin"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -210,68 +210,16 @@ export default function SignInPage() {
           </CardContent>
         </Card>
 
-        {/* Quick Login Demo Credentials */}
-        <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-          <CardContent className="pt-6">
-            <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-3">Demo Accounts - Quick Login</h3>
-            <div className="space-y-3">
-              <div className="grid grid-cols-1 gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleQuickLogin("admin@constructai.demo", "ConstructAI2025!")}
-                  disabled={isLoading}
-                  className="text-left justify-start"
-                >
-                  <div>
-                    <p className="font-medium">👨‍💼 System Administrator</p>
-                    <p className="text-xs opacity-70">admin@constructai.demo</p>
-                  </div>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleQuickLogin("manager@constructai.demo", "ConstructAI2025!")}
-                  disabled={isLoading}
-                  className="text-left justify-start"
-                >
-                  <div>
-                    <p className="font-medium">� Project Manager</p>
-                    <p className="text-xs opacity-70">manager@constructai.demo</p>
-                  </div>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleQuickLogin("architect@constructai.demo", "ConstructAI2025!")}
-                  disabled={isLoading}
-                  className="text-left justify-start"
-                >
-                  <div>
-                    <p className="font-medium">👩‍🎨 Senior Architect</p>
-                    <p className="text-xs opacity-70">architect@constructai.demo</p>
-                  </div>
-                </Button>
-              </div>
-              <p className="text-blue-700 dark:text-blue-300 text-xs text-center">
-                Password for all accounts: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">ConstructAI2025!</code>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Authentication Status */}
-        <Card className="bg-green-50 border-green-200">
+        <Card className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
           <CardContent className="pt-4">
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-green-800">
+              <div className="flex items-center gap-2 text-sm text-green-800 dark:text-green-200">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <span>Authentication service ready</span>
               </div>
               {authMethod && (
-                <div className="flex items-center gap-2 text-xs text-green-700">
+                <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-300">
                   <Shield className="w-3 h-3" />
                   <span>Method: {authMethod === 'nextauth' ? 'NextAuth.js' : 'Direct Auth'}</span>
                 </div>

@@ -249,13 +249,5 @@ create trigger handle_updated_at before update on public.bim_models
 create trigger handle_updated_at before update on public.clash_detections
   for each row execute procedure public.handle_updated_at();
 
--- Insert some sample data
-insert into public.users (id, email, name, role, department, location, permissions) values
-  ('11111111-1111-1111-1111-111111111111', 'admin@constructai.demo', 'Alex Morgan', 'System Administrator', 'IT Administration', 'Seattle, WA', array['full_access', 'system_config', 'user_manage', 'project_create', 'team_manage', 'budget_view']),
-  ('22222222-2222-2222-2222-222222222222', 'manager@constructai.demo', 'Jordan Chen', 'Project Manager', 'Project Management', 'Austin, TX', array['project_create', 'team_manage', 'budget_view', 'schedule_edit']),
-  ('33333333-3333-3333-3333-333333333333', 'architect@constructai.demo', 'Taylor Davis', 'Senior Architect', 'Design & Architecture', 'San Francisco, CA', array['design_approve', 'model_edit', 'compliance_check', 'blueprint_upload']);
-
--- Insert sample projects
-insert into public.projects (name, description, status, progress, start_date, end_date, budget, spent, location, phase, created_by, team_members) values
-  ('Downtown Office Complex', 'Modern 25-story commercial office building with retail space', 'construction', 85, '2023-06-01', '2024-01-15', 45000000, 38250000, 'Downtown District, City Center', 'Foundation & Structure', '11111111-1111-1111-1111-111111111111', array['11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333']),
-  ('Residential Tower Alpha', 'Luxury residential tower with 200 units and amenities', 'design', 45, '2023-09-15', '2024-03-20', 28000000, 12600000, 'Riverside District', 'Design Development', '11111111-1111-1111-1111-111111111111', array['11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222']);
+-- Note: Sample data will be created automatically when users sign up via NextAuth
+-- The users table is linked to auth.users and will be populated when you create accounts

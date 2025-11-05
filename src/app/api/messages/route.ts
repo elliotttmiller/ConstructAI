@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClient, getUserIdFromSession } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient();
+    const userId = await getUserIdFromSession();
     
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabase = await createServerSupabaseClient();
 
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('project_id');
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('chat_messages')
       .select('*')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: true })
       .limit(limit);
 
@@ -34,21 +34,22 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ messages: messages || [] });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient();
+    const userId = await getUserIdFromSession();
     
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabase = await createServerSupabaseClient();
 
     const body = await request.json();
     
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
         content,
         role,
         agent_type,
-        user_id: session.user.id,
+        user_id: userId,
         project_id,
         metadata: metadata || {},
       })
@@ -77,8 +78,9 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ message }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

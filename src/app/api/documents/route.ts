@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClient, getUserIdFromSession } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient();
+    const userId = await getUserIdFromSession();
     
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabase = await createServerSupabaseClient();
 
     // Get project_id from query params if provided
     const { searchParams } = new URL(request.url);
@@ -43,21 +43,22 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({ documents: transformedDocuments || [] });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient();
+    const userId = await getUserIdFromSession();
     
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabase = await createServerSupabaseClient();
 
     const body = await request.json();
     
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
         size,
         url,
         project_id,
-        uploaded_by: session.user.id,
+        uploaded_by: userId,
         category,
         status: 'uploaded',
       })
@@ -88,8 +89,9 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ document }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

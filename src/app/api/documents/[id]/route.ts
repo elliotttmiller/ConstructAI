@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClient, getUserIdFromSession } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createServerSupabaseClient();
+    const userId = await getUserIdFromSession();
     
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabase = await createServerSupabaseClient();
 
     const { data: document, error } = await supabase
       .from('documents')
@@ -29,8 +29,9 @@ export async function GET(
     }
 
     return NextResponse.json({ document });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -39,13 +40,13 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createServerSupabaseClient();
+    const userId = await getUserIdFromSession();
     
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabase = await createServerSupabaseClient();
 
     const body = await request.json();
     
@@ -64,8 +65,9 @@ export async function PUT(
     }
 
     return NextResponse.json({ document });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -74,13 +76,13 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createServerSupabaseClient();
+    const userId = await getUserIdFromSession();
     
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabase = await createServerSupabaseClient();
 
     const { error } = await supabase
       .from('documents')
@@ -92,7 +94,8 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

@@ -95,8 +95,28 @@ export default function ProjectsPage() {
 
         const data = await response.json();
         
+        // Define the API project type
+        type ApiProject = {
+          id: string;
+          name: string;
+          description: string;
+          status: 'planning' | 'design' | 'construction' | 'completed';
+          progress: number;
+          start_date: string;
+          end_date: string;
+          budget: number;
+          spent: number;
+          location: string;
+          team_members?: { id: string }[];
+          documents?: unknown[];
+          phase?: string;
+          last_activity?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+
         // Transform the data to match the expected format
-        const transformedProjects = data.projects.map((p: any) => ({
+        const transformedProjects = data.projects.map((p: ApiProject) => ({
           id: p.id,
           name: p.name,
           description: p.description,
@@ -110,14 +130,14 @@ export default function ProjectsPage() {
           teamMembers: p.team_members?.length || 0,
           documentsCount: 0, // This would need a separate query or be included in the API response
           phase: p.phase,
-          lastActivity: new Date(p.updated_at || p.created_at)
+          lastActivity: new Date(p.updated_at ?? p.created_at ?? "")
         }));
         
         setProjects(transformedProjects);
         setError(null);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Error fetching projects:', err);
-        setError(err.message || 'Failed to load projects');
+        setError(err instanceof Error ? err.message : 'Failed to load projects');
       } finally {
         setLoading(false);
       }

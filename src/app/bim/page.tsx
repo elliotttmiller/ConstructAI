@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,18 +29,22 @@ import {
   Pause,
   SkipBack,
   SkipForward,
-  Volume2
+  Volume2,
+  Loader2
 } from "lucide-react";
 import ThreeViewer from "@/components/bim/ThreeViewer";
 
 interface BIMModel {
   id: string;
   name: string;
-  type: 'ifc' | 'obj' | 'rvt';
+  type: string;
   status: 'loaded' | 'loading' | 'error';
   size: string;
   lastModified: Date;
   version: string;
+  url?: string;
+  projectId?: string;
+  projectName?: string;
 }
 
 interface ClashItem {
@@ -49,55 +54,8 @@ interface ClashItem {
   description: string;
   elements: string[];
   location: string;
+  modelId?: string;
 }
-
-const mockModels: BIMModel[] = [
-  {
-    id: '1',
-    name: 'downtown-office-complex.ifc',
-    type: 'ifc',
-    status: 'loaded',
-    size: '45.2 MB',
-    lastModified: new Date(Date.now() - 3600000),
-    version: 'v2.1'
-  },
-  {
-    id: '2',
-    name: 'structural-elements.obj',
-    type: 'obj',
-    status: 'loaded',
-    size: '23.8 MB',
-    lastModified: new Date(Date.now() - 7200000),
-    version: 'v1.3'
-  }
-];
-
-const mockClashes: ClashItem[] = [
-  {
-    id: '1',
-    type: 'hard',
-    severity: 'critical',
-    description: 'HVAC duct intersects with structural beam',
-    elements: ['Beam_B1_001', 'Duct_HVAC_042'],
-    location: 'Level 3, Grid C-4'
-  },
-  {
-    id: '2',
-    type: 'soft',
-    severity: 'major',
-    description: 'Electrical conduit clearance issue',
-    elements: ['Conduit_E_156', 'Pipe_P_089'],
-    location: 'Level 2, Grid A-2'
-  },
-  {
-    id: '3',
-    type: 'clearance',
-    severity: 'minor',
-    description: 'Insufficient clearance for maintenance access',
-    elements: ['Equipment_HVAC_001', 'Wall_EXT_023'],
-    location: 'Roof Level, Grid D-3'
-  }
-];
 
 const getSeverityColor = (severity: string) => {
   switch (severity) {
@@ -113,9 +71,61 @@ const getSeverityColor = (severity: string) => {
 };
 
 export default function BIMPage() {
-  const [selectedModel, setSelectedModel] = useState<string>(mockModels[0]?.id);
+  const { data: session } = useSession();
+  const [models, setModels] = useState<BIMModel[]>([]);
+  const [clashes, setClashes] = useState<ClashItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedModel, setSelectedModel] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [showClashes, setShowClashes] = useState(true);
+
+  useEffect(() => {
+    if (!session?.user) {
+      setLoading(false);
+      return;
+    }
+
+    fetchBIMData();
+  }, [session]);
+
+  const fetchBIMData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/bim');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch BIM data');
+      }
+
+      const data = await response.json();
+      setModels(data.models || []);
+      setClashes(data.clashes || []);
+      
+      if (data.models && data.models.length > 0) {
+        setSelectedModel(data.models[0].id);
+      }
+    } catch (err) {
+      console.error('Error fetching BIM data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!session?.user) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <p className="text-muted-foreground">Please sign in to view BIM models</p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -172,34 +182,39 @@ export default function BIMPage() {
               <div>
                 <h3 className="font-medium mb-3">Loaded Models</h3>
                 <div className="space-y-2">
-                  {mockModels.map((model) => (
-                    <div
-                      key={model.id}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                        selectedModel === model.id
-                          ? 'bg-primary/10 border-primary'
-                          : 'hover:bg-muted'
-                      }`}
-                      onClick={() => setSelectedModel(model.id)}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-sm">{model.name}</span>
-                        <div className="flex items-center space-x-1">
-                          <Badge variant="secondary" className="text-xs">
-                            {model.type.toUpperCase()}
-                          </Badge>
-                          <Button size="sm" variant="ghost">
-                            <Eye className="h-3 w-3" />
-                          </Button>
+                  {models.length > 0 ? (
+                    models.map((model) => (
+                      <div
+                        key={model.id}
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          selectedModel === model.id
+                            ? 'bg-primary/10 border-primary'
+                            : 'hover:bg-muted'
+                        }`}
+                        onClick={() => setSelectedModel(model.id)}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-sm">{model.name}</span>
+                          <div className="flex items-center space-x-1">
+                            <Badge variant="secondary" className="text-xs">
+                              {model.type.toUpperCase()}
+                            </Badge>
+                            <Button size="sm" variant="ghost">
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <p>Size: {model.size}</p>
+                          <p>Version: {model.version}</p>
+                          <p>Modified: {new Date(model.lastModified).toLocaleDateString()}</p>
+                          {model.projectName && <p>Project: {model.projectName}</p>}
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground space-y-1">
-                        <p>Size: {model.size}</p>
-                        <p>Version: {model.version}</p>
-                        <p>Modified: {model.lastModified.toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No BIM models loaded</p>
+                  )}
                 </div>
               </div>
 
@@ -230,26 +245,30 @@ export default function BIMPage() {
               </div>
 
               <div className="space-y-3">
-                {mockClashes.map((clash) => (
-                  <Card key={clash.id} className="cursor-pointer hover:bg-muted/50">
-                    <CardContent className="p-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-2 h-2 rounded-full ${getSeverityColor(clash.severity)}`}></div>
-                          <span className="text-sm font-medium capitalize">{clash.severity}</span>
+                {clashes.length > 0 ? (
+                  clashes.map((clash) => (
+                    <Card key={clash.id} className="cursor-pointer hover:bg-muted/50">
+                      <CardContent className="p-3">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-2 h-2 rounded-full ${getSeverityColor(clash.severity)}`}></div>
+                            <span className="text-sm font-medium capitalize">{clash.severity}</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {clash.type}
+                          </Badge>
                         </div>
-                        <Badge variant="outline" className="text-xs">
-                          {clash.type}
-                        </Badge>
-                      </div>
-                      <p className="text-sm mb-2">{clash.description}</p>
-                      <div className="text-xs text-muted-foreground space-y-1">
-                        <p>Location: {clash.location}</p>
-                        <p>Elements: {clash.elements.join(', ')}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <p className="text-sm mb-2">{clash.description}</p>
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <p>Location: {clash.location}</p>
+                          <p>Elements: {clash.elements.join(', ')}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No clashes detected</p>
+                )}
               </div>
             </TabsContent>
 

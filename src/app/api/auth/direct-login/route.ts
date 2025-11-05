@@ -31,9 +31,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let emailToUse = email;
+    
+    // If input doesn't contain @, treat it as a username and convert to email format
+    if (!email.includes('@')) {
+      emailToUse = `${email}@constructai.local`;
+      console.log('🔄 Converting username to email format:', emailToUse);
+    }
+
     // Authenticate with Supabase
     const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
-      email,
+      email: emailToUse,
       password,
     });
 

@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClient, getUserIdFromSession } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient();
+    const userId = await getUserIdFromSession();
     
-    // Get current user
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabase = await createServerSupabaseClient();
 
     // Fetch projects where user is creator or team member
     const { data: projects, error } = await supabase
@@ -19,7 +18,7 @@ export async function GET(request: NextRequest) {
         *,
         created_by_user:users!projects_created_by_fkey(name, email)
       `)
-      .or(`created_by.eq.${session.user.id},team_members.cs.{${session.user.id}}`)
+      .or(`created_by.eq.${userId},team_members.cs.{${userId}}`)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -36,22 +35,22 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({ projects: transformedProjects || [] });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient();
+    const userId = await getUserIdFromSession();
     
-    // Get current user
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabase = await createServerSupabaseClient();
 
     const body = await request.json();
     
@@ -76,8 +75,8 @@ export async function POST(request: NextRequest) {
         status: body.status || 'planning',
         progress: body.progress || 0,
         spent: body.spent || 0,
-        created_by: session.user.id,
-        team_members: body.team_members || [session.user.id],
+        created_by: userId,
+        team_members: body.team_members || [userId],
       })
       .select()
       .single();
@@ -88,8 +87,9 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ project }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

@@ -1,3 +1,8 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,9 +21,89 @@ import {
   MessageSquare,
   Upload,
   Hammer,
+  Loader2,
 } from "lucide-react";
 
+interface Analytics {
+  overview: {
+    activeProjects: number;
+    documentsProcessed: number;
+    documentsToday: number;
+    complianceScore: number;
+    teamMembers: number;
+    tasksCompleted: number;
+    tasksPending: number;
+  };
+  recentActivity: Array<{
+    id: string;
+    type: string;
+    description: string;
+    timestamp: Date;
+    agent: string;
+  }>;
+  recentDocuments: Array<{
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    uploadDate: Date;
+  }>;
+  agentStatus: Array<{
+    name: string;
+    status: string;
+    tasks: number;
+  }>;
+}
+
 export default function Dashboard() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!session?.user) {
+      setLoading(false);
+      return;
+    }
+
+    fetchAnalytics();
+  }, [session]);
+
+  const fetchAnalytics = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/analytics');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch analytics');
+      }
+
+      const data = await response.json();
+      setAnalytics(data.analytics);
+    } catch (err) {
+      console.error('Error fetching analytics:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!session?.user) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <p className="text-muted-foreground">Please sign in to view dashboard</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
@@ -29,7 +114,7 @@ export default function Dashboard() {
             Welcome to your AI-powered construction management platform
           </p>
         </div>
-        <Button>
+        <Button onClick={() => router.push('/chat')}>
           <MessageSquare className="mr-2 h-4 w-4" />
           Chat with Suna AI
         </Button>
@@ -43,9 +128,9 @@ export default function Dashboard() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
+            <div className="text-2xl font-bold">{analytics?.overview.activeProjects || 0}</div>
             <p className="text-xs text-muted-foreground">
-              +2 from last month
+              Total active projects
             </p>
           </CardContent>
         </Card>
@@ -56,7 +141,7 @@ export default function Dashboard() {
             <Bot className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8/8</div>
+            <div className="text-2xl font-bold">{analytics?.agentStatus.filter(a => a.status === 'active').length || 0}/8</div>
             <p className="text-xs text-muted-foreground">
               All systems operational
             </p>
@@ -69,9 +154,9 @@ export default function Dashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,234</div>
+            <div className="text-2xl font-bold">{analytics?.overview.documentsProcessed || 0}</div>
             <p className="text-xs text-muted-foreground">
-              +180 today
+              +{analytics?.overview.documentsToday || 0} today
             </p>
           </CardContent>
         </Card>
@@ -82,9 +167,9 @@ export default function Dashboard() {
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">98.5%</div>
+            <div className="text-2xl font-bold">{analytics?.overview.complianceScore || 0}%</div>
             <p className="text-xs text-muted-foreground">
-              Building codes compliance
+              Task completion rate
             </p>
           </CardContent>
         </Card>
@@ -110,38 +195,26 @@ export default function Dashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center space-x-4">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Project Alpha BIM model updated</p>
-                    <p className="text-xs text-muted-foreground">2 minutes ago</p>
-                  </div>
-                  <Badge variant="secondary">3D Model</Badge>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">CAD drawings processed by AI</p>
-                    <p className="text-xs text-muted-foreground">5 minutes ago</p>
-                  </div>
-                  <Badge variant="secondary">OCR</Badge>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Building code compliance check completed</p>
-                    <p className="text-xs text-muted-foreground">10 minutes ago</p>
-                  </div>
-                  <Badge variant="secondary">Compliance</Badge>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">PM Bot assigned 12 new tasks</p>
-                    <p className="text-xs text-muted-foreground">15 minutes ago</p>
-                  </div>
-                  <Badge variant="secondary">PM</Badge>
-                </div>
+                {analytics?.recentActivity && analytics.recentActivity.length > 0 ? (
+                  analytics.recentActivity.map((activity) => {
+                    const colors = ['green-500', 'blue-500', 'orange-500', 'purple-500'];
+                    const colorIndex = Math.abs(activity.id.charCodeAt(0) % colors.length);
+                    return (
+                      <div key={activity.id} className="flex items-center space-x-4">
+                        <div className={`w-2 h-2 bg-${colors[colorIndex]} rounded-full`}></div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{activity.description}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(activity.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                        <Badge variant="secondary">{activity.agent}</Badge>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-muted-foreground">No recent activity</p>
+                )}
               </CardContent>
             </Card>
 
@@ -154,19 +227,35 @@ export default function Dashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button className="w-full justify-start" variant="outline">
+                <Button 
+                  className="w-full justify-start" 
+                  variant="outline"
+                  onClick={() => router.push('/documents')}
+                >
                   <Upload className="mr-2 h-4 w-4" />
                   Upload Documents
                 </Button>
-                <Button className="w-full justify-start" variant="outline">
+                <Button 
+                  className="w-full justify-start" 
+                  variant="outline"
+                  onClick={() => router.push('/chat')}
+                >
                   <Bot className="mr-2 h-4 w-4" />
                   Chat with AI Agent
                 </Button>
-                <Button className="w-full justify-start" variant="outline">
+                <Button 
+                  className="w-full justify-start" 
+                  variant="outline"
+                  onClick={() => router.push('/bim')}
+                >
                   <Building2 className="mr-2 h-4 w-4" />
                   View 3D Models
                 </Button>
-                <Button className="w-full justify-start" variant="outline">
+                <Button 
+                  className="w-full justify-start" 
+                  variant="outline"
+                  onClick={() => router.push('/projects')}
+                >
                   <Hammer className="mr-2 h-4 w-4" />
                   Create New Project
                 </Button>

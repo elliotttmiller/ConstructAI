@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -H 0.0.0.0 --turbopack",
+    "prebuild": "node scripts/clean-cache.js",
     "build": "next build && npm run build:supabase",
     "build:no-lint": "next build --no-lint && npm run build:supabase",
     "start": "next start",
@@ -49,6 +50,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.3",
     "form-data": "^4.0.3",
     "framer-motion": "^12.23.2",
     "jsonwebtoken": "^9.0.2",
@@ -70,6 +72,7 @@
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "sonner": "^2.0.6",
+    "supabase": "^2.54.11",
     "tailwind-merge": "^3.3.0",
     "tailwindcss-animate": "^1.0.7",
     "tesseract.js": "^6.0.1",

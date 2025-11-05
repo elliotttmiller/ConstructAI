@@ -44,12 +44,6 @@ const navigation = [
     href: "/agents",
     icon: Bot,
     description: "Multi-agent dashboard",
-    children: [
-      { name: "Assistant Agent", href: "/agents/assistant" },
-      { name: "Data Upload Bot", href: "/agents/upload" },
-      { name: "PM Bot", href: "/agents/pm" },
-      { name: "Design Converter", href: "/agents/converter" },
-    ],
   },
   {
     name: "Documents",
@@ -57,9 +51,9 @@ const navigation = [
     icon: FileText,
     description: "Processing center",
     children: [
-      { name: "Upload Center", href: "/documents/upload" },
-      { name: "OCR Processing", href: "/documents/ocr" },
-      { name: "Classifications", href: "/documents/classify" },
+      { name: "All Documents", href: "/documents" },
+      { name: "OCR Processing", href: "/documents?filter=processing" },
+      { name: "Completed", href: "/documents?filter=completed" },
     ],
   },
   {

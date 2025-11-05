@@ -90,6 +90,7 @@ export default function DocumentsPage() {
     }
 
     fetchDocuments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
   const fetchDocuments = async () => {
@@ -103,8 +104,25 @@ export default function DocumentsPage() {
 
       const data = await response.json();
       
+      // Define the API document type
+      type ApiDocument = {
+        id: string;
+        name: string;
+        type: string;
+        status: string;
+        size: number;
+        created_at: string;
+        updated_at?: string;
+        category?: string;
+        metadata?: {
+          extractedText?: number;
+          extractedTextBlocks?: number;
+        };
+        confidence?: number;
+      };
+      
       // Transform the data to match the expected format
-      const transformedDocuments = data.documents.map((d: any) => ({
+      const transformedDocuments = data.documents.map((d: ApiDocument) => ({
         id: d.id,
         name: d.name,
         type: d.type,
@@ -119,9 +137,9 @@ export default function DocumentsPage() {
       
       setDocuments(transformedDocuments);
       setError(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching documents:', err);
-      setError(err.message || 'Failed to load documents');
+      setError(err instanceof Error ? err.message : 'Failed to load documents');
     } finally {
       setLoading(false);
     }
@@ -143,11 +161,45 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    // Handle file drop logic here
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      await handleFileUpload(files);
+    }
+  };
+
+  const handleFileUpload = async (files: File[]) => {
+    for (const file of files) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('category', 'general');
+        // If you have a project context, add projectId here
+        // formData.append('projectId', currentProjectId);
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
+
+        const data = await response.json();
+        console.log('File uploaded:', data);
+        
+        // Refresh documents list
+        await fetchDocuments();
+      } catch (err) {
+        console.error('Error uploading file:', err);
+        setError(`Failed to upload ${file.name}`);
+      }
+    }
   };
 
   const uploadedCount = documents.filter(d => d.status === 'uploaded').length;

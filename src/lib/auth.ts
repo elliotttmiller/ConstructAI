@@ -1,4 +1,5 @@
 import { NextAuthOptions } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { SupabaseAdapter } from '@auth/supabase-adapter';
 import { supabaseAdmin } from './supabase';
 import CredentialsProvider from 'next-auth/providers/credentials';
@@ -27,9 +28,17 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
+          let emailToUse = credentials.email;
+          
+          // If input doesn't contain @, treat it as a username and convert to email format
+          if (!credentials.email.includes('@')) {
+            emailToUse = `${credentials.email}@constructai.local`;
+            console.log('🔄 Converting username to email format:', emailToUse);
+          }
+
           // Authenticate against Supabase Auth
           const { data, error } = await supabaseAdmin.auth.signInWithPassword({
-            email: credentials.email,
+            email: emailToUse,
             password: credentials.password,
           });
 
@@ -186,4 +195,9 @@ export function isArchitect(userRole: string): boolean {
 
 export function isEngineer(userRole: string): boolean {
   return userRole.includes('Engineer');
+}
+
+// Helper to get session in API routes
+export async function getSession() {
+  return await getServerSession(authOptions);
 }

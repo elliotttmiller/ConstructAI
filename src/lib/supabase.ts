@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { createClientComponentClient, createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from './auth';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -27,9 +29,20 @@ export const supabase = createClient(
   }
 );
 
-// Server-side Supabase client
-export const createServerSupabaseClient = () => {
-  return createServerComponentClient({ cookies });
+// Server-side Supabase client for API routes
+export const createServerSupabaseClient = async () => {
+  // Use service role key for server-side operations to bypass RLS
+  // This is safe because API routes validate the NextAuth session separately
+  return createClient(
+    supabaseUrl || 'https://placeholder.supabase.co',
+    supabaseServiceKey || 'placeholder-service-key',
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
 };
 
 // Client component Supabase client
@@ -157,7 +170,7 @@ export interface Database {
           category?: string;
           extracted_text?: string;
           confidence?: number;
-          metadata?: Record<string, any>;
+          metadata?: Record<string, unknown>;
           created_at: string;
           updated_at: string;
         };
@@ -173,7 +186,7 @@ export interface Database {
           category?: string;
           extracted_text?: string;
           confidence?: number;
-          metadata?: Record<string, any>;
+          metadata?: Record<string, unknown>;
           created_at?: string;
           updated_at?: string;
         };
@@ -188,7 +201,7 @@ export interface Database {
           category?: string;
           extracted_text?: string;
           confidence?: number;
-          metadata?: Record<string, any>;
+          metadata?: Record<string, unknown>;
           updated_at?: string;
         };
       };
@@ -200,7 +213,7 @@ export interface Database {
           agent_type?: string;
           user_id: string;
           project_id?: string;
-          metadata?: Record<string, any>;
+          metadata?: Record<string, unknown>;
           created_at: string;
         };
         Insert: {
@@ -210,7 +223,7 @@ export interface Database {
           agent_type?: string;
           user_id: string;
           project_id?: string;
-          metadata?: Record<string, any>;
+          metadata?: Record<string, unknown>;
           created_at?: string;
         };
         Update: {
@@ -220,7 +233,7 @@ export interface Database {
           agent_type?: string;
           user_id?: string;
           project_id?: string;
-          metadata?: Record<string, any>;
+          metadata?: Record<string, unknown>;
         };
       };
       tasks: {
@@ -311,4 +324,22 @@ export const addChatMessage = async (message: Database['public']['Tables']['chat
     .single();
 
   return { data, error };
+};
+
+// Helper to get user ID from NextAuth session
+export const getUserIdFromSession = async () => {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.email) {
+    return null;
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', session.user.email)
+    .single();
+  
+  return data?.id || null;
 };
