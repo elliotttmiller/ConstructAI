@@ -6,6 +6,7 @@ import { createWorker } from 'tesseract.js';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { AIWorkflowOrchestrator } from '@/lib/ai-workflow-orchestrator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -105,6 +106,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Helper function to trigger AI workflow
+    const triggerAIWorkflow = async () => {
+      try {
+        const orchestrator = AIWorkflowOrchestrator.getInstance();
+        const workflowResult = await orchestrator.handleDocumentUpload(fileId, {
+          userId: session.user.id,
+          projectId: projectId,
+          documentId: fileId
+        });
+
+        // Execute any generated actions
+        if (workflowResult.success && workflowResult.actions && workflowResult.actions.length > 0) {
+          await orchestrator.executeActions(workflowResult.actions, {
+            userId: session.user.id,
+            projectId: projectId,
+            documentId: fileId
+          });
+        }
+      } catch (error) {
+        console.error('AI workflow orchestration failed:', error);
+      }
+    };
+
     // Start OCR processing for supported files
     if (isImageFile(file.name) || file.type === 'application/pdf') {
       processOCR(fileId, filePath, file.type)
@@ -119,6 +143,9 @@ export async function POST(request: NextRequest) {
               updated_at: new Date().toISOString()
             })
             .eq('id', fileId);
+
+          // Trigger AI workflow orchestration
+          await triggerAIWorkflow();
         })
         .catch(async (error) => {
           console.error('OCR processing failed:', error);
@@ -140,6 +167,9 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString()
         })
         .eq('id', fileId);
+
+      // Trigger AI workflow orchestration for non-OCR files
+      await triggerAIWorkflow();
     }
 
     return NextResponse.json({

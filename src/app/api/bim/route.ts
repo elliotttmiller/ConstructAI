@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient, getUserIdFromSession } from '@/lib/supabase';
+import { AIWorkflowOrchestrator } from '@/lib/ai-workflow-orchestrator';
 
 export async function GET(request: NextRequest) {
   try {
@@ -129,6 +130,24 @@ export async function POST(request: NextRequest) {
       console.error('Error creating BIM model:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // Trigger AI workflow orchestration for BIM analysis
+    const orchestrator = AIWorkflowOrchestrator.getInstance();
+    orchestrator.handleBIMAnalysis(model.id, {
+      userId,
+      projectId: project_id,
+      documentId: model.id
+    }).then(async (workflowResult) => {
+      if (workflowResult.success && workflowResult.actions && workflowResult.actions.length > 0) {
+        await orchestrator.executeActions(workflowResult.actions, {
+          userId,
+          projectId: project_id,
+          documentId: model.id
+        });
+      }
+    }).catch((error) => {
+      console.error('AI workflow orchestration failed:', error);
+    });
 
     return NextResponse.json({ model }, { status: 201 });
   } catch (error: unknown) {
