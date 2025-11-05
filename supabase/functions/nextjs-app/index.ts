@@ -157,19 +157,23 @@ async function getIndexPage() {
             </div>
 
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <h3 class="font-semibold text-blue-900 mb-3">Demo Credentials</h3>
-                <div class="grid md:grid-cols-2 gap-4 text-sm">
+                <h3 class="font-semibold text-blue-900 mb-3">Demo Accounts</h3>
+                <div class="grid md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                        <p class="font-medium text-blue-800">Administrator:</p>
+                        <p class="text-blue-700">admin@constructai.demo</p>
+                    </div>
                     <div>
                         <p class="font-medium text-blue-800">Project Manager:</p>
-                        <p class="text-blue-700">john@constructai.com</p>
+                        <p class="text-blue-700">manager@constructai.demo</p>
                     </div>
                     <div>
                         <p class="font-medium text-blue-800">Architect:</p>
-                        <p class="text-blue-700">sarah@constructai.com</p>
+                        <p class="text-blue-700">architect@constructai.demo</p>
                     </div>
                 </div>
                 <p class="text-blue-700 pt-2">
-                    Password for all accounts: <code class="bg-blue-100 px-1 rounded">demo123</code>
+                    Password for all accounts: <code class="bg-blue-100 px-1 rounded">Check .env.local file</code>
                 </p>
             </div>
         </div>
@@ -208,7 +212,7 @@ async function getSignInPage() {
             <form class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input type="email" placeholder="john@constructai.com"
+                    <input type="email" placeholder="admin@constructai.demo"
                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
                 </div>
                 <div>
@@ -223,19 +227,23 @@ async function getSignInPage() {
         </div>
 
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 class="font-medium text-blue-900 mb-3">Demo Credentials</h3>
-            <div class="grid grid-cols-2 gap-4 text-sm">
+            <h3 class="font-medium text-blue-900 mb-3">Demo Accounts</h3>
+            <div class="grid grid-cols-3 gap-4 text-sm">
                 <div>
-                    <p class="font-medium text-blue-800">Project Manager:</p>
-                    <p class="text-blue-700">john@constructai.com</p>
+                    <p class="font-medium text-blue-800">Administrator:</p>
+                    <p class="text-blue-700">admin@constructai.demo</p>
+                </div>
+                <div>
+                    <p class="font-medium text-blue-800">Manager:</p>
+                    <p class="text-blue-700">manager@constructai.demo</p>
                 </div>
                 <div>
                     <p class="font-medium text-blue-800">Architect:</p>
-                    <p class="text-blue-700">sarah@constructai.com</p>
+                    <p class="text-blue-700">architect@constructai.demo</p>
                 </div>
             </div>
             <p class="text-blue-700 pt-2">
-                Password: <code class="bg-blue-100 px-1 rounded">demo123</code>
+                Password: <code class="bg-blue-100 px-1 rounded">Check .env.local file</code>
             </p>
         </div>
     </div>

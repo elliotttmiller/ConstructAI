@@ -45,9 +45,9 @@ A comprehensive Next.js application that integrates Revit API with intelligent a
 
 ### Demo Access
 Try the platform immediately with these demo credentials:
-- **Project Manager**: `john@constructai.com` / `demo123`
-- **Senior Architect**: `sarah@constructai.com` / `demo123`
-- **Structural Engineer**: `mike@constructai.com` / `demo123`
+- **System Administrator**: `admin@constructai.demo` / `ConstructAI2025!`
+- **Project Manager**: `manager@constructai.demo` / `ConstructAI2025!`
+- **Senior Architect**: `architect@constructai.demo` / `ConstructAI2025!`
 
 ### Local Development
 ```bash
@@ -167,20 +167,37 @@ construction-ai-platform/
 ## 🔧 Configuration
 
 ### Environment Variables
+
+**Quick Setup:**
+```powershell
+# 1. Copy the example file
+Copy-Item .env.example .env.local
+
+# 2. Edit .env.local with your actual values
+
+# 3. Verify your setup
+.\verify-env.ps1
+```
+
+**📖 For detailed instructions, see [ENV_SETUP_GUIDE.md](./ENV_SETUP_GUIDE.md)**
+
+**Required Variables:**
 ```bash
-# Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-key
-
-# Authentication
-NEXTAUTH_URL=your-deployment-url
 NEXTAUTH_SECRET=your-secret-key
+```
 
-# Optional: AI Services
+**Optional Variables:**
+```bash
 OPENAI_API_KEY=your-openai-key
 GOOGLE_AI_API_KEY=your-google-ai-key
+NEXT_PUBLIC_HUNYUAN3D_URL=http://localhost:8000
+DEMO_PASSWORD=your-demo-password
 ```
+
+**See `.env.example` for all available options.**
 
 ### Database Setup
 The platform includes a complete SQL schema with:

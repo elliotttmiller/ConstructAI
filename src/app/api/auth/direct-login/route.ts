@@ -15,33 +15,36 @@ interface DemoUser {
   permissions: string[];
 }
 
+// Get demo password from environment variable
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'ConstructAI2025!';
+
 const demoUsers: DemoUser[] = [
   {
     id: '11111111-1111-1111-1111-111111111111',
-    email: 'john@constructai.com',
-    password: 'demo123',
-    name: 'John Constructor',
-    role: 'Project Manager',
-    department: 'Project Management',
-    permissions: ['project_create', 'team_manage', 'budget_view']
+    email: 'admin@constructai.demo',
+    password: DEMO_PASSWORD,
+    name: 'Alex Morgan',
+    role: 'System Administrator',
+    department: 'IT Administration',
+    permissions: ['full_access', 'system_config', 'user_manage', 'project_create', 'team_manage', 'budget_view']
   },
   {
     id: '22222222-2222-2222-2222-222222222222',
-    email: 'sarah@constructai.com',
-    password: 'demo123',
-    name: 'Sarah Architect',
-    role: 'Senior Architect',
-    department: 'Design',
-    permissions: ['design_approve', 'model_edit', 'compliance_check']
+    email: 'manager@constructai.demo',
+    password: DEMO_PASSWORD,
+    name: 'Jordan Chen',
+    role: 'Project Manager',
+    department: 'Project Management',
+    permissions: ['project_create', 'team_manage', 'budget_view', 'schedule_edit']
   },
   {
     id: '33333333-3333-3333-3333-333333333333',
-    email: 'mike@constructai.com',
-    password: 'demo123',
-    name: 'Mike Engineer',
-    role: 'Structural Engineer',
-    department: 'Engineering',
-    permissions: ['structural_analysis', 'safety_review', 'calculations']
+    email: 'architect@constructai.demo',
+    password: DEMO_PASSWORD,
+    name: 'Taylor Davis',
+    role: 'Senior Architect',
+    department: 'Design & Architecture',
+    permissions: ['design_approve', 'model_edit', 'compliance_check', 'blueprint_upload']
   }
 ];
 
