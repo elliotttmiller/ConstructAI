@@ -45,9 +45,11 @@ A comprehensive Next.js application that integrates Revit API with intelligent a
 
 ### Demo Access
 Try the platform immediately with these demo credentials:
-- **System Administrator**: `admin@constructai.demo` / `ConstructAI2025!`
-- **Project Manager**: `manager@constructai.demo` / `ConstructAI2025!`
-- **Senior Architect**: `architect@constructai.demo` / `ConstructAI2025!`
+- **System Administrator**: `admin@constructai.demo`
+- **Project Manager**: `manager@constructai.demo`
+- **Senior Architect**: `architect@constructai.demo`
+
+**Password**: See `.env.local` file (default: `ConstructAI2025!`)
 
 ### Local Development
 ```bash
@@ -199,6 +201,27 @@ DEMO_PASSWORD=your-demo-password
 
 **See `.env.example` for all available options.**
 
+## 📚 Documentation
+
+Comprehensive guides are available in the [`/docs`](./docs) folder:
+
+### Setup & Configuration
+- **[Environment Setup Guide](./docs/ENV_SETUP_GUIDE.md)** - Complete environment variable configuration
+- **[Environment Migration](./docs/ENVIRONMENT_MIGRATION.md)** - Security improvements and changes
+- **[Change Repository Guide](./docs/CHANGE_REPO_GUIDE.md)** - How to move to your own Git repository
+
+### Deployment
+- **[Deployment Guide](./docs/DEPLOYMENT_GUIDE.md)** - General deployment instructions
+- **[Supabase Deployment](./docs/SUPABASE_DEPLOYMENT.md)** - Supabase-specific setup
+- **[Production Deployment](./docs/PRODUCTION_DEPLOYMENT.md)** - Production environment guide
+- **[Hunyuan3D Deployment](./docs/PRODUCTION_HUNYUAN3D_DEPLOYMENT.md)** - 3D service deployment
+
+### Features & Integrations
+- **[Hunyuan3D Integration](./docs/HUNYUAN3D_INTEGRATION.md)** - 2D to 3D conversion setup
+- **[Real Hunyuan3D Integration](./docs/REAL_HUNYUAN3D_INTEGRATION.md)** - Advanced 3D integration
+- **[Blueprint Recognition](./docs/BLUEPRINT_RECOGNITION_ENHANCEMENTS.md)** - AI-powered blueprint processing
+- **[Enhancement Summary](./docs/ENHANCEMENT_SUMMARY.md)** - Platform improvements overview
+
 ### Database Setup
 The platform includes a complete SQL schema with:
 - User management and role-based permissions
@@ -237,7 +260,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-- **Documentation**: Complete guides in [`DEPLOYMENT_GUIDE.md`](./DEPLOYMENT_GUIDE.md)
+- **Documentation**: Complete guides in [`/docs`](./docs) folder
+- **Environment Setup**: See [`docs/ENV_SETUP_GUIDE.md`](./docs/ENV_SETUP_GUIDE.md)
+- **Deployment**: Check [`docs/DEPLOYMENT_GUIDE.md`](./docs/DEPLOYMENT_GUIDE.md)
 - **Issues**: Report bugs and feature requests in GitHub Issues
 - **Discussions**: Join community discussions for help and ideas
 

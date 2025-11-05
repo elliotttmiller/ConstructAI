@@ -104,46 +104,46 @@ export default function EnterpriseDashboard() {
       const mockTeamMembers: TeamMember[] = [
         {
           id: '1',
-          name: 'John Smith',
-          email: 'john@constructai.com',
+          name: 'Alex Morgan',
+          email: 'admin@constructai.demo',
           role: 'admin',
           status: 'active',
           lastActive: new Date(),
-          projectsCount: 5,
-          completedTasks: 23,
+          projectsCount: 8,
+          completedTasks: 45,
           permissions: ['all']
         },
         {
           id: '2',
-          name: 'Sarah Johnson',
-          email: 'sarah@constructai.com',
-          role: 'architect',
+          name: 'Jordan Chen',
+          email: 'manager@constructai.demo',
+          role: 'project_manager',
           status: 'active',
           lastActive: new Date(Date.now() - 30 * 60 * 1000),
-          projectsCount: 3,
-          completedTasks: 18,
-          permissions: ['projects.read', 'blueprints.all', 'analysis.read']
-        },
-        {
-          id: '3',
-          name: 'Mike Chen',
-          email: 'mike@constructai.com',
-          role: 'project_manager',
-          status: 'away',
-          lastActive: new Date(Date.now() - 2 * 60 * 60 * 1000),
           projectsCount: 4,
           completedTasks: 31,
           permissions: ['projects.all', 'team.read', 'reports.read']
         },
         {
+          id: '3',
+          name: 'Taylor Davis',
+          email: 'architect@constructai.demo',
+          role: 'architect',
+          status: 'away',
+          lastActive: new Date(Date.now() - 2 * 60 * 60 * 1000),
+          projectsCount: 3,
+          completedTasks: 28,
+          permissions: ['projects.read', 'blueprints.all', 'analysis.read']
+        },
+        {
           id: '4',
-          name: 'Lisa Wong',
-          email: 'lisa@constructai.com',
+          name: 'Sam Rivera',
+          email: 'engineer@constructai.demo',
           role: 'engineer',
           status: 'offline',
           lastActive: new Date(Date.now() - 24 * 60 * 60 * 1000),
           projectsCount: 2,
-          completedTasks: 12,
+          completedTasks: 15,
           permissions: ['projects.read', 'blueprints.read', 'analysis.all']
         }
       ];

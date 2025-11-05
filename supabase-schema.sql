@@ -251,9 +251,9 @@ create trigger handle_updated_at before update on public.clash_detections
 
 -- Insert some sample data
 insert into public.users (id, email, name, role, department, location, permissions) values
-  ('11111111-1111-1111-1111-111111111111', 'john@constructai.com', 'John Constructor', 'Project Manager', 'Project Management', 'New York, NY', array['project_create', 'team_manage', 'budget_view']),
-  ('22222222-2222-2222-2222-222222222222', 'sarah@constructai.com', 'Sarah Architect', 'Senior Architect', 'Design', 'Los Angeles, CA', array['design_approve', 'model_edit', 'compliance_check']),
-  ('33333333-3333-3333-3333-333333333333', 'mike@constructai.com', 'Mike Engineer', 'Structural Engineer', 'Engineering', 'Chicago, IL', array['structural_analysis', 'safety_review', 'calculations']);
+  ('11111111-1111-1111-1111-111111111111', 'admin@constructai.demo', 'Alex Morgan', 'System Administrator', 'IT Administration', 'Seattle, WA', array['full_access', 'system_config', 'user_manage', 'project_create', 'team_manage', 'budget_view']),
+  ('22222222-2222-2222-2222-222222222222', 'manager@constructai.demo', 'Jordan Chen', 'Project Manager', 'Project Management', 'Austin, TX', array['project_create', 'team_manage', 'budget_view', 'schedule_edit']),
+  ('33333333-3333-3333-3333-333333333333', 'architect@constructai.demo', 'Taylor Davis', 'Senior Architect', 'Design & Architecture', 'San Francisco, CA', array['design_approve', 'model_edit', 'compliance_check', 'blueprint_upload']);
 
 -- Insert sample projects
 insert into public.projects (name, description, status, progress, start_date, end_date, budget, spent, location, phase, created_by, team_members) values

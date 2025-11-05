@@ -163,7 +163,7 @@ export default function SignInPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="john@constructai.com"
+                  placeholder="admin@constructai.demo"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -213,37 +213,50 @@ export default function SignInPage() {
         {/* Quick Login Demo Credentials */}
         <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
           <CardContent className="pt-6">
-            <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-3">Demo Credentials - Quick Login</h3>
+            <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-3">Demo Accounts - Quick Login</h3>
             <div className="space-y-3">
               <div className="grid grid-cols-1 gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleQuickLogin("john@constructai.com", "demo123")}
+                  onClick={() => handleQuickLogin("admin@constructai.demo", "ConstructAI2025!")}
                   disabled={isLoading}
                   className="text-left justify-start"
                 >
                   <div>
-                    <p className="font-medium">👨‍💼 Project Manager</p>
-                    <p className="text-xs opacity-70">john@constructai.com</p>
+                    <p className="font-medium">👨‍💼 System Administrator</p>
+                    <p className="text-xs opacity-70">admin@constructai.demo</p>
                   </div>
                 </Button>
 
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleQuickLogin("sarah@constructai.com", "demo123")}
+                  onClick={() => handleQuickLogin("manager@constructai.demo", "ConstructAI2025!")}
                   disabled={isLoading}
                   className="text-left justify-start"
                 >
                   <div>
-                    <p className="font-medium">👩‍🎨 Architect</p>
-                    <p className="text-xs opacity-70">sarah@constructai.com</p>
+                    <p className="font-medium">� Project Manager</p>
+                    <p className="text-xs opacity-70">manager@constructai.demo</p>
+                  </div>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleQuickLogin("architect@constructai.demo", "ConstructAI2025!")}
+                  disabled={isLoading}
+                  className="text-left justify-start"
+                >
+                  <div>
+                    <p className="font-medium">👩‍🎨 Senior Architect</p>
+                    <p className="text-xs opacity-70">architect@constructai.demo</p>
                   </div>
                 </Button>
               </div>
               <p className="text-blue-700 dark:text-blue-300 text-xs text-center">
-                Password for all accounts: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">demo123</code>
+                Password for all accounts: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">ConstructAI2025!</code>
               </p>
             </div>
           </CardContent>

@@ -106,8 +106,9 @@ Your application will be available at:
 ### 3.2 Test Authentication
 1. Visit your Edge Function URL
 2. Try logging in with demo credentials:
-   - Email: `john@constructai.com`
-   - Password: `demo123`
+   - **Admin**: `admin@constructai.demo` / `ConstructAI2025!`
+   - **Manager**: `manager@constructai.demo` / `ConstructAI2025!`
+   - **Architect**: `architect@constructai.demo` / `ConstructAI2025!`
 
 ---
 

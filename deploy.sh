@@ -116,9 +116,10 @@ else
     echo "   https://your-project-ref.supabase.co/functions/v1/nextjs-app"
 fi
 echo
-echo "🎯 Demo credentials for testing:"
-echo "   Email: john@constructai.com"
-echo "   Password: demo123"
+echo "🎯 Demo accounts for testing:"
+echo "   Admin: admin@constructai.demo / ConstructAI2025!"
+echo "   Manager: manager@constructai.demo / ConstructAI2025!"
+echo "   Architect: architect@constructai.demo / ConstructAI2025!"
 echo
 echo "📖 For monitoring and management:"
 echo "   - View logs: supabase functions logs nextjs-app"
