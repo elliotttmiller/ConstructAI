@@ -33,11 +33,6 @@ const navigation = [
     description: "Project overview and metrics",
   },
   {
-    icon: MessageSquare,
-    description: "Master AI orchestrator",
-    badge: "AI",
-  },
-  {
     name: "Agents",
     href: "/agents",
     icon: Bot,

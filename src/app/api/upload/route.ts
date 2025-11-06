@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createWorker } from 'tesseract.js';
-import { writeFile, mkdir, readFile } from 'fs/promises';
+import { writeFile, mkdir, readFile, stat } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { AIWorkflowOrchestrator } from '@/lib/ai-workflow-orchestrator';
@@ -293,21 +293,56 @@ async function processOCR(fileId: string, filePath: string, fileType: string): P
     let confidence = 0;
 
     if (fileType === 'application/pdf') {
-      // Use pdf-parse for actual PDF text extraction
-      console.log(`[OCR] Processing PDF file with pdf-parse: ${fileId}`);
+      // Use pdfjs-dist for reliable PDF text extraction
+      console.log(`[OCR] Processing PDF file with pdfjs-dist: ${fileId}`);
       try {
         const dataBuffer = await readFile(filePath);
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const pdfParseModule = require('pdf-parse');
-        const pdfData = await pdfParseModule(dataBuffer);
         
-        extractedText = pdfData.text.trim();
-        confidence = extractedText.length > 0 ? 95 : 50; // High confidence if text found
+        // Import pdfjs-dist dynamically
+        const pdfjsLib = await import('pdfjs-dist');
         
-        console.log(`[OCR] PDF parsed successfully: ${extractedText.length} characters, ${pdfData.numpages} pages`);
+        // Load the PDF document
+        const loadingTask = pdfjsLib.getDocument({
+          data: new Uint8Array(dataBuffer),
+          useSystemFonts: true,
+        });
+        
+        const pdfDocument = await loadingTask.promise;
+        const numPages = pdfDocument.numPages;
+        
+        console.log(`[OCR] PDF loaded: ${numPages} pages`);
+        
+        // Extract text from all pages
+        const textPromises = [];
+        for (let i = 1; i <= numPages; i++) {
+          textPromises.push(
+            pdfDocument.getPage(i).then(async (page) => {
+              const textContent = await page.getTextContent();
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              return textContent.items.map((item: any) => item.str).join(' ');
+            })
+          );
+        }
+        
+        const pageTexts = await Promise.all(textPromises);
+        extractedText = pageTexts.join('\n\n').trim();
+        confidence = extractedText.length > 0 ? 95 : 50;
+        
+        console.log(`[OCR] PDF parsed successfully: ${extractedText.length} characters, ${numPages} pages`);
       } catch (pdfError) {
         console.error(`[OCR] PDF parsing failed: ${pdfError}`);
-        extractedText = `PDF document uploaded but text extraction failed: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`;
+        
+        // Provide helpful metadata even if text extraction fails
+        const stats = await stat(filePath);
+        const errorMsg = pdfError instanceof Error ? pdfError.message : 'Unknown error';
+        
+        extractedText = `PDF Document Information:
+- Filename: ${path.basename(filePath)}
+- File Size: ${(stats.size / 1024 / 1024).toFixed(2)} MB
+- Status: Text extraction failed (${errorMsg})
+- Recommendation: This PDF may contain complex graphics, scanned images, or require advanced parsing. Consider manual review or using specialized PDF tools.
+- Note: Document has been uploaded successfully and is available for download and manual review.`;
+        
         confidence = 0;
       }
     } else {

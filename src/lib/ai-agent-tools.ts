@@ -42,13 +42,13 @@ export const AI_AGENT_TOOLS: Tool[] = [
   // Document Processing Tools
   {
     name: 'analyze_uploaded_document',
-    description: 'Analyzes a document that has been uploaded to the system. Triggers real OCR and document processing workflow.',
+    description: 'Analyzes a document that has been uploaded to the system. Triggers real OCR and document processing workflow. IMPORTANT: Use the document UUID (e.g., "7d9f45cd-abd1-4a5a-b2c9-caeb6c738f6d"), NOT the filename. Use get_recent_documents to find the document ID first if you only know the filename.',
     parameters: {
       type: 'object',
       properties: {
         document_id: {
           type: 'string',
-          description: 'The ID of the document to analyze'
+          description: 'The UUID of the document to analyze (not the filename)'
         },
         analysis_type: {
           type: 'string',
@@ -80,6 +80,45 @@ export const AI_AGENT_TOOLS: Tool[] = [
           success: false,
           error: error instanceof Error ? error.message : 'Unknown error',
           message: 'Failed to analyze document'
+        };
+      }
+    }
+  },
+
+  {
+    name: 'get_recent_documents',
+    description: 'Retrieves the most recently uploaded documents with their IDs and names. Use this to find document UUIDs when you only know the filename.',
+    parameters: {
+      type: 'object',
+      properties: {
+        limit: {
+          type: 'number',
+          description: 'Maximum number of documents to return (default: 10)',
+          default: 10
+        }
+      },
+      required: []
+    },
+    execute: async (params) => {
+      try {
+        const { data, error } = await supabase
+          .from('documents')
+          .select('id, name, type, status, created_at')
+          .order('created_at', { ascending: false })
+          .limit(params.limit || 10);
+
+        if (error) throw error;
+
+        return {
+          success: true,
+          data: data || [],
+          message: `Found ${data?.length || 0} recent documents`
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          message: 'Failed to fetch recent documents'
         };
       }
     }
