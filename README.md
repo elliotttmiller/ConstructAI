@@ -12,7 +12,7 @@ A comprehensive Next.js application that integrates Revit API with intelligent a
 ## ✨ Features
 
 ### 🤖 AI Agent Orchestration
-- **Suna AI Chat Interface** - Central conversational hub with real-time messaging
+- **AI Assistant Chat Interface** - Central conversational hub with real-time messaging
 - **Multi-Agent Dashboard** - Coordinate Data Upload Bot, PM Bot, Design Converter
 - **Real-time WebSocket** - Live agent interactions and status updates
 - **Task Routing** - Intelligent distribution of work across specialized agents
@@ -184,7 +184,7 @@ ConstructAI/
 │   │   │   ├── upload/      # File upload handling
 │   │   │   └── hunyuan3d/   # 3D conversion endpoints
 │   │   ├── bim/             # 3D BIM viewer
-│   │   ├── chat/            # Suna AI chat interface
+│   │   ├── chat/            # AI Assistant chat interface
 │   │   ├── projects/        # Project management
 │   │   └── team/            # Team directory
 │   ├── components/          # Reusable UI components

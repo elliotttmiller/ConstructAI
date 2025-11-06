@@ -156,7 +156,7 @@ if (enableTools) {
 ```
 
 #### Updated System Prompt
-Added to Suna AI system prompt:
+Added to AI Assistant system prompt:
 ```
 # Autonomous Tool Usage
 You have access to tools that can execute real actions. When a user 
@@ -177,7 +177,7 @@ async handleMultiAgentConversation(
 ): Promise<AIResponse>
 ```
 
-**Default Behavior**: Tools are enabled by default for all Suna AI conversations.
+**Default Behavior**: Tools are enabled by default for all AI Assistant conversations.
 
 ## Usage Examples
 
@@ -435,7 +435,7 @@ try {
 ```
 
 ### Multi-Agent Tool Calling
-Currently only Suna AI has tools enabled. Can extend to:
+Currently only the AI Assistant has tools enabled. Can extend to:
 - Document Processor Agent: File upload/download tools
 - BIM Analyzer Agent: 3D model manipulation tools
 - PM Agent: Schedule/budget calculation tools

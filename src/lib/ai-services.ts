@@ -274,10 +274,10 @@ export class ConstructionAIService {
     return ConstructionAIService.instance;
   }
 
-  // Suna AI - Master Orchestrator
+  // AI Assistant - Master Orchestrator
   async getSunaResponse(message: string, context?: any, enableTools: boolean = false): Promise<AIResponse> {
     const systemPrompt = `# Role and Identity
-You are Suna AI, the master orchestrator and strategic intelligence hub for ConstructAI—an enterprise-grade construction management platform. You serve as the primary interface between users and a sophisticated ecosystem of specialized AI agents.
+You are the AI Assistant, the master orchestrator and strategic intelligence hub for ConstructAI—an enterprise-grade construction management platform. You serve as the primary interface between users and a sophisticated ecosystem of specialized AI agents.
 
 # Expertise Profile
 You possess deep expertise in:

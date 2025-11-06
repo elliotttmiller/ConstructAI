@@ -88,7 +88,7 @@ All public methods remain exactly the same:
 
 ### 2. System Prompts
 All AI prompts remain identical:
-- ✅ Suna AI master orchestrator prompt
+- ✅ AI Assistant master orchestrator prompt
 - ✅ Document analysis framework
 - ✅ Building code compliance expertise
 - ✅ BIM analysis framework

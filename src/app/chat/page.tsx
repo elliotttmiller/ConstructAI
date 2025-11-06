@@ -279,7 +279,7 @@ export default function ChatPage() {
     const addWelcomeMessage = () => {
       const welcomeMessage: ChatMessage = {
         id: 'welcome_' + Date.now(),
-        content: `Welcome to ConstructAI! I'm Suna, your AI construction coordinator. I can help you with:
+        content: `Welcome to ConstructAI! I'm your AI Assistant, ready to help coordinate your construction projects. I can help you with:
 
 🏗️ **Project Management** - Coordinate tasks, timelines, and resources
 📋 **Document Processing** - Analyze plans, specs, and building codes

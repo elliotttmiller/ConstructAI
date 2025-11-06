@@ -261,7 +261,7 @@ async function getSignInPage() {
 }
 
 async function getChatPage() {
-  return getAppPage("Suna AI Chat", "Real-time AI assistant for construction project coordination")
+  return getAppPage("AI Assistant Chat", "Real-time AI assistant for construction project coordination")
 }
 
 async function getBIMPage() {

@@ -111,7 +111,7 @@ const result = await orchestrator.handleDocumentUpload(documentId, {
 5. Assignment reason is logged
 
 **AI Integration**:
-- Uses `ConstructionAIService.getSunaResponse()` with team context
+- Uses `ConstructionAIService.getSunaResponse()` (AI Assistant) with team context
 - Considers role, workload, and expertise
 - Provides assignment justification
 
