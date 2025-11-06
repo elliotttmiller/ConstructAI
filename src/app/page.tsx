@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardSkeleton } from "@/components/ui/skeletons";
+import { cachedFetch } from "@/lib/cache-utils";
 import {
   Building2,
   Bot,
@@ -69,12 +70,8 @@ export default function Dashboard() {
 
     const fetchAnalytics = async () => {
       try {
-        const response = await fetch('/api/analytics');
-        if (!response.ok) {
-          throw new Error('Failed to fetch analytics');
-        }
-
-        const data = await response.json();
+        // Use cached fetch for faster subsequent loads
+        const data = await cachedFetch('/api/analytics', { cacheTTL: 60000 }); // Cache for 1 minute
         setAnalytics(data.analytics);
       } catch (err) {
         console.error('Error fetching analytics:', err);

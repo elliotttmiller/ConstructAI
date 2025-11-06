@@ -8,6 +8,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import { Toaster } from "@/components/ui/sonner";
 import CopilotContextProvider from "@/components/providers/CopilotContextProvider";
 import LoadingBar from "@/components/transitions/LoadingBar";
+import { useGlobalPrefetch } from "@/lib/prefetch-utils";
 
 // Lazy load AI components to reduce initial bundle size
 const AICopilotSidepanel = dynamic(
@@ -28,6 +29,9 @@ export default function ClientBody({
   const pathname = usePathname();
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Global route prefetching for instant navigation
+  useGlobalPrefetch();
+
   // Initialize production environment only once - with delay to not block rendering
   useEffect(() => {
     if (!isInitialized) {
@@ -45,9 +49,9 @@ export default function ClientBody({
       };
 
       if ('requestIdleCallback' in window) {
-        requestIdleCallback(initProd, { timeout: 2000 });
+        requestIdleCallback(initProd, { timeout: 5000 }); // Increased timeout to not block
       } else {
-        setTimeout(initProd, 100);
+        setTimeout(initProd, 500); // Longer delay for fallback
       }
     }
   }, [isInitialized]);

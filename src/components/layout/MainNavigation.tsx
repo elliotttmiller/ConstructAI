@@ -84,15 +84,10 @@ export default function MainNavigation({ className }: MainNavigationProps) {
   useEffect(() => {
     const routes = navigation.map(item => item.href).filter(Boolean);
     
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => {
-        routes.forEach(route => router.prefetch(route));
-      });
-    } else {
-      setTimeout(() => {
-        routes.forEach(route => router.prefetch(route));
-      }, 1000);
-    }
+    // Prefetch immediately for core routes (no idle callback delay)
+    routes.forEach(route => {
+      if (route) router.prefetch(route);
+    });
   }, [router]);
 
   const NavContent = () => (
@@ -117,6 +112,7 @@ export default function MainNavigation({ className }: MainNavigationProps) {
             {item.href ? (
               <Link
                 href={item.href}
+                prefetch={true}
                 className={cn(
                   "flex items-center justify-between w-full px-3 py-2 text-sm rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground",
                   pathname === item.href
@@ -161,6 +157,7 @@ export default function MainNavigation({ className }: MainNavigationProps) {
                   <Link
                     key={child.name}
                     href={child.href}
+                    prefetch={true}
                     className={cn(
                       "block px-3 py-1.5 text-xs rounded-md transition-colors hover:bg-accent hover:text-accent-foreground",
                       pathname === child.href
@@ -184,6 +181,7 @@ export default function MainNavigation({ className }: MainNavigationProps) {
       <div className="p-4">
         <Link
           href="/settings"
+          prefetch={true}
           className={cn(
             "flex items-center space-x-3 px-3 py-2 text-sm rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground",
             pathname === "/settings"
