@@ -1,15 +1,160 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { aiConfig } from './ai-config';
 
-// OpenAI Configuration
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '',
-  dangerouslyAllowBrowser: false // Only use server-side
-});
+// Universal AI Client Manager
+class UniversalAIClient {
+  private openai: OpenAI | null = null;
+  private genAI: GoogleGenerativeAI | null = null;
+  private primaryProvider: 'openai' | 'google' | null = null;
 
-// Google AI Configuration
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '');
+  constructor() {
+    this.initializeClients();
+  }
+
+  private initializeClients() {
+    // Priority order: OpenAI first, then Google AI
+    if (process.env.OPENAI_API_KEY) {
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+        dangerouslyAllowBrowser: false
+      });
+      this.primaryProvider = 'openai';
+      console.log('✅ OpenAI initialized as primary AI provider');
+    }
+
+    if (process.env.GOOGLE_AI_API_KEY) {
+      this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
+      if (!this.primaryProvider) {
+        this.primaryProvider = 'google';
+        console.log('✅ Google AI initialized as primary AI provider');
+      } else {
+        console.log('✅ Google AI initialized as fallback provider');
+      }
+    }
+
+    if (!this.primaryProvider) {
+      console.warn('⚠️ No AI providers configured. Please set OPENAI_API_KEY or GOOGLE_AI_API_KEY');
+    }
+  }
+
+  // Universal completion method with automatic fallback
+  async complete(
+    systemPrompt: string,
+    userMessage: string,
+    options: {
+      temperature?: number;
+      maxTokens?: number;
+      model?: string;
+    } = {}
+  ): Promise<{ content: string; model: string; usage?: any }> {
+    const providers = this.getAvailableProviders();
+    
+    if (providers.length === 0) {
+      throw new Error('No AI providers are configured. Please set OPENAI_API_KEY or GOOGLE_AI_API_KEY in your environment variables.');
+    }
+
+    // Try each provider in priority order
+    for (const provider of providers) {
+      try {
+        if (provider === 'openai') {
+          return await this.completeWithOpenAI(systemPrompt, userMessage, options);
+        } else if (provider === 'google') {
+          return await this.completeWithGoogle(systemPrompt, userMessage, options);
+        }
+      } catch (error) {
+        console.error(`${provider} failed, trying next provider:`, error);
+        // Continue to next provider
+      }
+    }
+
+    throw new Error('All AI providers failed. Please check your API keys and network connection.');
+  }
+
+  private async completeWithOpenAI(
+    systemPrompt: string,
+    userMessage: string,
+    options: { temperature?: number; maxTokens?: number; model?: string }
+  ) {
+    if (!this.openai) throw new Error('OpenAI not initialized');
+
+    const completion = await this.openai.chat.completions.create({
+      model: options.model || process.env.AI_PRIMARY_MODEL || 'gpt-4-turbo-preview',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage }
+      ],
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.maxTokens ?? 1500,
+      top_p: 1.0,
+      frequency_penalty: 0.1,
+      presence_penalty: 0.1,
+    });
+
+    return {
+      content: completion.choices[0]?.message?.content || '',
+      model: completion.model,
+      usage: {
+        promptTokens: completion.usage?.prompt_tokens || 0,
+        completionTokens: completion.usage?.completion_tokens || 0,
+        totalTokens: completion.usage?.total_tokens || 0,
+      }
+    };
+  }
+
+  private async completeWithGoogle(
+    systemPrompt: string,
+    userMessage: string,
+    options: { temperature?: number; maxTokens?: number; model?: string }
+  ) {
+    if (!this.genAI) throw new Error('Google AI not initialized');
+
+    const model = this.genAI.getGenerativeModel({
+      model: options.model || 'gemini-pro',
+      generationConfig: {
+        temperature: options.temperature ?? 0.7,
+        topP: 0.95,
+        topK: 40,
+        maxOutputTokens: options.maxTokens ?? 2048,
+      },
+    });
+
+    const result = await model.generateContent([
+      systemPrompt,
+      userMessage
+    ]);
+
+    const response = await result.response;
+    return {
+      content: response.text(),
+      model: 'gemini-pro',
+      usage: undefined
+    };
+  }
+
+  private getAvailableProviders(): ('openai' | 'google')[] {
+    const providers: ('openai' | 'google')[] = [];
+    
+    // Priority order
+    if (this.openai) providers.push('openai');
+    if (this.genAI) providers.push('google');
+    
+    return providers;
+  }
+
+  getStatus() {
+    return {
+      openai: !!this.openai,
+      google: !!this.genAI,
+      primary: this.primaryProvider,
+      available: this.getAvailableProviders()
+    };
+  }
+}
+
+// Global AI client instance
+const aiClient = new UniversalAIClient();
 
 export interface AIMessage {
   role: 'user' | 'assistant' | 'system';
@@ -91,32 +236,19 @@ When asked about a project delay:
 Now, respond to the user's query using this framework. Think step-by-step and provide comprehensive, expert-level guidance.`;
 
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4-turbo-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: message }
-        ],
-        max_tokens: 1500, // Increased for comprehensive responses
-        temperature: 0.7, // Balanced creativity for diverse user queries
-        presence_penalty: 0.1, // Encourage diverse topics
-        frequency_penalty: 0.1, // Reduce repetition
+      const result = await aiClient.complete(systemPrompt, message, {
+        temperature: 0.7,
+        maxTokens: 1500
       });
 
-      const response = completion.choices[0]?.message?.content || "I apologize, but I couldn't process your request at the moment.";
-
       return {
-        content: response,
-        model: "gpt-4-turbo-preview",
-        usage: {
-          promptTokens: completion.usage?.prompt_tokens || 0,
-          completionTokens: completion.usage?.completion_tokens || 0,
-          totalTokens: completion.usage?.total_tokens || 0,
-        }
+        content: result.content || "I apologize, but I couldn't process your request at the moment.",
+        model: result.model,
+        usage: result.usage
       };
     } catch (error) {
-      console.error('OpenAI API error:', error);
-      throw new Error('Failed to get AI response. Please check your OpenAI API configuration and try again.');
+      console.error('AI API error:', error);
+      throw new Error('Failed to get AI response. Please check your AI API configuration and try again.');
     }
   }
 
@@ -210,30 +342,23 @@ RECOMMENDED ACTIONS
 Now analyze the provided document using this comprehensive framework.`;
 
     try {
-      const model = genAI.getGenerativeModel({ 
-        model: "gemini-pro",
-        generationConfig: {
-          temperature: 0.4, // Technical precision with moderate creativity
-          topP: 0.95, // High diversity in token selection
-          topK: 40, // Moderate token pool for quality
-          maxOutputTokens: 2048, // Extended for detailed analysis
-        },
-      });
-      const result = await model.generateContent([
+      const result = await aiClient.complete(
         systemPrompt,
-        `Document content to analyze:\n\n${documentText}`
-      ]);
-
-      const response = await result.response;
-      const text = response.text();
+        `Document content to analyze:\n\n${documentText}`,
+        {
+          temperature: 0.4,
+          maxTokens: 2048
+        }
+      );
 
       return {
-        content: text,
-        model: "gemini-pro"
+        content: result.content,
+        model: result.model,
+        usage: result.usage
       };
     } catch (error) {
-      console.error('Google AI API error:', error);
-      throw new Error('Failed to analyze document. Please check your Google AI API configuration and try again.');
+      console.error('AI API error:', error);
+      throw new Error('Failed to analyze document. Please check your AI API configuration and try again.');
     }
   }
 
@@ -396,28 +521,19 @@ PERMIT & APPROVAL STRATEGY
 Now perform a thorough compliance analysis using this framework.`;
 
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4-turbo-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Please analyze this project for building code compliance.` }
-        ],
-        max_tokens: 2000, // Extended for comprehensive compliance review
-        temperature: 0.3, // Low for consistent, deterministic code interpretation
-        presence_penalty: 0.0, // No penalty for code-focused responses
-        frequency_penalty: 0.0, // Allow repeated code references
-      });
-
-      const response = completion.choices[0]?.message?.content || "Unable to complete compliance analysis.";
+      const result = await aiClient.complete(
+        systemPrompt,
+        'Please analyze this project for building code compliance.',
+        {
+          temperature: 0.3,
+          maxTokens: 2000
+        }
+      );
 
       return {
-        content: response,
-        model: "gpt-4-turbo-preview",
-        usage: {
-          promptTokens: completion.usage?.prompt_tokens || 0,
-          completionTokens: completion.usage?.completion_tokens || 0,
-          totalTokens: completion.usage?.total_tokens || 0,
-        }
+        content: result.content || "Unable to complete compliance analysis.",
+        model: result.model,
+        usage: result.usage
       };
     } catch (error) {
       console.error('Building code compliance error:', error);
@@ -631,26 +747,19 @@ NEXT STEPS
 Now analyze the BIM model using this comprehensive framework.`;
 
     try {
-      const model = genAI.getGenerativeModel({ 
-        model: "gemini-pro",
-        generationConfig: {
-          temperature: 0.4, // Technical accuracy with moderate creativity
-          topP: 0.9, // Slightly focused for technical precision
-          topK: 40, // Balanced token pool
-          maxOutputTokens: 2048, // Extended for detailed BIM analysis
-        },
-      });
-      const result = await model.generateContent([
+      const result = await aiClient.complete(
         systemPrompt,
-        `Please analyze this BIM model using the comprehensive framework above, focusing on clash detection, constructability analysis, and system coordination. Provide detailed insights with prioritized recommendations.`
-      ]);
-
-      const response = await result.response;
-      const text = response.text();
+        'Please analyze this BIM model using the comprehensive framework above, focusing on clash detection, constructability analysis, and system coordination. Provide detailed insights with prioritized recommendations.',
+        {
+          temperature: 0.4,
+          maxTokens: 2048
+        }
+      );
 
       return {
-        content: text,
-        model: "gemini-pro"
+        content: result.content,
+        model: result.model,
+        usage: result.usage
       };
     } catch (error) {
       console.error('BIM analysis error:', error);
@@ -929,28 +1038,19 @@ SUCCESS METRICS
 Now provide comprehensive project management insights using this framework.`;
 
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4-turbo-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Please analyze this project and provide management insights.` }
-        ],
-        max_tokens: 2000, // Extended for comprehensive PM analysis
-        temperature: 0.5, // Balanced creativity and precision for planning
-        presence_penalty: 0.1, // Encourage diverse topics
-        frequency_penalty: 0.1, // Reduce repetitive recommendations
-      });
-
-      const response = completion.choices[0]?.message?.content || "Unable to complete project analysis.";
+      const result = await aiClient.complete(
+        systemPrompt,
+        'Please analyze this project and provide management insights.',
+        {
+          temperature: 0.5,
+          maxTokens: 2000
+        }
+      );
 
       return {
-        content: response,
-        model: "gpt-4-turbo-preview",
-        usage: {
-          promptTokens: completion.usage?.prompt_tokens || 0,
-          completionTokens: completion.usage?.completion_tokens || 0,
-          totalTokens: completion.usage?.total_tokens || 0,
-        }
+        content: result.content || "Unable to complete project analysis.",
+        model: result.model,
+        usage: result.usage
       };
     } catch (error) {
       console.error('Project management error:', error);
@@ -1411,26 +1511,19 @@ INSURANCE & TRANSFER STRATEGY
 Now conduct a thorough risk assessment using this framework.`;
 
     try {
-      const model = genAI.getGenerativeModel({ 
-        model: "gemini-pro",
-        generationConfig: {
-          temperature: 0.4, // Conservative for risk assessment
-          topP: 0.95, // High diversity for comprehensive risk identification
-          topK: 40, // Balanced token pool
-          maxOutputTokens: 2048, // Extended for detailed risk analysis
-        },
-      });
-      const result = await model.generateContent([
+      const result = await aiClient.complete(
         systemPrompt,
-        `Please conduct a comprehensive risk assessment for this construction project.`
-      ]);
-
-      const response = await result.response;
-      const text = response.text();
+        'Please conduct a comprehensive risk assessment for this construction project.',
+        {
+          temperature: 0.4,
+          maxTokens: 2048
+        }
+      );
 
       return {
-        content: text,
-        model: "gemini-pro"
+        content: result.content,
+        model: result.model,
+        usage: result.usage
       };
     } catch (error) {
       console.error('Risk assessment error:', error);
@@ -1463,12 +1556,81 @@ Now conduct a thorough risk assessment using this framework.`;
   }
 
   // Check if AI services are properly configured
-  isConfigured(): { openai: boolean; google: boolean } {
+  isConfigured(): { openai: boolean; google: boolean; primary: string | null; available: string[] } {
+    const status = aiClient.getStatus();
     return {
-      openai: !!process.env.OPENAI_API_KEY,
-      google: !!process.env.GOOGLE_AI_API_KEY
+      openai: status.openai,
+      google: status.google,
+      primary: status.primary,
+      available: status.available
     };
+  }
+
+  // Universal AI Configuration Methods
+  getAIStatus(): { [key: string]: boolean } {
+    return aiConfig.getServiceStatus();
+  }
+
+  reloadAIConfiguration(): void {
+    aiConfig.reload();
+  }
+
+  getAvailableModels(): { [task: string]: any } {
+    const configs = aiConfig.getAllConfigs();
+    const result: { [task: string]: any } = {};
+    
+    configs.forEach((config, task) => {
+      result[task] = {
+        provider: config.provider,
+        model: config.model,
+        enabled: config.enabled,
+        temperature: config.temperature,
+        maxTokens: config.maxTokens
+      };
+    });
+    
+    return result;
+  }
+
+  // Use universal config for new requests (can be called instead of direct OpenAI/Google calls)
+  async getUniversalAIResponse(
+    task: string,
+    systemPrompt: string,
+    userMessage: string,
+    options?: { temperature?: number; maxTokens?: number }
+  ): Promise<AIResponse> {
+    try {
+      const response = await aiConfig.complete(
+        task,
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        options
+      );
+
+      return {
+        content: response.content,
+        model: response.model,
+        usage: response.usage,
+      };
+    } catch (error) {
+      console.error(`Universal AI ${task} task failed:`, error);
+      
+      // Check if AI services are configured
+      const status = aiConfig.getServiceStatus();
+      const availableServices = Object.entries(status)
+        .filter(([_, available]) => available)
+        .map(([service, _]) => service);
+      
+      if (availableServices.length === 0) {
+        throw new Error('No AI services are properly configured. Please check your environment variables and API keys.');
+      }
+      
+      throw new Error(`AI processing failed. Available services: ${availableServices.join(', ')}. Please check your configuration and try again.`);
+    }
   }
 }
 
 export default ConstructionAIService;
+export const aiService = ConstructionAIService.getInstance();

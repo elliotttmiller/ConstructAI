@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * AI Workflow Orchestrator
  * Central service for coordinating multi-agent AI workflows across the platform
@@ -39,6 +40,7 @@ export class AIWorkflowOrchestrator {
   private aiService: ConstructionAIService;
 
   private constructor() {
+    // Use singleton AI service
     this.aiService = ConstructionAIService.getInstance();
   }
 
@@ -488,6 +490,7 @@ REASONING: [Explanation of constraints and suggestion for resolution]`;
         type: project.metadata?.type || 'commercial'
       };
 
+      // Use compliance check method
       const complianceAnalysis = await this.aiService.checkBuildingCodeCompliance(
         projectDetails,
         project.location

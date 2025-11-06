@@ -322,7 +322,7 @@ What would you like to work on today?`,
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Enhanced message sending with AI processing simulation
+  // Enhanced message sending - Direct API call for better performance
   const sendMessage = useCallback(async () => {
     if (!inputValue.trim() || !session?.user) return;
 
@@ -338,10 +338,18 @@ What would you like to work on today?`,
 
     // Add user message immediately
     setMessages(prev => [...prev, userMessage]);
+    const currentMessage = inputValue.trim();
     setInputValue('');
 
-    // Save user message to database
+    // Show processing indicator
+    setProcessingIndicator({
+      show: true,
+      progress: 10,
+      message: `${AGENT_TYPES[selectedAgent as keyof typeof AGENT_TYPES]?.name} is analyzing your request...`
+    });
+
     try {
+      // Save user message to database
       await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -353,44 +361,101 @@ What would you like to work on today?`,
           metadata: userMessage.metadata || {}
         })
       });
-    } catch (error) {
-      console.error('Failed to save message:', error);
-    }
 
-    // Show processing indicator
-    setProcessingIndicator({
-      show: true,
-      progress: 0,
-      message: 'Analyzing your request...'
-    });
+      // Update progress
+      setProcessingIndicator(prev => ({
+        ...prev,
+        progress: 30,
+        message: 'Connecting to AI service...'
+      }));
 
-    // Simulate processing progress
-    const progressInterval = setInterval(() => {
-      setProcessingIndicator(prev => {
-        if (prev.progress >= 90) {
-          clearInterval(progressInterval);
-          return { ...prev, progress: 100, message: 'Generating response...' };
-        }
-        return {
-          ...prev,
-          progress: prev.progress + 10,
-          message: prev.progress < 30 ? 'Processing natural language...' :
-                   prev.progress < 60 ? 'Analyzing project context...' :
-                   prev.progress < 90 ? 'Generating insights...' : 'Finalizing response...'
-        };
+      // Call AI API directly
+      const aiResponse = await fetch('/api/ai-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: currentMessage,
+          agentType: selectedAgent,
+          userId: session.user.email,
+          context: {
+            projectId: selectedProject,
+            timestamp: new Date().toISOString(),
+            conversationHistory: messages.slice(-5) // Last 5 messages for context
+          }
+        })
       });
-    }, 200);
 
-    // Send message through socket service (which will trigger AI response)
-    socketService.emit('send_message', userMessage);
+      if (!aiResponse.ok) {
+        const errorData = await aiResponse.json();
+        throw new Error(errorData.error || 'Failed to get AI response');
+      }
 
-    // Update agent status
-    socketService.emit('agent_status_update', {
-      agentType: selectedAgent,
-      status: 'processing',
-      message: `Processing user request: "${inputValue.slice(0, 50)}..."`
-    });
-  }, [inputValue, session, selectedAgent, selectedProject]);
+      // Update progress
+      setProcessingIndicator(prev => ({
+        ...prev,
+        progress: 80,
+        message: 'Generating response...'
+      }));
+
+      const aiData = await aiResponse.json();
+
+      // Create AI message
+      const aiMessage: ChatMessage = {
+        id: `ai_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        content: aiData.content || 'I apologize, but I couldn\'t generate a response.',
+        role: 'assistant',
+        agentType: selectedAgent,
+        userId: 'ai_system',
+        timestamp: new Date(),
+        projectId: selectedProject || undefined,
+        metadata: {
+          model: aiData.model,
+          serviceStatus: aiData.serviceStatus,
+          usage: aiData.usage
+        }
+      };
+
+      // Add AI message
+      setMessages(prev => [...prev, aiMessage]);
+
+      // Save AI message to database
+      await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: aiMessage.content,
+          role: aiMessage.role,
+          agent_type: aiMessage.agentType,
+          project_id: aiMessage.projectId,
+          metadata: aiMessage.metadata || {}
+        })
+      });
+
+      // Hide processing indicator
+      setProcessingIndicator({ show: false, progress: 100, message: 'Complete!' });
+
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      
+      // Show error message
+      const errorMessage: ChatMessage = {
+        id: `error_${Date.now()}`,
+        content: `I apologize, but I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+        role: 'assistant',
+        agentType: selectedAgent,
+        userId: 'ai_system',
+        timestamp: new Date(),
+        projectId: selectedProject || undefined,
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          model: 'error-fallback'
+        }
+      };
+
+      setMessages(prev => [...prev, errorMessage]);
+      setProcessingIndicator({ show: false, progress: 0, message: '' });
+    }
+  }, [inputValue, session, selectedAgent, selectedProject, messages]);
 
   // Handle typing indicators
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
