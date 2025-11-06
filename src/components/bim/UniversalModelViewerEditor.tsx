@@ -11,8 +11,12 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 import { ParametricCADBuilder } from '@/components/cad/ParametricCADBuilder';
 import type { CADGenerationResult } from '@/types/build123d';
+import { IntelligentModelRecognizer, type ModelAnalysis, type ModelConfiguration } from '@/lib/intelligent-model-recognizer';
+import { EnhancedBIMProcessor, type BIMAnalysis } from '@/lib/enhanced-bim-processor';
 import { 
   Upload, 
   Download, 
@@ -30,7 +34,12 @@ import {
   Layers,
   Box,
   Loader2,
-  Sparkles
+  Sparkles,
+  AlertCircle,
+  CheckCircle2,
+  Info,
+  Activity,
+  Zap
 } from 'lucide-react';
 
 interface UniversalModelViewerEditorProps {
@@ -38,6 +47,7 @@ interface UniversalModelViewerEditorProps {
   onModelLoaded?: (model: THREE.Object3D) => void;
   onModelUpdated?: (model: THREE.Object3D) => void;
   onExport?: (format: string) => void;
+  onAnalysisComplete?: (analysis: BIMAnalysis | null) => void;
 }
 
 type TransformMode = 'translate' | 'rotate' | 'scale' | null;
@@ -47,7 +57,8 @@ export function UniversalModelViewerEditor({
   className = '',
   onModelLoaded,
   onModelUpdated,
-  onExport
+  onExport,
+  onAnalysisComplete
 }: UniversalModelViewerEditorProps) {
   // Core Three.js refs
   const mountRef = useRef<HTMLDivElement>(null);
@@ -57,6 +68,7 @@ export function UniversalModelViewerEditor({
   const orbitControlsRef = useRef<OrbitControls | null>(null);
   const transformControlsRef = useRef<TransformControls | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const bimProcessorRef = useRef<EnhancedBIMProcessor | null>(null);
 
   // State management
   const [viewMode, setViewMode] = useState<ViewMode>('view');
@@ -64,8 +76,15 @@ export function UniversalModelViewerEditor({
   const [selectedObject, setSelectedObject] = useState<THREE.Object3D | null>(null);
   const [loadedModels, setLoadedModels] = useState<THREE.Object3D[]>([]);
   const [loading, setLoading] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [showGrid, setShowGrid] = useState(true);
   const [showAxes, setShowAxes] = useState(true);
+  
+  // Analysis state
+  const [modelAnalysis, setModelAnalysis] = useState<ModelAnalysis | null>(null);
+  const [bimAnalysis, setBimAnalysis] = useState<BIMAnalysis | null>(null);
+  const [analysisReport, setAnalysisReport] = useState<string>('');
   
   // Object properties state
   const [objectPosition, setObjectPosition] = useState({ x: 0, y: 0, z: 0 });
@@ -82,6 +101,9 @@ export function UniversalModelViewerEditor({
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf0f0f0);
     sceneRef.current = scene;
+
+    // Initialize BIM processor
+    bimProcessorRef.current = new EnhancedBIMProcessor(scene);
 
     // Create camera
     const camera = new THREE.PerspectiveCamera(
@@ -273,18 +295,44 @@ export function UniversalModelViewerEditor({
     }
   }, []);
 
-  // Load model file
+  // Load model file with intelligent recognition
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !sceneRef.current) return;
 
     setLoading(true);
+    setProcessing(true);
+    setUploadProgress(10);
+    
     try {
+      console.log('🔍 Analyzing file...');
+      
+      // Step 1: Intelligent file analysis
+      const analysis = await IntelligentModelRecognizer.analyzeFile(file);
+      setModelAnalysis(analysis);
+      setUploadProgress(20);
+      
+      console.log('📊 Analysis complete:', analysis);
+      
+      // Step 2: Generate optimal configuration
+      const config = IntelligentModelRecognizer.generateConfiguration(analysis);
+      setUploadProgress(30);
+      
+      // Step 3: Generate analysis report
+      const report = IntelligentModelRecognizer.generateReport(analysis, config);
+      setAnalysisReport(report);
+      console.log(report);
+      setUploadProgress(40);
+      
+      // Step 4: Load model with appropriate loader
       const fileUrl = URL.createObjectURL(file);
-      const extension = file.name.toLowerCase().split('.').pop();
+      const extension = analysis.fileExtension;
+      setUploadProgress(50);
 
       let loadedObject: THREE.Object3D | null = null;
 
+      console.log(`📦 Loading with ${config.loader.toUpperCase()} loader...`);
+      
       if (extension === 'gltf' || extension === 'glb') {
         loadedObject = await loadGLTFModel(fileUrl, file.name);
       } else if (extension === 'obj') {
@@ -294,21 +342,46 @@ export function UniversalModelViewerEditor({
       } else if (extension === 'stl') {
         loadedObject = await loadSTLModel(fileUrl, file.name);
       }
+      
+      setUploadProgress(70);
 
       if (loadedObject) {
+        // Step 5: Apply intelligent configuration
+        IntelligentModelRecognizer.applyConfiguration(loadedObject, config, analysis);
+        setUploadProgress(80);
+        
+        // Step 6: Add to scene
         sceneRef.current.add(loadedObject);
         setLoadedModels(prev => [...prev, loadedObject]);
-        fitCameraToObject(loadedObject);
+        fitCameraToObject(loadedObject, config);
+        setUploadProgress(85);
+        
+        // Step 7: Run BIM analysis if applicable
+        if (analysis.isBIM || analysis.isArchitectural) {
+          console.log('🏗️ Running BIM analysis...');
+          if (bimProcessorRef.current) {
+            const bimAnalysisResult = await bimProcessorRef.current.processModel(loadedObject);
+            setBimAnalysis(bimAnalysisResult);
+            onAnalysisComplete?.(bimAnalysisResult);
+            console.log('✅ BIM analysis complete:', bimAnalysisResult);
+          }
+        }
+        
+        setUploadProgress(100);
         onModelLoaded?.(loadedObject);
+        
+        console.log('✅ Model loaded successfully with intelligent configuration');
       }
 
       URL.revokeObjectURL(fileUrl);
     } catch (error) {
-      console.error('Failed to load model:', error);
+      console.error('❌ Failed to load model:', error);
     } finally {
       setLoading(false);
+      setProcessing(false);
+      setTimeout(() => setUploadProgress(0), 1000);
     }
-  }, [onModelLoaded]);
+  }, [onModelLoaded, onAnalysisComplete]);
 
   // Loader functions
   const loadGLTFModel = async (url: string, name: string): Promise<THREE.Object3D> => {
@@ -401,8 +474,8 @@ export function UniversalModelViewerEditor({
     });
   };
 
-  // Fit camera to object
-  const fitCameraToObject = (object: THREE.Object3D) => {
+  // Fit camera to object with optional configuration
+  const fitCameraToObject = (object: THREE.Object3D, config?: ModelConfiguration) => {
     if (!cameraRef.current || !orbitControlsRef.current) return;
 
     const box = new THREE.Box3().setFromObject(object);
@@ -412,7 +485,10 @@ export function UniversalModelViewerEditor({
     const maxDim = Math.max(size.x, size.y, size.z);
     const fov = cameraRef.current.fov * (Math.PI / 180);
     let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-    cameraZ *= 2.5;
+    
+    // Use configuration distance if available
+    const distanceMultiplier = config ? config.cameraDistance / 20 : 2.5;
+    cameraZ *= distanceMultiplier;
 
     cameraRef.current.position.set(
       center.x + cameraZ * 0.5,
