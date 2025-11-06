@@ -134,15 +134,23 @@ Respond with: RECOMMENDED: [number]`;
 
     const response = await this.aiService.getSunaResponse(assignmentPrompt, { task, teamMembers });
     
-    // Parse recommendation
+    // Parse recommendation with improved error handling
     const match = response.content.match(/RECOMMENDED:\s*(\d+)/i);
     if (!match) {
-      return { message: 'Could not determine assignment' };
+      console.warn('AI assignment response did not match expected format:', response.content);
+      return { 
+        message: 'Could not determine assignment from AI response',
+        aiResponse: response.content 
+      };
     }
 
     const memberIndex = parseInt(match[1]) - 1;
     if (memberIndex < 0 || memberIndex >= teamMembers.length) {
-      return { message: 'Invalid assignment recommendation' };
+      console.warn('AI recommended invalid team member index:', match[1]);
+      return { 
+        message: 'Invalid assignment recommendation',
+        aiResponse: response.content 
+      };
     }
 
     const assignedMember = teamMembers[memberIndex];

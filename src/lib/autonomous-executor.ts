@@ -92,7 +92,7 @@ export class AutonomousExecutor {
     priority: ExecutionPriority = 'medium',
     maxRetries: number = 3
   ): Promise<string> {
-    const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const taskId = `task_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     
     const task: AutonomousTask = {
       id: taskId,

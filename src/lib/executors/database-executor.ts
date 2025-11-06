@@ -131,12 +131,20 @@ export class DatabaseExecutor implements TaskExecutor {
         break;
 
       case 'avg':
-        const sum = records?.reduce((s, record) => s + (record[field] || 0), 0) || 0;
-        result = {
-          type: 'avg',
-          field,
-          average: records && records.length > 0 ? sum / records.length : 0
-        };
+        if (!records || records.length === 0) {
+          result = {
+            type: 'avg',
+            field,
+            average: 0
+          };
+        } else {
+          const sum = records.reduce((s, record) => s + (record[field] || 0), 0);
+          result = {
+            type: 'avg',
+            field,
+            average: sum / records.length
+          };
+        }
         break;
 
       case 'group_count':

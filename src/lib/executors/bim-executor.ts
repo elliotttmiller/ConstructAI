@@ -255,15 +255,21 @@ Provide a structured validation report with any concerns.`;
 
   private checkCollision(elem1: any, elem2: any): boolean {
     // Simplified collision detection - would use actual geometry in production
-    if (!elem1.bounds || !elem2.bounds) return false;
+    if (!elem1?.bounds || !elem2?.bounds) return false;
+    
+    const b1 = elem1.bounds;
+    const b2 = elem2.bounds;
+    
+    // Validate all required properties exist
+    if (!b1.min || !b1.max || !b2.min || !b2.max) return false;
 
     const overlaps = (
-      elem1.bounds.min.x < elem2.bounds.max.x &&
-      elem1.bounds.max.x > elem2.bounds.min.x &&
-      elem1.bounds.min.y < elem2.bounds.max.y &&
-      elem1.bounds.max.y > elem2.bounds.min.y &&
-      elem1.bounds.min.z < elem2.bounds.max.z &&
-      elem1.bounds.max.z > elem2.bounds.min.z
+      b1.min.x < b2.max.x &&
+      b1.max.x > b2.min.x &&
+      b1.min.y < b2.max.y &&
+      b1.max.y > b2.min.y &&
+      b1.min.z < b2.max.z &&
+      b1.max.z > b2.min.z
     );
 
     return overlaps;
@@ -282,6 +288,11 @@ Provide a structured validation report with any concerns.`;
   }
 
   private calculateClashLocation(elem1: any, elem2: any): any {
+    // Validate bounds exist before accessing
+    if (!elem1?.bounds?.min || !elem2?.bounds?.min) {
+      return { x: 0, y: 0, z: 0 };
+    }
+    
     return {
       x: (elem1.bounds.min.x + elem2.bounds.min.x) / 2,
       y: (elem1.bounds.min.y + elem2.bounds.min.y) / 2,

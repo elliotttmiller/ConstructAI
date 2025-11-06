@@ -8,6 +8,7 @@ import { TaskExecutor, ExecutionContext } from '../autonomous-executor';
 import { supabaseAdmin } from '../supabase';
 import ConstructionAIService from '../ai-services';
 import { createWorker } from 'tesseract.js';
+import { readFileSync } from 'fs';
 
 export class DocumentExecutor implements TaskExecutor {
   private aiService: ConstructionAIService;
@@ -212,32 +213,38 @@ Respond with just the category name.`;
   }
 
   private async performOCR(filePath: string, fileType: string): Promise<{ text: string; confidence: number }> {
-    if (fileType === 'application/pdf') {
-      // PDF processing
-      const pdfParse = require('pdf-parse');
-      const fs = require('fs');
-      const dataBuffer = fs.readFileSync(filePath);
-      const pdfData = await pdfParse(dataBuffer);
-      
-      return {
-        text: pdfData.text,
-        confidence: pdfData.text.length > 0 ? 95 : 50
-      };
-    } else {
-      // Image OCR with Tesseract
-      const worker = await createWorker('eng', 1, {
-        workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-        langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-        corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
-      });
-      
-      const { data: { text, confidence } } = await worker.recognize(filePath);
-      await worker.terminate();
-      
-      return {
-        text: text.trim(),
-        confidence: Math.round(confidence)
-      };
+    try {
+      if (fileType === 'application/pdf') {
+        // PDF processing - use dynamic import
+        const pdfParse = await import('pdf-parse');
+        const dataBuffer = readFileSync(filePath);
+        // Handle both default and named exports
+        const parse = (pdfParse as any).default || pdfParse;
+        const pdfData = await parse(dataBuffer);
+        
+        return {
+          text: pdfData.text,
+          confidence: pdfData.text.length > 0 ? 95 : 50
+        };
+      } else {
+        // Image OCR with Tesseract
+        const worker = await createWorker('eng', 1, {
+          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+          langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+        });
+        
+        const { data: { text, confidence } } = await worker.recognize(filePath);
+        await worker.terminate();
+        
+        return {
+          text: text.trim(),
+          confidence: Math.round(confidence)
+        };
+      }
+    } catch (error) {
+      console.error('OCR processing error:', error);
+      throw new Error(`OCR failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
