@@ -33,6 +33,7 @@ import {
   Loader2
 } from "lucide-react";
 import ThreeViewer from "@/components/bim/ThreeViewer";
+import { UniversalModelViewerEditor } from "@/components/bim/UniversalModelViewerEditor";
 import { ParametricCADBuilder } from "@/components/cad/ParametricCADBuilder";
 import { LayerManager } from "@/components/bim/LayerManager";
 import type { CADGenerationResult } from "@/types/build123d";
@@ -136,18 +137,36 @@ export default function BIMPage() {
     );
   }
 
+  const [viewerMode, setViewerMode] = useState<'classic' | 'universal'>('universal');
+
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       {/* Header */}
       <div className="border-b p-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">3D BIM Viewer</h1>
+            <h1 className="text-2xl font-bold tracking-tight">3D BIM Viewer & Editor</h1>
             <p className="text-muted-foreground">
-              Interactive 3D visualization and clash detection
+              Universal model viewer with integrated editing and analysis tools
             </p>
           </div>
           <div className="flex space-x-2">
+            <div className="flex border rounded-md">
+              <Button 
+                variant={viewerMode === 'universal' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewerMode('universal')}
+              >
+                Universal Editor
+              </Button>
+              <Button 
+                variant={viewerMode === 'classic' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewerMode('classic')}
+              >
+                Classic Viewer
+              </Button>
+            </div>
             <Button variant="outline">
               <Upload className="mr-2 h-4 w-4" />
               Load Model
@@ -165,27 +184,44 @@ export default function BIMPage() {
       </div>
 
       <div className="flex-1 flex overflow-hidden min-h-0">
-        {/* Main Viewer */}
-        <div className="flex-1 relative">
-          {/* 3D Viewer Container */}
-          <ThreeViewer
-            onAnalysisComplete={(analysis) => {
-              console.log('Analysis complete:', analysis);
+        {viewerMode === 'universal' ? (
+          /* Universal Model Viewer/Editor */
+          <UniversalModelViewerEditor
+            onModelLoaded={(model) => {
+              console.log('Model loaded in universal viewer:', model);
+              setThreeScene(model);
             }}
-            onClashesDetected={(clashes) => {
-              console.log('Clashes detected:', clashes);
+            onModelUpdated={(model) => {
+              console.log('Model updated:', model);
             }}
-            onSceneReady={(scene) => {
-              if (!sceneInitializedRef.current) {
-                sceneInitializedRef.current = true;
-                setThreeScene(scene);
-              }
+            onExport={(format) => {
+              console.log('Export requested:', format);
+              // TODO: Implement export functionality
             }}
           />
-        </div>
+        ) : (
+          <>
+            {/* Classic Viewer Mode */}
+            <div className="flex-1 relative">
+              {/* 3D Viewer Container */}
+              <ThreeViewer
+                onAnalysisComplete={(analysis) => {
+                  console.log('Analysis complete:', analysis);
+                }}
+                onClashesDetected={(clashes) => {
+                  console.log('Clashes detected:', clashes);
+                }}
+                onSceneReady={(scene) => {
+                  if (!sceneInitializedRef.current) {
+                    sceneInitializedRef.current = true;
+                    setThreeScene(scene);
+                  }
+                }}
+              />
+            </div>
 
-        {/* Right Sidebar */}
-        <div className="w-80 border-l bg-background">
+            {/* Right Sidebar */}
+            <div className="w-80 border-l bg-background">
           <Tabs defaultValue="models" className="h-full">
             <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="models">Models</TabsTrigger>
@@ -363,6 +399,8 @@ export default function BIMPage() {
             </TabsContent>
           </Tabs>
         </div>
+          </>
+        )}
       </div>
     </div>
   );
