@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -82,7 +82,9 @@ export default function BIMPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showClashes, setShowClashes] = useState(true);
   const [generatedCADModel, setGeneratedCADModel] = useState<CADGenerationResult | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [threeScene, setThreeScene] = useState<any>(null);
+  const sceneInitializedRef = useRef(false);
 
   useEffect(() => {
     if (!session?.user) {
@@ -174,7 +176,10 @@ export default function BIMPage() {
               console.log('Clashes detected:', clashes);
             }}
             onSceneReady={(scene) => {
-              setThreeScene(scene);
+              if (!sceneInitializedRef.current) {
+                sceneInitializedRef.current = true;
+                setThreeScene(scene);
+              }
             }}
           />
         </div>
