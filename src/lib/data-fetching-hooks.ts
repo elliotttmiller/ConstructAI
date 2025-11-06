@@ -17,10 +17,12 @@ interface UseDataFetchOptions<T> {
   onSuccess?: (data: T) => void;
   onError?: (error: Error) => void;
   refetchOnMount?: boolean;
+  debounceMs?: number; // Add debounce option to prevent rapid refetches
 }
 
 /**
  * Hook for fetching data with automatic caching and loading states
+ * OPTIMIZED: Includes request deduplication, debouncing, and proper cleanup
  */
 export function useDataFetch<T>(
   url: string | null,
@@ -33,18 +35,35 @@ export function useDataFetch<T>(
     onSuccess,
     onError,
     refetchOnMount = false,
+    debounceMs = 100, // Default 100ms debounce to prevent rapid refetches
   } = options;
 
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const isMountedRef = useRef(true); // Track component mount status
+  const lastUrlRef = useRef<string | null>(null); // Track URL changes
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null); // Debounce timer
 
   const fetchData = useCallback(async () => {
     if (!url || !enabled) {
       setLoading(false);
       return;
     }
+
+    // Clear any pending debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+
+    // Prevent duplicate requests for same URL
+    if (lastUrlRef.current === url && !skipCache) {
+      console.log(`[DataFetch] Skipping duplicate request for: ${url}`);
+      return;
+    }
+    lastUrlRef.current = url;
 
     // Cancel previous request if still in-flight
     if (abortControllerRef.current) {
@@ -69,8 +88,8 @@ export function useDataFetch<T>(
         });
       });
 
-      // Only update state if not aborted
-      if (!abortController.signal.aborted) {
+      // Only update state if component is still mounted and not aborted
+      if (isMountedRef.current && !abortController.signal.aborted) {
         setData(result);
         setLoading(false);
         onSuccess?.(result);
@@ -81,7 +100,7 @@ export function useDataFetch<T>(
         return;
       }
       
-      if (!abortController.signal.aborted) {
+      if (isMountedRef.current && !abortController.signal.aborted) {
         const error = err instanceof Error ? err : new Error('Fetch failed');
         setError(error);
         setLoading(false);
@@ -90,25 +109,46 @@ export function useDataFetch<T>(
     }
   }, [url, enabled, cacheTTL, skipCache, onSuccess, onError]);
 
-  // Initial fetch
+  // Initial fetch - FIXED: removed fetchData from dependency array to prevent infinite loop
   useEffect(() => {
+    isMountedRef.current = true;
+
     if (url && enabled) {
-      fetchData();
+      // Debounce the fetch to prevent rapid consecutive calls
+      if (debounceMs > 0) {
+        debounceTimerRef.current = setTimeout(() => {
+          fetchData();
+        }, debounceMs);
+      } else {
+        fetchData();
+      }
     } else {
       setLoading(false);
     }
 
     return () => {
+      isMountedRef.current = false;
+      lastUrlRef.current = null; // Reset on unmount
+      
+      // Clear debounce timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      
       // Abort on unmount
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+        abortControllerRef.current = null;
       }
     };
-  }, [url, enabled, fetchData, refetchOnMount]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, enabled, refetchOnMount, debounceMs]); // fetchData intentionally excluded to prevent loop
 
   // Manual refetch function
   const refetch = useCallback(() => {
     if (url) {
+      lastUrlRef.current = null; // Clear last URL to allow refetch
       apiCache.delete(url); // Clear cache for this URL
       fetchData();
     }

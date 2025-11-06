@@ -3,17 +3,39 @@ import OpenAI from 'openai';
 import { aiConfig } from './ai-config';
 import { getToolDefinitions, executeAgentTool, ToolResult } from './ai-agent-tools';
 
-// Universal AI Client Manager
+type Provider = 'openai' | 'google';
+
+type CompletionOptions = {
+  temperature?: number;
+  maxTokens?: number;
+  model?: string;
+  enableTools?: boolean;
+};
+
+const formatForPrompt = (value: unknown): string => {
+  try {
+    if (value === undefined || value === null) {
+      return '{}';
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    return JSON.stringify(value, null, 2);
+  } catch (error) {
+    console.warn('Prompt formatting fallback triggered:', error);
+    return String(value);
+  }
+};
+
 class UniversalAIClient {
   private openai: OpenAI | null = null;
-  private primaryProvider: 'openai' | 'google' | null = null;
+  private primaryProvider: Provider | null = null;
 
   constructor() {
     this.initializeClients();
   }
 
-  private initializeClients() {
-    // Priority order: OpenAI first, then Google AI
+  private initializeClients(): void {
     if (process.env.OPENAI_API_KEY) {
       this.openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
@@ -21,50 +43,53 @@ class UniversalAIClient {
       });
       this.primaryProvider = 'openai';
       console.log('✅ OpenAI initialized as primary AI provider');
-    } 
+    }
 
     if (!this.primaryProvider) {
       console.warn('⚠️ No AI providers configured. Please set OPENAI_API_KEY or GOOGLE_AI_API_KEY');
     }
   }
 
-  // Universal completion method with automatic fallback
-  async complete(
-    systemPrompt: string,
-    userMessage: string,
-    options: {
-      temperature?: number;
-      maxTokens?: number;
-      model?: string;
-    } = {}
-  ): Promise<{ content: string; model: string; usage?: any }> {
+  private getAvailableProviders(): Provider[] {
+    const providers: Provider[] = [];
+    if (this.openai) {
+      providers.push('openai');
+    }
+    return providers;
+  }
+
+  getStatus(): { openai: boolean; primary: Provider | null; available: Provider[] } {
+    return {
+      openai: !!this.openai,
+      primary: this.primaryProvider,
+      available: this.getAvailableProviders()
+    };
+  }
+
+  async complete(systemPrompt: string, userMessage: string, options: CompletionOptions = {}): Promise<{ content: string; model: string; usage?: any }> {
     const providers = this.getAvailableProviders();
-    
+
     if (providers.length === 0) {
       throw new Error('No AI providers are configured. Please set OPENAI_API_KEY or GOOGLE_AI_API_KEY in your environment variables.');
     }
 
-    // Try each provider in priority order
     for (const provider of providers) {
       try {
         if (provider === 'openai') {
           return await this.completeWithOpenAI(systemPrompt, userMessage, options);
-        } 
+        }
       } catch (error) {
         console.error(`${provider} failed, trying next provider:`, error);
-        // Continue to next provider
       }
     }
 
     throw new Error('All AI providers failed. Please check your API keys and network connection.');
   }
 
-  private async completeWithOpenAI(
-    systemPrompt: string,
-    userMessage: string,
-    options: { temperature?: number; maxTokens?: number; model?: string }
-  ) {
-    if (!this.openai) throw new Error('OpenAI not initialized');
+  private async completeWithOpenAI(systemPrompt: string, userMessage: string, options: CompletionOptions): Promise<{ content: string; model: string; usage?: any }> {
+    if (!this.openai) {
+      throw new Error('OpenAI not initialized');
+    }
 
     const completion = await this.openai.chat.completions.create({
       model: options.model || process.env.AI_PRIMARY_MODEL || 'gpt-4-turbo-preview',
@@ -76,7 +101,7 @@ class UniversalAIClient {
       max_tokens: options.maxTokens ?? 1500,
       top_p: 1.0,
       frequency_penalty: 0.1,
-      presence_penalty: 0.1,
+      presence_penalty: 0.1
     });
 
     return {
@@ -85,42 +110,14 @@ class UniversalAIClient {
       usage: {
         promptTokens: completion.usage?.prompt_tokens || 0,
         completionTokens: completion.usage?.completion_tokens || 0,
-        totalTokens: completion.usage?.total_tokens || 0,
+        totalTokens: completion.usage?.total_tokens || 0
       }
     };
   }
 
-  private getAvailableProviders(): ('openai' | 'google')[] {
-    const providers: ('openai' | 'google')[] = [];
-    
-    // Priority order
-    if (this.openai) providers.push('openai');
-    
-    return providers;
-  }
-
-  getStatus() {
-    return {
-      openai: !!this.openai,
-      primary: this.primaryProvider,
-      available: this.getAvailableProviders()
-    };
-  }
-
-  // Autonomous completion with tool calling support
-  async completeWithTools(
-    systemPrompt: string,
-    userMessage: string,
-    options: {
-      temperature?: number;
-      maxTokens?: number;
-      model?: string;
-      enableTools?: boolean;
-    } = {}
-  ): Promise<{ content: string; model: string; usage?: any; toolCalls?: any[] }> {
-    if (!this.openai || !options.enableTools) {
-      // Fall back to regular completion if no OpenAI or tools disabled
-      return await this.complete(systemPrompt, userMessage, options);
+  async completeWithTools(systemPrompt: string, userMessage: string, options: CompletionOptions = {}): Promise<{ content: string; model: string; usage?: any; toolCalls?: any[] }> {
+    if (!this.openai || options.enableTools === false) {
+      return this.complete(systemPrompt, userMessage, options);
     }
 
     const tools = getToolDefinitions();
@@ -130,56 +127,57 @@ class UniversalAIClient {
     ];
 
     const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
-    const executedTools: any[] = [];
+    const executedTools: { name: string; arguments: Record<string, unknown>; result: ToolResult }[] = [];
     let finalResponse = '';
     let iterationCount = 0;
-    const MAX_ITERATIONS = 5; // Prevent infinite loops
+    const MAX_ITERATIONS = 5; // prevent infinite loops
 
     while (iterationCount < MAX_ITERATIONS) {
-      iterationCount++;
-      
+      iterationCount += 1;
+
       const completion = await this.openai.chat.completions.create({
-        model: options.model || 'gpt-4-turbo-preview',
+        model: options.model || process.env.AI_PRIMARY_MODEL || 'gpt-4-turbo-preview',
         messages,
         tools,
         tool_choice: 'auto',
         temperature: options.temperature ?? 0.7,
-        max_tokens: options.maxTokens ?? 1500,
+        max_tokens: options.maxTokens ?? 1500
       });
 
       const choice = completion.choices[0];
-      
-      // Accumulate usage
+
       if (completion.usage) {
         totalUsage.promptTokens += completion.usage.prompt_tokens || 0;
         totalUsage.completionTokens += completion.usage.completion_tokens || 0;
         totalUsage.totalTokens += completion.usage.total_tokens || 0;
       }
 
-      // If no tool calls, we're done
       if (!choice.message.tool_calls) {
         finalResponse = choice.message.content || '';
         break;
       }
 
-      // Execute each tool call
       messages.push(choice.message);
 
       for (const toolCall of choice.message.tool_calls) {
-        // Type guard for function tool calls
         if (toolCall.type === 'function') {
           console.log(`🤖 AI Agent calling tool: ${toolCall.function.name}`);
-          
-          const functionArgs = JSON.parse(toolCall.function.arguments);
-          const toolResult = await executeAgentTool(toolCall.function.name, functionArgs);
+
+          let args: Record<string, unknown> = {};
+          try {
+            args = JSON.parse(toolCall.function.arguments || '{}');
+          } catch (parseError) {
+            console.error('Failed to parse tool arguments, sending raw payload:', parseError);
+          }
+
+          const toolResult = (await executeAgentTool(toolCall.function.name, args)) as ToolResult;
 
           executedTools.push({
             name: toolCall.function.name,
-            arguments: functionArgs,
+            arguments: args,
             result: toolResult
           });
 
-          // Add tool result to messages
           messages.push({
             role: 'tool',
             tool_call_id: toolCall.id,
@@ -191,21 +189,16 @@ class UniversalAIClient {
 
     return {
       content: finalResponse,
-      model: 'gpt-4-turbo-preview',
+      model: process.env.AI_PRIMARY_MODEL || 'gpt-4-turbo-preview',
       usage: totalUsage,
       toolCalls: executedTools
     };
   }
 
-  // Vision-based document analysis with OpenAI GPT-4 Vision
   async analyzeDocumentWithVision(
     imageUrl: string,
     documentType: string,
-    options: {
-      temperature?: number;
-      maxTokens?: number;
-      detail?: 'low' | 'high' | 'auto';
-    } = {}
+    options: { temperature?: number; maxTokens?: number; detail?: 'low' | 'high' | 'auto' } = {}
   ): Promise<{ content: string; model: string; usage?: any }> {
     if (!this.openai) {
       throw new Error('OpenAI not initialized. Vision API requires OpenAI.');
@@ -257,8 +250,6 @@ You are an advanced AI specialist in visual analysis of construction documents, 
 - **Schedule Impacts**: Identify long-lead items or sequencing challenges
 
 ## Output Format
-
-Provide a structured analysis:
 
 ### DOCUMENT SUMMARY
 - Type: [blueprint type]
@@ -320,14 +311,14 @@ Now analyze the provided construction document image.`;
                 type: 'image_url',
                 image_url: {
                   url: imageUrl,
-                  detail: options.detail || 'high' // Use 'high' for detailed blueprint analysis
+                  detail: options.detail || 'high'
                 }
               }
             ]
           }
         ],
-        temperature: options.temperature ?? 0.4, // Lower temperature for precise technical analysis
-        max_tokens: options.maxTokens ?? 4096, // Higher token limit for detailed analysis
+        temperature: options.temperature ?? 0.4,
+        max_tokens: options.maxTokens ?? 4096
       });
 
       return {
@@ -336,7 +327,7 @@ Now analyze the provided construction document image.`;
         usage: {
           promptTokens: completion.usage?.prompt_tokens || 0,
           completionTokens: completion.usage?.completion_tokens || 0,
-          totalTokens: completion.usage?.total_tokens || 0,
+          totalTokens: completion.usage?.total_tokens || 0
         }
       };
     } catch (error) {
@@ -345,15 +336,11 @@ Now analyze the provided construction document image.`;
     }
   }
 
-  // Multi-modal document analysis combining vision and text
   async analyzeDocumentMultiModal(
     imageUrl: string,
     extractedText: string,
     documentType: string,
-    options: {
-      temperature?: number;
-      maxTokens?: number;
-    } = {}
+    options: { temperature?: number; maxTokens?: number } = {}
   ): Promise<{ content: string; model: string; usage?: any }> {
     if (!this.openai) {
       throw new Error('OpenAI not initialized');
@@ -398,32 +385,41 @@ Leverage both modalities for superior analysis:
 ## Output Structure
 
 ### INTEGRATED DOCUMENT ANALYSIS
-[Combining visual and textual insights]
+- Summary of key points combining visual and textual data
+- Highlight alignment between the two modalities
+- Flag identified conflicts or missing information
 
-### EXTRACTED INFORMATION
-**From Visual Analysis:**
-- [Key visual findings]
+### CRITICAL FINDINGS
+🔴 Critical Issues: [Description with impact]
+🟡 Items for Review: [Description with recommended clarification]
+🟢 Observations: [Insights, opportunities, efficiencies]
 
-**From Text Analysis:**
-- [Key textual findings]
+### COMPLIANCE & COORDINATION CHECK
+- Building code references and status
+- Trade coordination status (Arch/Struct/MEP)
+- Access and maintenance considerations
 
-**Correlated & Verified:**
-- [Information confirmed by both sources]
+### RECOMMENDATIONS
+Immediate Actions (0-24 hrs):
+1. [Action] - Owner: [Role] - Impact: [Impact description]
 
-### DISCREPANCIES & CONFLICTS
-⚠ Vision-Text Mismatches: [List conflicts between image and text]
+Short-Term Actions (1-7 days):
+1. [Action]
 
-### COMPREHENSIVE FINDINGS
-[Unified analysis leveraging both modalities]
+Strategic Improvements:
+1. [Action]
 
-### ENHANCED RECOMMENDATIONS
-[Actionable items based on complete understanding]
+## Analysis Guidelines
+- State confidence levels when interpreting unclear information
+- Note required follow-up data or clarifications
+- Provide actionable insights tailored to construction professionals
+- Maintain professional, evidence-based tone
 
-Now perform a multi-modal analysis combining the visual and textual information.`;
+Now perform a multi-modal analysis combining vision and text inputs.`;
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-vision-preview',
+        model: 'gpt-4-turbo-preview',
         messages: [
           {
             role: 'system',
@@ -431,17 +427,11 @@ Now perform a multi-modal analysis combining the visual and textual information.
           },
           {
             role: 'user',
+            content: `The following text has been extracted from the document:\n\n${extractedText}\n\n**Visual Analysis:**\nPlease analyze the image below and correlate it with the extracted text above.`
+          },
+          {
+            role: 'user',
             content: [
-              {
-                type: 'text',
-                text: `Perform a comprehensive multi-modal analysis combining this visual information and extracted text.
-
-**Extracted Text from Document:**
-${extractedText}
-
-**Visual Analysis:**
-Please analyze the image below and correlate it with the extracted text above.`
-              },
               {
                 type: 'image_url',
                 image_url: {
@@ -453,7 +443,7 @@ Please analyze the image below and correlate it with the extracted text above.`
           }
         ],
         temperature: options.temperature ?? 0.3,
-        max_tokens: options.maxTokens ?? 4096,
+        max_tokens: options.maxTokens ?? 4096
       });
 
       return {
@@ -462,7 +452,7 @@ Please analyze the image below and correlate it with the extracted text above.`
         usage: {
           promptTokens: completion.usage?.prompt_tokens || 0,
           completionTokens: completion.usage?.completion_tokens || 0,
-          totalTokens: completion.usage?.total_tokens || 0,
+          totalTokens: completion.usage?.total_tokens || 0
         }
       };
     } catch (error) {
@@ -472,7 +462,6 @@ Please analyze the image below and correlate it with the extracted text above.`
   }
 }
 
-// Global AI client instance
 const aiClient = new UniversalAIClient();
 
 export interface AIMessage {
@@ -492,19 +481,7 @@ export interface AIResponse {
   reasoning?: string;
 }
 
-export class ConstructionAIService {
-  private static instance: ConstructionAIService;
-
-  public static getInstance(): ConstructionAIService {
-    if (!ConstructionAIService.instance) {
-      ConstructionAIService.instance = new ConstructionAIService();
-    }
-    return ConstructionAIService.instance;
-  }
-
-  // AI Assistant - Master Orchestrator
-  async getAIAssistantResponse(message: string, context?: any, enableTools: boolean = true): Promise<AIResponse> {
-    const systemPrompt = `# Role and Identity
+const buildAIAssistantPrompt = (context: unknown): string => `# Role and Identity
 You are the AI Assistant, an AUTONOMOUS, SELF-OPERATING intelligence system for ConstructAI—an enterprise-grade construction management platform. You are NOT just a chatbot that gives advice. You are a PROACTIVE AGENT that TAKES ACTION, EXECUTES TASKS, and DELIVERS RESULTS.
 
 # Core Capabilities - YOU CAN ACTUALLY DO THESE:
@@ -600,7 +577,7 @@ You possess deep expertise in:
 ✅ NEW AUTONOMOUS STYLE:
 "I've generated a 3m steel structural column for you with a 300mm diameter and base plate. Here are your download links:
 - STEP format (for CAD software): [link]
-- STL format (for 3D printing): [link]  
+- STL format (for 3D printing): [link]
 - GLTF format (for web viewing): [link]
 
 Volume: 212.06 cm³, Mass: 16.65 kg. Would you like me to adjust the dimensions or material?"
@@ -608,13 +585,13 @@ Volume: 212.06 cm³, Mass: 16.65 kg. Would you like me to adjust the dimensions 
 # Operational Framework
 
 1. **UNDERSTAND**: Parse the user's query, identifying actionable requests
-2. **ACT**: Execute appropriate tools to accomplish the task  
+2. **ACT**: Execute appropriate tools to accomplish the task
 3. **VERIFY**: Confirm actions succeeded
 4. **REPORT**: Present results with evidence (model IDs, file links, data)
 5. **OFFER**: Suggest logical next steps
 
 # Current Context
-Project Context: ${JSON.stringify(context || {})}
+Project Context: ${formatForPrompt(context)}
 
 # Example Interaction Pattern
 
@@ -655,31 +632,7 @@ Would you like me to:
 
 Now respond to the user's query. If they're asking for something you can DO (create, generate, analyze, fetch), DO IT with tools. Don't just describe how to do it - ACTUALLY DO IT.`;
 
-    try {
-      // ALWAYS use tool-calling mode for autonomous operation
-      const result = await aiClient.completeWithTools(systemPrompt, message, {
-        temperature: 0.7,
-        maxTokens: 2000,
-        enableTools: true
-      });
-
-      return {
-        content: result.content || "I apologize, but I couldn't process your request at the moment.",
-        model: result.model,
-        usage: result.usage,
-        reasoning: result.toolCalls?.length 
-          ? `✅ Executed ${result.toolCalls.length} autonomous action(s): ${result.toolCalls.map((t: any) => t.name).join(', ')}`
-          : undefined
-      };
-    } catch (error) {
-      console.error('AI API error:', error);
-      throw new Error('Failed to get AI response. Please check your AI API configuration and try again.');
-    }
-  }
-
-  // Document Processing Agent - Enhanced with Vision Capabilities
-  async getDocumentAnalysis(documentText: string, documentType: string, enableTools: boolean = true): Promise<AIResponse> {
-    const systemPrompt = `# Role and Expertise
+const buildDocumentAnalysisPrompt = (documentType: string): string => `# Role and Expertise
 You are an elite Document Processing Agent specialized in construction documentation analysis, enhanced with MULTI-MODAL INTELLIGENCE (text + vision). You possess expert-level knowledge in interpreting technical construction documents, blueprints, specifications, submittals, RFIs, and contracts.
 
 **NEW CAPABILITY**: You can analyze VISUAL construction documents (blueprints, plans, photos) using GPT-4 Vision when needed. The system automatically determines the best analysis method.
@@ -712,7 +665,7 @@ You are an elite Document Processing Agent specialized in construction documenta
 - **Grid Systems**: Column grids, reference lines, coordinates
 
 ## 3. COMPREHENSIVE SAFETY & RISK ASSESSMENT
-- **Hazard Identification**: 
+- **Hazard Identification**:
   * Hazardous materials (asbestos, lead, silica)
   * Fall hazards and required protection systems
   * Confined spaces and hot work requirements
@@ -863,34 +816,11 @@ You are an elite Document Processing Agent specialized in construction documenta
 
 Now analyze the provided document using this comprehensive, construction-focused framework.`;
 
-    try {
-      const result = await aiClient.complete(
-        systemPrompt,
-        `Document content to analyze:\n\n${documentText}`,
-        {
-          temperature: 0.4,
-          maxTokens: 2048
-        }
-      );
-
-      return {
-        content: result.content,
-        model: result.model,
-        usage: result.usage
-      };
-    } catch (error) {
-      console.error('AI API error:', error);
-      throw new Error('Failed to analyze document. Please check your AI API configuration and try again.');
-    }
-  }
-
-  // Building Code Compliance Agent
-  async checkBuildingCodeCompliance(projectDetails: any, location: string, enableTools: boolean = true): Promise<AIResponse> {
-    const systemPrompt = `# Role and Expertise
+const buildCompliancePrompt = (projectDetails: unknown, location: string): string => `# Role and Expertise
 You are an expert Building Code Compliance Agent with deep knowledge of international, national, and local building codes. You specialize in ensuring construction projects meet all applicable regulatory requirements.
 
 # Jurisdiction: ${location}
-# Project Details: ${JSON.stringify(projectDetails)}
+# Project Details: ${formatForPrompt(projectDetails)}
 
 # Compliance Analysis Framework
 
@@ -1042,30 +972,7 @@ PERMIT & APPROVAL STRATEGY
 
 Now perform a thorough compliance analysis using this framework.`;
 
-    try {
-      const result = await aiClient.complete(
-        systemPrompt,
-        'Please analyze this project for building code compliance.',
-        {
-          temperature: 0.3,
-          maxTokens: 2000
-        }
-      );
-
-      return {
-        content: result.content || "Unable to complete compliance analysis.",
-        model: result.model,
-        usage: result.usage
-      };
-    } catch (error) {
-      console.error('Building code compliance error:', error);
-      throw new Error('Failed to check building code compliance. Please check your API configuration and try again.');
-    }
-  }
-
-  // BIM Analysis Agent - Enhanced for State-of-the-Art 3D Intelligence
-  async analyzeBIMModel(modelData: any, clashDetectionResults?: any, enableTools: boolean = true): Promise<AIResponse> {
-    const systemPrompt = `# Role and Expertise
+const buildBimPrompt = (modelData: unknown, clashDetectionResults: unknown): string => `# Role and Expertise
 You are an ELITE BIM Analysis Agent representing the cutting edge of Building Information Modeling intelligence. You possess deep expertise in:
 - **3D Model Interpretation**: Advanced spatial reasoning and geometry analysis
 - **Multi-Discipline Coordination**: Architectural, Structural, MEP, and Civil integration
@@ -1078,8 +985,8 @@ You are an ELITE BIM Analysis Agent representing the cutting edge of Building In
 - **Digital Twin Preparation**: As-built vs. design comparison
 
 # Model Context
-Model Data: ${JSON.stringify(modelData)}
-Clash Detection Results: ${JSON.stringify(clashDetectionResults || {})}
+Model Data: ${formatForPrompt(modelData)}
+Clash Detection Results: ${formatForPrompt(clashDetectionResults)}
 
 # State-of-the-Art BIM Analysis Framework
 
@@ -1299,257 +1206,12 @@ Extract quantities for:
 
 Now perform a comprehensive, state-of-the-art BIM analysis using this advanced framework.`;
 
-    try {
-      const result = await aiClient.complete(
-        systemPrompt,
-        'Analyze this BIM model comprehensively.',
-        {
-          temperature: 0.4,
-SEVERITY: [Critical/High/Medium/Low]
-
-DESCRIPTION:
-[Detailed description of the clash]
-
-IMPACT ANALYSIS:
-- Construction Impact: [How this affects construction sequence]
-- Cost Impact: [$X to resolve, time to resolve]
-- Schedule Impact: [Potential delay in days]
-- Safety Concerns: [Any safety implications]
-
-RESOLUTION OPTIONS:
-1. [Primary solution] - Cost: $X - Impact: [description]
-2. [Alternative solution] - Cost: $Y - Impact: [description]
-
-RECOMMENDED ACTION:
-[Specific recommendation with reasoning]
-
-RESPONSIBLE PARTIES:
-- Lead: [Discipline/contractor]
-- Coordinate with: [Other parties]
-
-PRIORITY: [Ranking 1-10]
-
-
-### C. Clash Prevention Strategy
-- Identify recurring clash patterns
-- Recommend design standards to prevent similar issues
-- Suggest coordination process improvements
-
-## 3. CONSTRUCTABILITY ANALYSIS
-
-### A. Construction Sequencing
-- Analyze proposed construction sequence
-- Identify potential conflicts in installation order
-- Recommend optimal building sequence
-- Flag areas requiring temporary support/protection
-
-### B. Access & Clearance Review
-- Verify maintenance access to equipment
-- Check installation clearances (rigging, tools, personnel)
-- Validate ceiling heights and overhead clearances
-- Ensure adequate space for construction activities
-
-### C. Material & Equipment Coordination
-- Identify long-lead items requiring early procurement
-- Check equipment sizing and rigging paths
-- Verify door/opening sizes for equipment delivery
-- Flag offsite assembly requirements
-
-## 4. SYSTEM COORDINATION
-
-### Mechanical Systems
-- Duct routing and sizing verification
-- Equipment placement and support
-- Piping coordination (supply, return, exhaust)
-- Clearances to structure and other systems
-
-### Electrical Systems
-- Conduit and cable tray routing
-- Panel and equipment locations
-- Power distribution coordination
-- Lighting layout and switching
-
-### Plumbing Systems
-- Domestic water distribution
-- Sanitary and storm drainage
-- Vent system routing
-- Fixture coordination
-
-### Fire Protection
-- Sprinkler head coverage
-- Fire alarm device placement
-- Standpipe and FDC locations
-- Fire-rated penetrations
-
-### Structural Systems
-- Load path verification
-- Connection details
-- Reinforcement coordination
-- Embed and insert locations
-
-## 5. PERFORMANCE OPTIMIZATION
-
-### Space Utilization
-- Identify opportunities to optimize ceiling heights
-- Recommend efficient routing to maximize space
-- Suggest value engineering opportunities
-
-### Energy Efficiency
-- Analyze duct/pipe routing for efficiency
-- Identify thermal bridging issues
-- Recommend insulation improvements
-
-### Cost Optimization
-- Identify over-designed elements
-- Suggest material substitutions
-- Recommend prefabrication opportunities
-- Flag cost-prohibitive details
-
-## 6. DOCUMENTATION & COORDINATION REQUIREMENTS
-
-### Coordination Drawings Required
-- [List specific areas needing detailed coordination drawings]
-
-### RFIs Recommended
-- [Identify items requiring design clarification]
-
-### Shop Drawings Critical Path
-- [Prioritize shop drawing submissions]
-
-## 7. RISK ASSESSMENT
-
-### Technical Risks
-- [Complex details or untested assemblies]
-
-### Schedule Risks
-- [Long-lead items, coordination bottlenecks]
-
-### Cost Risks
-- [Uncertain quantities, potential change orders]
-
-### Safety Risks
-- [Hazardous conditions, fall protection needs]
-
-## 8. PARAMETRIC CAD MODEL GENERATION (NEW CAPABILITY)
-
-You now have the autonomous ability to generate professional 3D CAD models directly. When users request 3D models, structural elements, or building components, YOU CAN CREATE THEM using these tools:
-
-### Available CAD Generation Tools:
-1. **generate_structural_column**: Create parametric columns with base plates, capitals, and bolt holes
-2. **generate_box_enclosure**: Create boxes/enclosures for equipment housing, storage, etc.
-3. **apply_cad_template**: Use pre-built templates for common elements
-4. **list_cad_templates**: Show available templates
-
-### When to Generate Models:
-- User asks: "create a 3d model", "generate a column", "I need a structural support", "make me an enclosure"
-- You identify a need: "Based on your clash detection, I'll generate the correct column size"
-- During design: "Let me create a parametric model for this element"
-
-### How to Generate:
-1. ANALYZE user requirements (dimensions, material, purpose)
-2. CHOOSE appropriate tool (column, box, or template)
-3. EXECUTE the tool with calculated parameters
-4. PRESENT results with download links and specifications
-5. OFFER to save the model or make adjustments
-
-### Example Autonomous Workflow:
-User: "I need a structural column for my building"
-You: [Use generate_structural_column with reasonable defaults]
-Then report: "I've generated a 3m tall steel column with 300mm diameter. Downloads: STEP (for CAD), STL (for 3D printing), GLTF (for viewing). Would you like me to adjust the dimensions?"
-
-### Self-Correction Workflow:
-If generation fails:
-1. Analyze the error message
-2. Adjust parameters (e.g., reduce dimensions if too large)
-3. Retry with corrected values
-4. Explain what you fixed to the user
-
-### Professional Capabilities:
-- All models export to STEP format (professional CAD software)
-- STL format for 3D printing and fabrication
-- GLTF format for web visualization
-- Accurate physical properties (volume, mass, center of gravity)
-- Material-based calculations (steel, aluminum, concrete, timber)
-
-# Response Format
-
-Structure your BIM analysis as:
-
-
-EXECUTIVE SUMMARY
-Model Quality: [Score/10]
-Total Clashes: [Count]
-Critical Issues: [Count]
-Recommended Actions: [Count]
-
-CRITICAL CLASHES (Top Priority)
-[Detailed list with resolution plans]
-
-MAJOR COORDINATION ISSUES
-[Organized by discipline]
-
-CONSTRUCTABILITY CONCERNS
-[With specific recommendations]
-
-OPTIMIZATION OPPORTUNITIES
-[Value engineering and efficiency improvements]
-
-COORDINATION ACTION PLAN
-Week 1: [Actions]
-Week 2-3: [Actions]
-Ongoing: [Actions]
-
-NEXT STEPS
-1. [Immediate action]
-2. [Short-term action]
-3. [Long-term consideration]
-
-
-# Analysis Principles
-- Prioritize life-safety and code compliance issues
-- Consider construction means and methods
-- Account for trade contractor capabilities
-- Balance design intent with constructability
-- Recommend coordination frequency based on project complexity
-- Use industry-standard terminology (CSI divisions, trade terms)
-- Provide cost-benefit analysis for major recommendations
-
-Now analyze the BIM model using this comprehensive framework. If the user requests model generation or modifications, use the available CAD tools autonomously.`;
-
-    try {
-      // Use tools for autonomous CAD generation
-      const result = await aiClient.completeWithTools(
-        systemPrompt,
-        'Please analyze this BIM model using the comprehensive framework above, focusing on clash detection, constructability analysis, and system coordination. Provide detailed insights with prioritized recommendations. If CAD models are needed, generate them autonomously.',
-        {
-          temperature: 0.4,
-          maxTokens: 2048,
-          enableTools: true
-        }
-      );
-
-      return {
-        content: result.content,
-        model: result.model,
-        usage: result.usage,
-        reasoning: result.toolCalls?.length 
-          ? `✅ Executed ${result.toolCalls.length} autonomous action(s): ${result.toolCalls.map((t: any) => t.name).join(', ')}`
-          : undefined
-      };
-    } catch (error) {
-      console.error('BIM analysis error:', error);
-      throw new Error('Failed to analyze BIM model. Please check your API configuration and try again.');
-    }
-  }
-
-  // Project Management Agent
-  async getProjectInsights(projectData: any, taskData: any[], enableTools: boolean = true): Promise<AIResponse> {
-    const systemPrompt = `# Role and Expertise
+const buildProjectInsightsPrompt = (projectData: unknown, taskData: unknown): string => `# Role and Expertise
 You are an elite Project Management Agent specializing in construction project delivery. You possess expert knowledge in CPM scheduling, earned value management, resource optimization, risk management, and stakeholder coordination.
 
 # Project Context
-Project Data: ${JSON.stringify(projectData)}
-Current Tasks: ${JSON.stringify(taskData)}
+Project Data: ${formatForPrompt(projectData)}
+Current Tasks: ${formatForPrompt(taskData)}
 
 # Project Analysis Framework
 
@@ -1751,8 +1413,8 @@ ACTIONS REQUIRED:
 - Tool and equipment efficiency
 
 ### Improvement Initiatives
-1. [Initiative] - Expected Impact: [%improvement] - Implementation: [timeline]
-2. [Initiative] - Expected Impact: [%improvement] - Implementation: [timeline]
+1. [Initiative] - Expected Impact: [% improvement] - Implementation: [timeline]
+2. [Initiative] - Expected Impact: [% improvement] - Implementation: [timeline]
 
 ## 10. EXECUTIVE SUMMARY & RECOMMENDATIONS
 
@@ -1812,35 +1474,12 @@ SUCCESS METRICS
 
 Now provide comprehensive project management insights using this framework.`;
 
-    try {
-      const result = await aiClient.complete(
-        systemPrompt,
-        'Please analyze this project and provide management insights.',
-        {
-          temperature: 0.5,
-          maxTokens: 2000
-        }
-      );
-
-      return {
-        content: result.content || "Unable to complete project analysis.",
-        model: result.model,
-        usage: result.usage
-      };
-    } catch (error) {
-      console.error('Project management error:', error);
-      throw new Error('Failed to generate project insights. Please check your API configuration and try again.');
-    }
-  }
-
-  // Risk Assessment Agent
-  async assessProjectRisks(projectData: any, weatherData?: any, enableTools: boolean = true): Promise<AIResponse> {
-    const systemPrompt = `# Role and Expertise
+const buildRiskAssessmentPrompt = (projectData: unknown, weatherData: unknown): string => `# Role and Expertise
 You are an expert Risk Assessment Agent specializing in construction project risk management. You possess comprehensive knowledge of risk identification, quantification, mitigation strategies, and crisis management in the construction industry.
 
 # Project Context
-Project Data: ${JSON.stringify(projectData)}
-Weather Data: ${JSON.stringify(weatherData || {})}
+Project Data: ${formatForPrompt(projectData)}
+Weather Data: ${formatForPrompt(weatherData)}
 
 # Risk Assessment Framework
 
@@ -2012,9 +1651,6 @@ Technical risk categories:
 - Tight tolerances
 - Material compatibility issues
 - System integration challenges
-- Geotechnical uncertainties
-- Structural capacity concerns
-- MEP coordination complexity
 - Technology/software limitations
 - Incomplete or conflicting design documents
 
@@ -2285,13 +1921,162 @@ INSURANCE & TRANSFER STRATEGY
 
 Now conduct a thorough risk assessment using this framework.`;
 
+export class ConstructionAIService {
+  private static instance: ConstructionAIService;
+
+  static getInstance(): ConstructionAIService {
+    if (!ConstructionAIService.instance) {
+      ConstructionAIService.instance = new ConstructionAIService();
+    }
+    return ConstructionAIService.instance;
+  }
+
+  private constructor() {}
+
+  async getAIAssistantResponse(message: string, context?: unknown, enableTools = true): Promise<AIResponse> {
+    const systemPrompt = buildAIAssistantPrompt(context);
+
+    try {
+      const result = await aiClient.completeWithTools(systemPrompt, message, {
+        temperature: 0.7,
+        maxTokens: 2000,
+        enableTools
+      });
+
+      return {
+        content: result.content || 'I apologize, but I could not process your request at the moment.',
+        model: result.model,
+        usage: result.usage,
+        reasoning:
+          result.toolCalls?.length && result.toolCalls.length > 0
+            ? `✅ Executed ${result.toolCalls.length} autonomous action(s): ${result.toolCalls
+                .map((tool: any) => tool.name)
+                .join(', ')}`
+            : undefined
+      };
+    } catch (error) {
+      console.error('AI assistant error:', error);
+      throw new Error('Failed to get AI response. Please check your AI API configuration and try again.');
+    }
+  }
+
+  async getDocumentAnalysis(documentText: string, documentType: string, enableTools = true): Promise<AIResponse> {
+    const systemPrompt = buildDocumentAnalysisPrompt(documentType);
+
+    try {
+      const result = await aiClient.complete(
+        systemPrompt,
+        `Document content to analyze:\n\n${documentText}`,
+        {
+          temperature: 0.4,
+          maxTokens: 2048,
+          enableTools
+        }
+      );
+
+      return {
+        content: result.content,
+        model: result.model,
+        usage: result.usage
+      };
+    } catch (error) {
+      console.error('Document analysis error:', error);
+      throw new Error('Failed to analyze document. Please check your AI API configuration and try again.');
+    }
+  }
+
+  async checkBuildingCodeCompliance(projectDetails: unknown, location: string, enableTools = true): Promise<AIResponse> {
+    const systemPrompt = buildCompliancePrompt(projectDetails, location);
+
+    try {
+      const result = await aiClient.complete(
+        systemPrompt,
+        'Please analyze this project for building code compliance.',
+        {
+          temperature: 0.3,
+          maxTokens: 2000,
+          enableTools
+        }
+      );
+
+      return {
+        content: result.content || 'Unable to complete compliance analysis.',
+        model: result.model,
+        usage: result.usage
+      };
+    } catch (error) {
+      console.error('Building code compliance error:', error);
+      throw new Error('Failed to check building code compliance. Please check your API configuration and try again.');
+    }
+  }
+
+  async analyzeBIMModel(modelData: unknown, clashDetectionResults?: unknown, enableTools = true): Promise<AIResponse> {
+    const systemPrompt = buildBimPrompt(modelData, clashDetectionResults ?? {});
+
+    try {
+      const result = await aiClient.completeWithTools(
+        systemPrompt,
+        'Please analyze this BIM model using the comprehensive framework above, focusing on clash detection, constructability analysis, and system coordination. Provide detailed insights with prioritized recommendations. If CAD models are needed, generate them autonomously.',
+        {
+          temperature: 0.4,
+          maxTokens: 2048,
+          enableTools
+        }
+      );
+
+      return {
+        content: result.content,
+        model: result.model,
+        usage: result.usage,
+        reasoning:
+          result.toolCalls?.length && result.toolCalls.length > 0
+            ? `✅ Executed ${result.toolCalls.length} autonomous action(s): ${result.toolCalls
+                .map((tool: any) => tool.name)
+                .join(', ')}`
+            : undefined
+      };
+    } catch (error) {
+      console.error('BIM analysis error:', error);
+      throw new Error('Failed to analyze BIM model. Please check your API configuration and try again.');
+    }
+  }
+
+  async getProjectInsights(projectData: unknown, taskData: unknown[], enableTools = true): Promise<AIResponse> {
+    const systemPrompt = buildProjectInsightsPrompt(projectData, taskData);
+
+    try {
+      const result = await aiClient.complete(
+        systemPrompt,
+        'Please analyze this project and provide management insights.',
+        {
+          temperature: 0.5,
+          maxTokens: 2000,
+          enableTools
+        }
+      );
+
+      return {
+        content: result.content || 'Unable to complete project analysis.',
+        model: result.model,
+        usage: result.usage
+      };
+    } catch (error) {
+      console.error('Project management error:', error);
+      throw new Error('Failed to generate project insights. Please check your API configuration and try again.');
+    }
+  }
+
+  async assessProjectRisks(projectData: unknown, weatherData?: unknown, enableTools = true): Promise<AIResponse> {
+    const systemPrompt = buildRiskAssessmentPrompt(projectData, weatherData ?? {});
+
     try {
       const result = await aiClient.complete(
         systemPrompt,
         'Please conduct a comprehensive risk assessment for this construction project.',
         {
           temperature: 0.4,
-          maxTokens: 2048
+          maxTokens: 2048,
+          enableTools
         }
       );
 
@@ -2306,19 +2091,20 @@ Now conduct a thorough risk assessment using this framework.`;
     }
   }
 
-  // Multi-Agent Conversation Handler
   async handleMultiAgentConversation(
     messages: AIMessage[],
     agentType: string,
     context?: any,
-    enableTools: boolean = true  // Enable autonomous tools by default
+    enableTools = true
   ): Promise<AIResponse> {
+    const latestMessage = messages[messages.length - 1];
+
     switch (agentType) {
       case 'ai-assistant':
-        return this.getAIAssistantResponse(messages[messages.length - 1].content, context, enableTools);
+        return this.getAIAssistantResponse(latestMessage.content, context, enableTools);
       case 'upload':
       case 'document':
-        return this.getDocumentAnalysis(messages[messages.length - 1].content, context?.documentType || 'general', enableTools);
+        return this.getDocumentAnalysis(latestMessage.content, context?.documentType || 'general', enableTools);
       case 'compliance':
         return this.checkBuildingCodeCompliance(context?.projectDetails, context?.location || 'General', enableTools);
       case 'bim':
@@ -2328,11 +2114,10 @@ Now conduct a thorough risk assessment using this framework.`;
       case 'risk':
         return this.assessProjectRisks(context?.projectData, context?.weatherData, enableTools);
       default:
-        return this.getAIAssistantResponse(messages[messages.length - 1].content, context, enableTools);
+        return this.getAIAssistantResponse(latestMessage.content, context, enableTools);
     }
   }
 
-  // Check if AI services are properly configured
   isConfigured(): { openai: boolean; primary: string | null; available: string[] } {
     const status = aiClient.getStatus();
     return {
@@ -2342,8 +2127,7 @@ Now conduct a thorough risk assessment using this framework.`;
     };
   }
 
-  // Universal AI Configuration Methods
-  getAIStatus(): { [key: string]: boolean } {
+  getAIStatus(): Record<string, boolean> {
     return aiConfig.getServiceStatus();
   }
 
@@ -2351,10 +2135,10 @@ Now conduct a thorough risk assessment using this framework.`;
     aiConfig.reload();
   }
 
-  getAvailableModels(): { [task: string]: any } {
+  getAvailableModels(): Record<string, any> {
     const configs = aiConfig.getAllConfigs();
-    const result: { [task: string]: any } = {};
-    
+    const result: Record<string, any> = {};
+
     configs.forEach((config, task) => {
       result[task] = {
         provider: config.provider,
@@ -2364,11 +2148,10 @@ Now conduct a thorough risk assessment using this framework.`;
         maxTokens: config.maxTokens
       };
     });
-    
+
     return result;
   }
 
-  // Use universal config for new requests (can be called instead of direct OpenAI/Google calls)
   async getUniversalAIResponse(
     task: string,
     systemPrompt: string,
@@ -2388,42 +2171,33 @@ Now conduct a thorough risk assessment using this framework.`;
       return {
         content: response.content,
         model: response.model,
-        usage: response.usage,
+        usage: response.usage
       };
     } catch (error) {
       console.error(`Universal AI ${task} task failed:`, error);
-      
-      // Check if AI services are configured
+
       const status = aiConfig.getServiceStatus();
       const availableServices = Object.entries(status)
         .filter(([_, available]) => available)
-        .map(([service, _]) => service);
-      
+        .map(([service]) => service);
+
       if (availableServices.length === 0) {
         throw new Error('No AI services are properly configured. Please check your environment variables and API keys.');
       }
-      
-      throw new Error(`AI processing failed. Available services: ${availableServices.join(', ')}. Please check your configuration and try again.`);
+
+      throw new Error(
+        `AI processing failed. Available services: ${availableServices.join(', ')}. Please check your configuration and try again.`
+      );
     }
   }
 
-  // Vision-powered document analysis
   async analyzeDocumentWithVision(
     imageUrl: string,
-    documentType: string = 'construction document',
+    documentType = 'construction document',
     options?: { temperature?: number; maxTokens?: number; detail?: 'low' | 'high' | 'auto' }
   ): Promise<AIResponse> {
     try {
-      const result = await aiClient.analyzeDocumentWithVision(
-        imageUrl,
-        documentType,
-        {
-          temperature: options?.temperature ?? 0.4,
-          maxTokens: options?.maxTokens ?? 4096,
-          detail: options?.detail || 'high'
-        }
-      );
-
+      const result = await aiClient.analyzeDocumentWithVision(imageUrl, documentType, options ?? {});
       return {
         content: result.content,
         model: result.model,
@@ -2435,24 +2209,14 @@ Now conduct a thorough risk assessment using this framework.`;
     }
   }
 
-  // Multi-modal document analysis (vision + text)
   async analyzeDocumentMultiModal(
     imageUrl: string,
     extractedText: string,
-    documentType: string = 'construction document',
+    documentType = 'construction document',
     options?: { temperature?: number; maxTokens?: number }
   ): Promise<AIResponse> {
     try {
-      const result = await aiClient.analyzeDocumentMultiModal(
-        imageUrl,
-        extractedText,
-        documentType,
-        {
-          temperature: options?.temperature ?? 0.3,
-          maxTokens: options?.maxTokens ?? 4096
-        }
-      );
-
+      const result = await aiClient.analyzeDocumentMultiModal(imageUrl, extractedText, documentType, options ?? {});
       return {
         content: result.content,
         model: result.model,
@@ -2464,31 +2228,29 @@ Now conduct a thorough risk assessment using this framework.`;
     }
   }
 
-  // Enhanced document processor with automatic vision selection
   async analyzeDocumentIntelligent(
     documentId: string,
     imageUrl?: string,
     extractedText?: string,
-    documentType: string = 'construction document'
+    documentType = 'construction document'
   ): Promise<AIResponse> {
     try {
-      // Strategy: Use multi-modal if both image and text available, otherwise use best available method
-      
       if (imageUrl && extractedText) {
-        // Best case: Multi-modal analysis
         console.log('🔬 Using multi-modal analysis (vision + text)');
-        return await this.analyzeDocumentMultiModal(imageUrl, extractedText, documentType);
-      } else if (imageUrl) {
-        // Vision-only analysis
-        console.log('👁️ Using vision-only analysis');
-        return await this.analyzeDocumentWithVision(imageUrl, documentType);
-      } else if (extractedText) {
-        // Text-only analysis (fallback to existing method)
-        console.log('📝 Using text-only analysis');
-        return await this.getDocumentAnalysis(extractedText, documentType);
-      } else {
-        throw new Error('No document content provided. Need either imageUrl or extractedText.');
+        return this.analyzeDocumentMultiModal(imageUrl, extractedText, documentType);
       }
+
+      if (imageUrl) {
+        console.log('👁️ Using vision-only analysis');
+        return this.analyzeDocumentWithVision(imageUrl, documentType);
+      }
+
+      if (extractedText) {
+        console.log('📝 Using text-only analysis');
+        return this.getDocumentAnalysis(extractedText, documentType);
+      }
+
+      throw new Error('No document content provided. Need either imageUrl or extractedText.');
     } catch (error) {
       console.error('Intelligent document analysis error:', error);
       throw error;
