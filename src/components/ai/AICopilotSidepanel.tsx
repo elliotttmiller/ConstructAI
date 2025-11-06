@@ -29,7 +29,7 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-const AGENT_ICONS: Record<string, any> = {
+const AGENT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   'suna': Bot,
   'document-processor': FileText,
   'bim-analyzer': Building,
