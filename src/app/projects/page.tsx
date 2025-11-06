@@ -14,6 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDataFetch, useMutation } from "@/lib/data-fetching-hooks";
+import { PageSkeleton } from "@/components/ui/loading-skeletons";
+import { CACHE_TTL } from "@/lib/cache-config";
 import {
   Building2,
   Calendar,
@@ -80,11 +83,7 @@ const formatCurrency = (amount: number) => {
 
 export default function ProjectsPage() {
   const { data: session } = useSession();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
-  const [creating, setCreating] = useState(false);
   const [newProject, setNewProject] = useState({
     name: '',
     description: '',
@@ -95,145 +94,76 @@ export default function ProjectsPage() {
     budget: 0
   });
 
-  useEffect(() => {
-    if (!session?.user) {
-      setLoading(false);
-      return;
+  // Use optimized data fetching with caching
+  const { data: projectsData, loading, error, refetch } = useDataFetch<{ projects: any[] }>(
+    session?.user ? '/api/projects' : null,
+    {
+      cacheTTL: CACHE_TTL.LONG, // Projects data is relatively stable
+      onError: (err) => console.error('Error fetching projects:', err),
     }
+  );
 
-    const fetchProjects = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/projects');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch projects');
-        }
+  // Transform API data to component format
+  const projects: Project[] = projectsData?.projects?.map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    status: p.status,
+    progress: p.progress,
+    startDate: new Date(p.start_date),
+    endDate: new Date(p.end_date),
+    budget: p.budget,
+    spent: p.spent,
+    location: p.location,
+    teamMembers: p.team_members?.length || 0,
+    documentsCount: 0,
+    phase: p.phase,
+    lastActivity: new Date(p.updated_at ?? p.created_at ?? "")
+  })) || [];
 
-        const data = await response.json();
-        
-        // Define the API project type
-        type ApiProject = {
-          id: string;
-          name: string;
-          description: string;
-          status: 'planning' | 'design' | 'construction' | 'completed';
-          progress: number;
-          start_date: string;
-          end_date: string;
-          budget: number;
-          spent: number;
-          location: string;
-          team_members?: { id: string }[];
-          documents?: unknown[];
-          phase?: string;
-          last_activity?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-
-        // Transform the data to match the expected format
-        const transformedProjects = data.projects.map((p: ApiProject) => ({
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          status: p.status,
-          progress: p.progress,
-          startDate: new Date(p.start_date),
-          endDate: new Date(p.end_date),
-          budget: p.budget,
-          spent: p.spent,
-          location: p.location,
-          teamMembers: p.team_members?.length || 0,
-          documentsCount: 0, // This would need a separate query or be included in the API response
-          phase: p.phase,
-          lastActivity: new Date(p.updated_at ?? p.created_at ?? "")
-        }));
-        
-        setProjects(transformedProjects);
-        setError(null);
-      } catch (err: unknown) {
-        console.error('Error fetching projects:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load projects');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProjects();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.id]);
-
-  const handleCreateProject = async () => {
-    try {
-      setCreating(true);
-      
-      // Build request body with only provided fields
-      const requestBody: any = {
-        name: newProject.name,
-        phase: newProject.phase,
-      };
-      
-      if (newProject.description) requestBody.description = newProject.description;
-      if (newProject.location) requestBody.location = newProject.location;
-      if (newProject.startDate) requestBody.start_date = newProject.startDate;
-      if (newProject.endDate) requestBody.end_date = newProject.endDate;
-      if (newProject.budget > 0) requestBody.budget = newProject.budget;
-      
+  // Create project mutation
+  const createProjectMutation = useMutation(
+    async (projectData: any) => {
       const response = await fetch('/api/projects', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(projectData),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to create project');
-      }
-
-      const data = await response.json();
-      
-      // Refresh projects list
-      const refreshResponse = await fetch('/api/projects');
-      if (refreshResponse.ok) {
-        const refreshData = await refreshResponse.json();
-        const transformedProjects = refreshData.projects.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          status: p.status,
-          progress: p.progress,
-          startDate: new Date(p.start_date),
-          endDate: new Date(p.end_date),
-          budget: p.budget,
-          spent: p.spent,
-          location: p.location,
-          teamMembers: p.team_members?.length || 0,
-          documentsCount: 0,
-          phase: p.phase,
-          lastActivity: new Date(p.updated_at ?? p.created_at ?? "")
-        }));
-        setProjects(transformedProjects);
-      }
-
-      // Reset form and close dialog
-      setNewProject({
-        name: '',
-        description: '',
-        location: '',
-        phase: 'Planning',
-        startDate: '',
-        endDate: '',
-        budget: 0
-      });
-      setShowNewProjectDialog(false);
-    } catch (err) {
-      console.error('Error creating project:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create project');
-    } finally {
-      setCreating(false);
+      if (!response.ok) throw new Error('Failed to create project');
+      return response.json();
+    },
+    {
+      onSuccess: () => {
+        setShowNewProjectDialog(false);
+        setNewProject({
+          name: '',
+          description: '',
+          location: '',
+          phase: 'Planning',
+          startDate: '',
+          endDate: '',
+          budget: 0
+        });
+        refetch(); // Refresh projects list
+      },
+      onError: (err) => console.error('Error creating project:', err),
+      invalidateCache: ['/api/projects'], // Invalidate projects cache
     }
+  );
+
+  const handleCreateProject = async () => {
+    const requestBody: any = {
+      name: newProject.name,
+      phase: newProject.phase,
+    };
+    
+    if (newProject.description) requestBody.description = newProject.description;
+    if (newProject.location) requestBody.location = newProject.location;
+    if (newProject.startDate) requestBody.start_date = newProject.startDate;
+    if (newProject.endDate) requestBody.end_date = newProject.endDate;
+    if (newProject.budget > 0) requestBody.budget = newProject.budget;
+
+    await createProjectMutation.mutate(requestBody);
   };
 
   const totalProjects = projects.length;
@@ -242,11 +172,7 @@ export default function ProjectsPage() {
   const totalSpent = projects.reduce((sum, p) => sum + p.spent, 0);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   if (!session?.user) {
@@ -263,7 +189,7 @@ export default function ProjectsPage() {
     return (
       <Alert variant="destructive">
         <AlertDescription>
-          Error loading projects: {error}
+          Error loading projects: {error.message}
         </AlertDescription>
       </Alert>
     );
@@ -672,11 +598,11 @@ export default function ProjectsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewProjectDialog(false)} disabled={creating}>
+            <Button variant="outline" onClick={() => setShowNewProjectDialog(false)} disabled={createProjectMutation.loading}>
               Cancel
             </Button>
-            <Button onClick={handleCreateProject} disabled={creating || !newProject.name}>
-              {creating ? (
+            <Button onClick={handleCreateProject} disabled={createProjectMutation.loading || !newProject.name}>
+              {createProjectMutation.loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating...

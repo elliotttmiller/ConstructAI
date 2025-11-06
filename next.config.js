@@ -19,8 +19,18 @@ const nextConfig = {
   },
   experimental: {
     optimizeCss: true, // Optimize CSS loading
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'], // Tree-shake icon libraries
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'framer-motion'], // Tree-shake icon libraries and animations
   },
+  // Enable optimizations for instant page loads
+  onDemandEntries: {
+    // Period (in ms) where the server will keep pages in the buffer
+    maxInactiveAge: 60 * 1000,
+    // Number of pages that should be kept simultaneously without being disposed
+    pagesBufferLength: 5,
+  },
+  // Optimize redirects and rewrites
+  skipTrailingSlashRedirect: true,
+  skipMiddlewareUrlNormalize: true,
   images: {
     unoptimized: true,
     domains: [
@@ -51,6 +61,12 @@ const nextConfig = {
         pathname: "/**",
       },
     ],
+  },
+  // Optimize bundling
+  modularizeImports: {
+    'lucide-react': {
+      transform: 'lucide-react/dist/esm/icons/{{kebabCase member}}',
+    },
   },
 };
 

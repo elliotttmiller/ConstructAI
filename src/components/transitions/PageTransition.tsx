@@ -8,15 +8,15 @@ interface PageTransitionProps {
   children: ReactNode;
 }
 
-// Simplified for instant transitions
+// Ultra-fast transitions for instant page swaps
 const pageVariants = {
   initial: {
-    opacity: 0,
+    opacity: 0.98, // Nearly invisible transition
   },
   animate: {
     opacity: 1,
     transition: {
-      duration: 0.1, // Very fast
+      duration: 0.05, // Extremely fast - almost instant
     },
   },
   exit: {

@@ -12,7 +12,7 @@ function LoadingBarContent() {
   useEffect(() => {
     setLoading(true);
     // Very short timeout for instant feel
-    const timeout = setTimeout(() => setLoading(false), 150);
+    const timeout = setTimeout(() => setLoading(false), 100);
     return () => clearTimeout(timeout);
   }, [pathname, searchParams]);
 
@@ -25,7 +25,7 @@ function LoadingBarContent() {
           animate={{ scaleX: 1 }}
           exit={{ scaleX: 1, opacity: 0 }}
           transition={{
-            duration: 0.15, // Reduced from 0.3
+            duration: 0.1, // Ultra-fast for instant feel
           }}
           style={{
             boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)',

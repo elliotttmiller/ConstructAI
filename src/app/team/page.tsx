@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useDataFetch } from "@/lib/data-fetching-hooks";
+import { PageSkeleton } from "@/components/ui/loading-skeletons";
+import { CACHE_TTL } from "@/lib/cache-config";
 import {
   Users,
   Plus,
@@ -82,58 +85,34 @@ const getRoleIcon = (role: string) => {
 
 export default function TeamPage() {
   const { data: session } = useSession();
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!session?.user) {
-      setLoading(false);
-      return;
+  // Use optimized data fetching with caching
+  const { data: teamData, loading, error } = useDataFetch<{ users: any[] }>(
+    session?.user ? '/api/team' : null,
+    {
+      cacheTTL: CACHE_TTL.LONG, // Team data is relatively stable
+      onError: (err) => console.error('Error fetching team members:', err),
     }
+  );
 
-    const fetchTeamMembers = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/team');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch team members');
-        }
-
-        const data = await response.json();
-        
-        // Transform the data to match the expected format
-        const transformedMembers = data.users.map((u: any) => ({
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          phone: u.phone || '',
-          role: u.role,
-          department: u.department,
-          status: u.status || 'active',
-          joinDate: new Date(u.created_at),
-          location: u.location || '',
-          projects: [], // Would need to fetch project names separately
-          permissions: u.permissions || [],
-          lastActive: new Date(u.updated_at || u.created_at),
-          tasksCompleted: u.tasksCompleted || 0,
-          rating: 4.5 // Default rating, could be calculated from performance metrics
-        }));
-        
-        setTeamMembers(transformedMembers);
-        setError(null);
-      } catch (err: any) {
-        console.error('Error fetching team members:', err);
-        setError(err.message || 'Failed to load team members');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTeamMembers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.id]);
+  // Transform API data to component format
+  const teamMembers: TeamMember[] = teamData?.users?.map((u: any) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    phone: u.phone || '',
+    role: u.role,
+    department: u.department,
+    status: u.status || 'active',
+    joinDate: new Date(u.created_at),
+    location: u.location || '',
+    projects: [],
+    permissions: u.permissions || [],
+    lastActive: new Date(u.updated_at || u.created_at),
+    tasksCompleted: u.tasksCompleted || 0,
+    rating: 4.5,
+    avatar: u.avatar,
+  })) || [];
 
   const totalMembers = teamMembers.length;
   const activeMembers = teamMembers.filter(m => m.status === 'active').length;
@@ -141,11 +120,7 @@ export default function TeamPage() {
   const totalTasks = teamMembers.reduce((sum, m) => sum + m.tasksCompleted, 0);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   if (!session?.user) {
@@ -162,7 +137,7 @@ export default function TeamPage() {
     return (
       <Alert variant="destructive">
         <AlertDescription>
-          Error loading team members: {error}
+          Error loading team members: {error.message}
         </AlertDescription>
       </Alert>
     );
