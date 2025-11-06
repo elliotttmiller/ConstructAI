@@ -33,8 +33,6 @@ const navigation = [
     description: "Project overview and metrics",
   },
   {
-    name: "AI Chat",
-    href: "/chat",
     icon: MessageSquare,
     description: "Master AI orchestrator",
     badge: "AI",
@@ -104,26 +102,45 @@ export default function MainNavigation({ className }: MainNavigationProps) {
       <nav className="flex-1 p-4 space-y-2">
         {navigation.map((item) => (
           <div key={item.name}>
-            <Link
-              href={item.href}
-              className={cn(
-                "flex items-center justify-between w-full px-3 py-2 text-sm rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground",
-                pathname === item.href
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground"
-              )}
-              onClick={() => setIsOpen(false)}
-            >
-              <div className="flex items-center space-x-3">
-                <item.icon className="h-4 w-4" />
-                <span>{item.name}</span>
+            {item.href ? (
+              <Link
+                href={item.href}
+                className={cn(
+                  "flex items-center justify-between w-full px-3 py-2 text-sm rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground",
+                  pathname === item.href
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground"
+                )}
+                onClick={() => setIsOpen(false)}
+              >
+                <div className="flex items-center space-x-3">
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.name}</span>
+                </div>
+                {item.badge && (
+                  <Badge variant="secondary" className="text-xs">
+                    {item.badge}
+                  </Badge>
+                )}
+              </Link>
+            ) : (
+              <div
+                className={cn(
+                  "flex items-center justify-between w-full px-3 py-2 text-sm rounded-lg cursor-default opacity-70",
+                  "text-muted-foreground"
+                )}
+              >
+                <div className="flex items-center space-x-3">
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.name || item.badge}</span>
+                </div>
+                {item.badge && (
+                  <Badge variant="secondary" className="text-xs">
+                    {item.badge}
+                  </Badge>
+                )}
               </div>
-              {item.badge && (
-                <Badge variant="secondary" className="text-xs">
-                  {item.badge}
-                </Badge>
-              )}
-            </Link>
+            )}
 
             {/* Sub-navigation */}
             {item.children && (

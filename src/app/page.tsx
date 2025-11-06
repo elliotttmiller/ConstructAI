@@ -36,9 +36,8 @@ interface Analytics {
   };
   recentActivity: Array<{
     id: string;
-    type: string;
     description: string;
-    timestamp: Date;
+    timestamp: string;
     agent: string;
   }>;
   recentDocuments: Array<{
@@ -67,27 +66,24 @@ export default function Dashboard() {
       return;
     }
 
-    fetchAnalytics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.id]); // Changed to prevent excessive re-renders
+    const fetchAnalytics = async () => {
+      try {
+        const response = await fetch('/api/analytics');
+        if (!response.ok) {
+          throw new Error('Failed to fetch analytics');
+        }
 
-  const fetchAnalytics = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/analytics');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch analytics');
+        const data = await response.json();
+        setAnalytics(data.analytics);
+      } catch (err) {
+        console.error('Error fetching analytics:', err);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const data = await response.json();
-      setAnalytics(data.analytics);
-    } catch (err) {
-      console.error('Error fetching analytics:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchAnalytics();
+  }, [session]);
 
   if (loading) {
     return (
@@ -115,10 +111,6 @@ export default function Dashboard() {
             Welcome to your AI-powered construction management platform
           </p>
         </div>
-        <Button onClick={() => router.push('/chat')}>
-          <MessageSquare className="mr-2 h-4 w-4" />
-          Chat with AI
-        </Button>
       </div>
 
       {/* Key Metrics */}
@@ -235,14 +227,6 @@ export default function Dashboard() {
                 >
                   <Upload className="mr-2 h-4 w-4" />
                   Upload Documents
-                </Button>
-                <Button 
-                  className="w-full justify-start" 
-                  variant="outline"
-                  onClick={() => router.push('/chat')}
-                >
-                  <Bot className="mr-2 h-4 w-4" />
-                  Chat with AI Agent
                 </Button>
                 <Button 
                   className="w-full justify-start" 

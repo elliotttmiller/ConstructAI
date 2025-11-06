@@ -110,7 +110,7 @@ export default function CopilotContextProvider({ children }: CopilotContextProvi
       currentPage = 'workflows';
     } else if (pathname.startsWith('/enterprise')) {
       currentPage = 'enterprise';
-    } else if (pathname.startsWith('/chat')) {
+  // Removed /chat route handling as chat page is deprecated
       currentPage = 'chat';
     } else if (pathname.startsWith('/agents')) {
       currentPage = 'agents';

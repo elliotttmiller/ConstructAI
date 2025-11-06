@@ -101,7 +101,7 @@ export default function AIServiceStatus() {
                 <div className="font-medium">OpenAI GPT-4</div>
                 {getStatusBadge(serviceStatus?.openai || false, 'OpenAI')}
                 <p className="text-sm text-muted-foreground">
-                  Powers AI chat, compliance checking, and project management insights
+                  Powers compliance checking and project management insights
                 </p>
               </div>
 
