@@ -56,4 +56,4 @@ hunyuan3d/models/
 
 # uploaded files
 uploads/
-test_outputs/
+test_outputs/*.backup
