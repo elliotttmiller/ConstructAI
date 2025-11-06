@@ -2,6 +2,7 @@
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { aiConfig } from './ai-config';
+import { getToolDefinitions, executeAgentTool, ToolResult } from './ai-agent-tools';
 
 // Universal AI Client Manager
 class UniversalAIClient {
@@ -151,6 +152,96 @@ class UniversalAIClient {
       available: this.getAvailableProviders()
     };
   }
+
+  // Autonomous completion with tool calling support
+  async completeWithTools(
+    systemPrompt: string,
+    userMessage: string,
+    options: {
+      temperature?: number;
+      maxTokens?: number;
+      model?: string;
+      enableTools?: boolean;
+    } = {}
+  ): Promise<{ content: string; model: string; usage?: any; toolCalls?: any[] }> {
+    if (!this.openai || !options.enableTools) {
+      // Fall back to regular completion if no OpenAI or tools disabled
+      return await this.complete(systemPrompt, userMessage, options);
+    }
+
+    const tools = getToolDefinitions();
+    const messages: any[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage }
+    ];
+
+    const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    const executedTools: any[] = [];
+    let finalResponse = '';
+    let iterationCount = 0;
+    const MAX_ITERATIONS = 5; // Prevent infinite loops
+
+    while (iterationCount < MAX_ITERATIONS) {
+      iterationCount++;
+      
+      const completion = await this.openai.chat.completions.create({
+        model: options.model || 'gpt-4-turbo-preview',
+        messages,
+        tools,
+        tool_choice: 'auto',
+        temperature: options.temperature ?? 0.7,
+        max_tokens: options.maxTokens ?? 1500,
+      });
+
+      const choice = completion.choices[0];
+      
+      // Accumulate usage
+      if (completion.usage) {
+        totalUsage.promptTokens += completion.usage.prompt_tokens || 0;
+        totalUsage.completionTokens += completion.usage.completion_tokens || 0;
+        totalUsage.totalTokens += completion.usage.total_tokens || 0;
+      }
+
+      // If no tool calls, we're done
+      if (!choice.message.tool_calls) {
+        finalResponse = choice.message.content || '';
+        break;
+      }
+
+      // Execute each tool call
+      messages.push(choice.message);
+
+      for (const toolCall of choice.message.tool_calls) {
+        // Type guard for function tool calls
+        if (toolCall.type === 'function') {
+          console.log(`🤖 AI Agent calling tool: ${toolCall.function.name}`);
+          
+          const functionArgs = JSON.parse(toolCall.function.arguments);
+          const toolResult = await executeAgentTool(toolCall.function.name, functionArgs);
+
+          executedTools.push({
+            name: toolCall.function.name,
+            arguments: functionArgs,
+            result: toolResult
+          });
+
+          // Add tool result to messages
+          messages.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: JSON.stringify(toolResult)
+          });
+        }
+      }
+    }
+
+    return {
+      content: finalResponse,
+      model: 'gpt-4-turbo-preview',
+      usage: totalUsage,
+      toolCalls: executedTools
+    };
+  }
 }
 
 // Global AI client instance
@@ -184,7 +275,7 @@ export class ConstructionAIService {
   }
 
   // Suna AI - Master Orchestrator
-  async getSunaResponse(message: string, context?: any): Promise<AIResponse> {
+  async getSunaResponse(message: string, context?: any, enableTools: boolean = false): Promise<AIResponse> {
     const systemPrompt = `# Role and Identity
 You are Suna AI, the master orchestrator and strategic intelligence hub for ConstructAI—an enterprise-grade construction management platform. You serve as the primary interface between users and a sophisticated ecosystem of specialized AI agents.
 
@@ -225,6 +316,9 @@ You operate using a structured reasoning approach:
 # Current Context
 Project Context: ${JSON.stringify(context || {})}
 
+# Autonomous Tool Usage
+You have access to tools that can execute real actions. When a user requests an action (like "analyze the document", "check project status", "create a task"), you should use the appropriate tool to actually perform the action, not just describe what should be done.
+
 # Example Interaction Pattern
 When asked about a project delay:
 1. Acknowledge the concern and request additional details if needed
@@ -236,6 +330,25 @@ When asked about a project delay:
 Now, respond to the user's query using this framework. Think step-by-step and provide comprehensive, expert-level guidance.`;
 
     try {
+      // Use tool-calling mode if enabled and tools are available
+      if (enableTools) {
+        const result = await aiClient.completeWithTools(systemPrompt, message, {
+          temperature: 0.7,
+          maxTokens: 1500,
+          enableTools: true
+        });
+
+        return {
+          content: result.content || "I apologize, but I couldn't process your request at the moment.",
+          model: result.model,
+          usage: result.usage,
+          reasoning: result.toolCalls?.length 
+            ? `Executed ${result.toolCalls.length} tool(s): ${result.toolCalls.map((t: any) => t.name).join(', ')}`
+            : undefined
+        };
+      }
+
+      // Standard text-only mode
       const result = await aiClient.complete(systemPrompt, message, {
         temperature: 0.7,
         maxTokens: 1500
@@ -253,7 +366,7 @@ Now, respond to the user's query using this framework. Think step-by-step and pr
   }
 
   // Document Processing Agent
-  async getDocumentAnalysis(documentText: string, documentType: string): Promise<AIResponse> {
+  async getDocumentAnalysis(documentText: string, documentType: string, enableTools: boolean = true): Promise<AIResponse> {
     const systemPrompt = `# Role and Expertise
 You are an elite Document Processing Agent specialized in construction documentation analysis. You possess expert-level knowledge in interpreting technical construction documents, blueprints, specifications, submittals, RFIs, and contracts.
 
@@ -363,7 +476,7 @@ Now analyze the provided document using this comprehensive framework.`;
   }
 
   // Building Code Compliance Agent
-  async checkBuildingCodeCompliance(projectDetails: any, location: string): Promise<AIResponse> {
+  async checkBuildingCodeCompliance(projectDetails: any, location: string, enableTools: boolean = true): Promise<AIResponse> {
     const systemPrompt = `# Role and Expertise
 You are an expert Building Code Compliance Agent with deep knowledge of international, national, and local building codes. You specialize in ensuring construction projects meet all applicable regulatory requirements.
 
@@ -542,7 +655,7 @@ Now perform a thorough compliance analysis using this framework.`;
   }
 
   // BIM Analysis Agent
-  async analyzeBIMModel(modelData: any, clashDetectionResults?: any): Promise<AIResponse> {
+  async analyzeBIMModel(modelData: any, clashDetectionResults?: any, enableTools: boolean = true): Promise<AIResponse> {
     const systemPrompt = `# Role and Expertise
 You are an advanced BIM Analysis Agent with expertise in Building Information Modeling, 3D coordination, clash detection, and constructability analysis. You specialize in interpreting complex 3D models and providing actionable insights for construction teams.
 
@@ -768,7 +881,7 @@ Now analyze the BIM model using this comprehensive framework.`;
   }
 
   // Project Management Agent
-  async getProjectInsights(projectData: any, taskData: any[]): Promise<AIResponse> {
+  async getProjectInsights(projectData: any, taskData: any[], enableTools: boolean = true): Promise<AIResponse> {
     const systemPrompt = `# Role and Expertise
 You are an elite Project Management Agent specializing in construction project delivery. You possess expert knowledge in CPM scheduling, earned value management, resource optimization, risk management, and stakeholder coordination.
 
@@ -1059,7 +1172,7 @@ Now provide comprehensive project management insights using this framework.`;
   }
 
   // Risk Assessment Agent
-  async assessProjectRisks(projectData: any, weatherData?: any): Promise<AIResponse> {
+  async assessProjectRisks(projectData: any, weatherData?: any, enableTools: boolean = true): Promise<AIResponse> {
     const systemPrompt = `# Role and Expertise
 You are an expert Risk Assessment Agent specializing in construction project risk management. You possess comprehensive knowledge of risk identification, quantification, mitigation strategies, and crisis management in the construction industry.
 
@@ -1535,23 +1648,25 @@ Now conduct a thorough risk assessment using this framework.`;
   async handleMultiAgentConversation(
     messages: AIMessage[],
     agentType: string,
-    context?: any
+    context?: any,
+    enableTools: boolean = true  // Enable autonomous tools by default
   ): Promise<AIResponse> {
     switch (agentType) {
       case 'suna':
-        return this.getSunaResponse(messages[messages.length - 1].content, context);
+        return this.getSunaResponse(messages[messages.length - 1].content, context, enableTools);
       case 'upload':
-        return this.getDocumentAnalysis(messages[messages.length - 1].content, context?.documentType || 'general');
+      case 'document':
+        return this.getDocumentAnalysis(messages[messages.length - 1].content, context?.documentType || 'general', enableTools);
       case 'compliance':
-        return this.checkBuildingCodeCompliance(context?.projectDetails, context?.location || 'General');
+        return this.checkBuildingCodeCompliance(context?.projectDetails, context?.location || 'General', enableTools);
       case 'bim':
-        return this.analyzeBIMModel(context?.modelData, context?.clashResults);
+        return this.analyzeBIMModel(context?.modelData, context?.clashResults, enableTools);
       case 'pm':
-        return this.getProjectInsights(context?.projectData, context?.taskData || []);
+        return this.getProjectInsights(context?.projectData, context?.taskData || [], enableTools);
       case 'risk':
-        return this.assessProjectRisks(context?.projectData, context?.weatherData);
+        return this.assessProjectRisks(context?.projectData, context?.weatherData, enableTools);
       default:
-        return this.getSunaResponse(messages[messages.length - 1].content, context);
+        return this.getSunaResponse(messages[messages.length - 1].content, context, enableTools);
     }
   }
 
