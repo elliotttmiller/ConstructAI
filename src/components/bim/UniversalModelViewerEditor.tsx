@@ -681,8 +681,20 @@ export function UniversalModelViewerEditor({
         </div>
 
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-            <Loader2 className="h-8 w-8 animate-spin" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-50">
+            <Loader2 className="h-12 w-12 animate-spin mb-4 text-primary" />
+            {processing && (
+              <div className="w-64 space-y-2">
+                <Progress value={uploadProgress} className="h-2" />
+                <p className="text-sm text-center text-muted-foreground">
+                  {uploadProgress < 20 ? 'Analyzing file...' :
+                   uploadProgress < 40 ? 'Generating configuration...' :
+                   uploadProgress < 70 ? 'Loading model...' :
+                   uploadProgress < 85 ? 'Applying settings...' :
+                   'Running analysis...'}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -690,15 +702,197 @@ export function UniversalModelViewerEditor({
       {/* Side Panel */}
       <div className="w-80 border-l bg-background overflow-y-auto">
         <Tabs defaultValue="models" className="h-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5 text-xs">
             <TabsTrigger value="models">Models</TabsTrigger>
+            <TabsTrigger value="analysis">
+              <Activity className="h-3 w-3 mr-1" />
+              Analysis
+            </TabsTrigger>
             <TabsTrigger value="cad">
-              <Sparkles className="h-4 w-4 mr-1" />
+              <Sparkles className="h-3 w-3 mr-1" />
               CAD
             </TabsTrigger>
-            <TabsTrigger value="properties">Properties</TabsTrigger>
+            <TabsTrigger value="properties">Props</TabsTrigger>
             <TabsTrigger value="export">Export</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="analysis" className="p-4 space-y-4">
+            <div>
+              <h3 className="font-medium text-sm mb-2">Model Analysis</h3>
+              {modelAnalysis ? (
+                <div className="space-y-3">
+                  <Card>
+                    <CardHeader className="p-3">
+                      <CardTitle className="text-xs flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        File Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0 space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Type:</span>
+                        <Badge variant="outline">{modelAnalysis.fileType}</Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Size:</span>
+                        <span>{(modelAnalysis.fileSize / 1024 / 1024).toFixed(2)} MB</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Complexity:</span>
+                        <Badge variant={modelAnalysis.complexity === 'very-high' || modelAnalysis.complexity === 'high' ? 'destructive' : 'secondary'}>
+                          {modelAnalysis.complexity.toUpperCase()}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="p-3">
+                      <CardTitle className="text-xs">Categories</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0 space-y-1 text-xs">
+                      {modelAnalysis.isBIM && <Badge variant="default" className="mr-1">BIM</Badge>}
+                      {modelAnalysis.isCAD && <Badge variant="default" className="mr-1">CAD</Badge>}
+                      {modelAnalysis.isArchitectural && <Badge variant="secondary" className="mr-1">Architectural</Badge>}
+                      {modelAnalysis.isStructural && <Badge variant="secondary" className="mr-1">Structural</Badge>}
+                      {modelAnalysis.isMEP && <Badge variant="secondary" className="mr-1">MEP</Badge>}
+                      {modelAnalysis.isManufacturing && <Badge variant="secondary" className="mr-1">Manufacturing</Badge>}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="p-3">
+                      <CardTitle className="text-xs">Metrics</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0 space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Vertices:</span>
+                        <span>{modelAnalysis.estimatedVertexCount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Polygons:</span>
+                        <span>{modelAnalysis.estimatedPolygonCount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Units:</span>
+                        <span>{modelAnalysis.detectedUnits}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Coord System:</span>
+                        <span>{modelAnalysis.coordinateSystem}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {bimAnalysis && (
+                    <>
+                      <Card>
+                        <CardHeader className="p-3">
+                          <CardTitle className="text-xs flex items-center gap-2">
+                            <Zap className="h-4 w-4 text-yellow-500" />
+                            BIM Analysis
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-3 pt-0 space-y-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Quality Score:</span>
+                            <Badge variant={bimAnalysis.qualityScore >= 80 ? 'default' : 'destructive'}>
+                              {bimAnalysis.qualityScore.toFixed(0)}%
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Elements:</span>
+                            <span>{bimAnalysis.totalElements}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Clashes:</span>
+                            <Badge variant={bimAnalysis.clashes.length > 0 ? 'destructive' : 'default'}>
+                              {bimAnalysis.clashes.length}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Issues:</span>
+                            <Badge variant={bimAnalysis.issuesFound.length > 5 ? 'destructive' : 'secondary'}>
+                              {bimAnalysis.issuesFound.length}
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="p-3">
+                          <CardTitle className="text-xs">Building Metrics</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-3 pt-0 space-y-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Height:</span>
+                            <span>{bimAnalysis.buildingHeight.toFixed(2)}m</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Footprint:</span>
+                            <span>{bimAnalysis.footprintArea.toFixed(2)}m²</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Volume:</span>
+                            <span>{bimAnalysis.totalVolume.toFixed(2)}m³</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {bimAnalysis.clashes.length > 0 && (
+                        <Card>
+                          <CardHeader className="p-3">
+                            <CardTitle className="text-xs flex items-center gap-2">
+                              <AlertCircle className="h-4 w-4 text-red-500" />
+                              Clashes Detected
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-3 pt-0 space-y-2">
+                            {bimAnalysis.clashes.slice(0, 5).map((clash) => (
+                              <div key={clash.id} className="text-xs p-2 bg-muted rounded">
+                                <div className="flex items-center justify-between mb-1">
+                                  <Badge variant={clash.severity === 'critical' ? 'destructive' : 'secondary'} className="text-xs">
+                                    {clash.severity}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">{clash.type}</span>
+                                </div>
+                                <p className="text-xs">{clash.description}</p>
+                              </div>
+                            ))}
+                            {bimAnalysis.clashes.length > 5 && (
+                              <p className="text-xs text-muted-foreground">
+                                +{bimAnalysis.clashes.length - 5} more clashes
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )}
+                    </>
+                  )}
+
+                  {analysisReport && (
+                    <Card>
+                      <CardHeader className="p-3">
+                        <CardTitle className="text-xs">Full Report</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-3 pt-0">
+                        <pre className="text-xs whitespace-pre-wrap bg-muted p-2 rounded overflow-auto max-h-60">
+                          {analysisReport}
+                        </pre>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              ) : (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    Upload a model to see detailed analysis
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </TabsContent>
 
           <TabsContent value="cad" className="p-4 space-y-4">
             <div>
