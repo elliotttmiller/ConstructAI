@@ -3,6 +3,8 @@
  * Prevents redundant network requests and speeds up navigation
  */
 
+import * as React from 'react';
+
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
