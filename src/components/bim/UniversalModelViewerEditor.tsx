@@ -166,22 +166,31 @@ export function UniversalModelViewerEditor({
     // Initialize BIM processor
     bimProcessorRef.current = new EnhancedBIMProcessor(scene);
 
+    // Get container dimensions with fallback
+    const containerWidth = mountRef.current.clientWidth || window.innerWidth * 0.7;
+    const containerHeight = mountRef.current.clientHeight || window.innerHeight - 200;
+
     // Create camera
     const camera = new THREE.PerspectiveCamera(
       75,
-      mountRef.current.clientWidth / mountRef.current.clientHeight,
+      containerWidth / containerHeight,
       0.1,
       1000
     );
     camera.position.set(10, 10, 10);
     cameraRef.current = camera;
 
-    // Create renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    // Create renderer with optimized settings
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance'
+    });
+    renderer.setSize(containerWidth, containerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap at 2 for performance
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -214,14 +223,16 @@ export function UniversalModelViewerEditor({
     orbitControls.dampingFactor = 0.05;
     orbitControlsRef.current = orbitControls;
 
-    // Add transform controls
+    // Add transform controls and add to scene immediately
     const transformControls = new TransformControls(camera, renderer.domElement);
     transformControls.addEventListener('dragging-changed', (event) => {
       orbitControls.enabled = !event.value;
     });
-    
-    // Note: We'll add the transform controls to the scene later when needed
-    // scene.add(transformControls);
+    transformControls.addEventListener('change', () => {
+      // Update properties when transform changes
+      handleTransformChange();
+    });
+    scene.add(transformControls);
     transformControlsRef.current = transformControls;
 
     // Handle window resize
@@ -257,24 +268,28 @@ export function UniversalModelViewerEditor({
     };
     renderer.domElement.addEventListener('click', handleClick);
 
-    // Animation loop - only render when controls change
+    // Animation loop - continuous rendering for smooth interaction
     let needsRender = true;
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
       
-      // Only render if controls have been updated or transform is active
+      // Always update controls
       const controlsChanged = orbitControls.update();
+      
+      // Render if controls changed or manually triggered
       if (controlsChanged || needsRender) {
         renderer.render(scene, camera);
         needsRender = false;
       }
     };
     
-    // Trigger render on control changes
+    // Trigger render on control changes and transform changes
     orbitControls.addEventListener('change', () => { needsRender = true; });
+    transformControls.addEventListener('change', () => { needsRender = true; });
+    transformControls.addEventListener('dragging-changed', () => { needsRender = true; });
     
     animate();
-    console.log('✅ 3D Viewer initialized');
+    console.log('✅ 3D Viewer initialized successfully');
 
     // Store the current mount element for cleanup
     const currentMount = mountRef.current;
@@ -288,12 +303,24 @@ export function UniversalModelViewerEditor({
         cancelAnimationFrame(animationFrameRef.current);
       }
       renderer.domElement.removeEventListener('click', handleClick);
+      
+      // Dispose of controls
+      if (orbitControlsRef.current) {
+        orbitControlsRef.current.dispose();
+      }
+      if (transformControlsRef.current) {
+        transformControlsRef.current.dispose();
+      }
+      
+      // Dispose of renderer
       renderer.dispose();
-      if (currentMount && renderer.domElement.parentNode === currentMount) {
+      
+      // Remove renderer from DOM safely
+      if (currentMount && currentMount.contains(renderer.domElement)) {
         currentMount.removeChild(renderer.domElement);
       }
     };
-  }, [handleObjectSelection]);
+  }, [handleObjectSelection, handleTransformChange]);
 
   // Update grid visibility
   useEffect(() => {

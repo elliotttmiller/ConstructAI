@@ -196,6 +196,280 @@ class UniversalAIClient {
       toolCalls: executedTools
     };
   }
+
+  // Vision-based document analysis with OpenAI GPT-4 Vision
+  async analyzeDocumentWithVision(
+    imageUrl: string,
+    documentType: string,
+    options: {
+      temperature?: number;
+      maxTokens?: number;
+      detail?: 'low' | 'high' | 'auto';
+    } = {}
+  ): Promise<{ content: string; model: string; usage?: any }> {
+    if (!this.openai) {
+      throw new Error('OpenAI not initialized. Vision API requires OpenAI.');
+    }
+
+    const systemPrompt = `# Role: Elite Construction Document Vision Analyst
+
+You are an advanced AI specialist in visual analysis of construction documents, blueprints, plans, and technical drawings. You possess expert-level knowledge in:
+- Reading and interpreting architectural blueprints and construction plans
+- Identifying building elements, dimensions, annotations, and specifications
+- Recognizing construction symbols, codes, and standards
+- Detecting issues, conflicts, or missing information in visual documents
+- Understanding spatial relationships and construction sequences
+
+## Document Type: ${documentType}
+
+## Analysis Framework
+
+### 1. VISUAL DOCUMENT ASSESSMENT
+- **Document Quality**: Assess clarity, resolution, completeness
+- **Document Type**: Confirm type (floor plan, elevation, section, detail, etc.)
+- **Scale & Units**: Identify scale bars, dimension units, coordinate system
+- **Legend & Symbols**: Interpret symbol legend, material hatching, line types
+
+### 2. TECHNICAL CONTENT EXTRACTION
+- **Dimensions**: Extract all critical dimensions, tolerances, elevations
+- **Room/Space Layout**: Identify rooms, areas, square footages
+- **Structural Elements**: Locate columns, beams, walls, foundations
+- **MEP Systems**: Identify HVAC, electrical, plumbing routing and equipment
+- **Materials**: Note specified materials from visual indicators and annotations
+- **Annotations**: Extract all text annotations, call-outs, notes, specifications
+
+### 3. COMPLIANCE & CODE REVIEW (Visual)
+- **Egress Paths**: Verify exit routes, door swing directions, corridor widths
+- **Accessibility**: Check visual indicators of ADA compliance (ramps, clearances)
+- **Fire Safety**: Identify fire-rated assemblies, sprinkler coverage, extinguishers
+- **Spatial Requirements**: Verify minimum room dimensions per code
+
+### 4. CONFLICT & ISSUE DETECTION
+- **Spatial Conflicts**: Identify overlapping elements or insufficient clearances
+- **Inconsistencies**: Spot dimension conflicts, misaligned grids, incorrect references
+- **Missing Information**: Note gaps in dimensions, unlabeled spaces, incomplete details
+- **Constructability Concerns**: Flag difficult-to-build details or sequencing issues
+
+### 5. INTELLIGENT INSIGHTS
+- **Design Intent**: Interpret the architect's/engineer's design approach
+- **Construction Implications**: Provide constructability feedback
+- **Cost Implications**: Note potentially expensive or complex elements
+- **Schedule Impacts**: Identify long-lead items or sequencing challenges
+
+## Output Format
+
+Provide a structured analysis:
+
+### DOCUMENT SUMMARY
+- Type: [blueprint type]
+- Scale: [detected scale]
+- Project Phase: [schematic/DD/CD]
+- Sheet Number: [if visible]
+
+### KEY MEASUREMENTS & DIMENSIONS
+[Organized by area/element]
+
+### SPATIAL LAYOUT
+[Room-by-room or area breakdown with square footages]
+
+### MATERIALS & SPECIFICATIONS
+[Materials identified from visual indicators]
+
+### CRITICAL FINDINGS
+🔴 CRITICAL: [Issues requiring immediate attention]
+🟡 WARNING: [Items needing review or clarification]
+🟢 OBSERVATIONS: [General notes and suggestions]
+
+### COMPLIANCE INDICATORS
+✓ Appears Compliant: [Visual compliance with codes]
+⚠ Requires Verification: [Items needing detailed review]
+✗ Potential Violations: [Visual code conflicts]
+
+### CONSTRUCTABILITY ASSESSMENT
+[Practical construction considerations]
+
+### RECOMMENDED ACTIONS
+1. [Action] - Priority: [High/Medium/Low]
+
+## Vision Analysis Best Practices
+- Be precise when extracting dimensions
+- Note if text is illegible or dimensions unclear
+- Distinguish between existing and new construction
+- Identify revision clouds or change indicators
+- Reference specific areas using grid lines or spatial descriptions
+- State confidence level for interpretations (certain/likely/uncertain)
+
+Now analyze the provided construction document image.`;
+
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: 'gpt-4-vision-preview',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Analyze this ${documentType} construction document in detail. Extract all visible information, measurements, and provide professional construction insights.`
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageUrl,
+                  detail: options.detail || 'high' // Use 'high' for detailed blueprint analysis
+                }
+              }
+            ]
+          }
+        ],
+        temperature: options.temperature ?? 0.4, // Lower temperature for precise technical analysis
+        max_tokens: options.maxTokens ?? 4096, // Higher token limit for detailed analysis
+      });
+
+      return {
+        content: completion.choices[0]?.message?.content || '',
+        model: completion.model,
+        usage: {
+          promptTokens: completion.usage?.prompt_tokens || 0,
+          completionTokens: completion.usage?.completion_tokens || 0,
+          totalTokens: completion.usage?.total_tokens || 0,
+        }
+      };
+    } catch (error) {
+      console.error('Vision API error:', error);
+      throw new Error('Failed to analyze document with vision. This may be because GPT-4 Vision is not available or the image is invalid.');
+    }
+  }
+
+  // Multi-modal document analysis combining vision and text
+  async analyzeDocumentMultiModal(
+    imageUrl: string,
+    extractedText: string,
+    documentType: string,
+    options: {
+      temperature?: number;
+      maxTokens?: number;
+    } = {}
+  ): Promise<{ content: string; model: string; usage?: any }> {
+    if (!this.openai) {
+      throw new Error('OpenAI not initialized');
+    }
+
+    const systemPrompt = `# Role: Multi-Modal Construction Document Intelligence
+
+You are an advanced AI that combines VISUAL and TEXTUAL analysis for comprehensive construction document intelligence. You excel at:
+- Cross-referencing visual and textual information for accuracy
+- Detecting discrepancies between drawings and written specifications
+- Providing holistic document understanding
+- Delivering actionable construction insights
+
+## Document Type: ${documentType}
+
+## Multi-Modal Analysis Approach
+
+### Phase 1: VISUAL-TEXT CORRELATION
+- Cross-reference dimensions in drawing with text specifications
+- Verify material callouts match visual indicators
+- Confirm quantities between visual count and text specifications
+- Check for text-image discrepancies
+
+### Phase 2: COMPREHENSIVE EXTRACTION
+Combine information from both modalities:
+- **From Image**: Spatial layout, dimensions, visual relationships, symbols
+- **From Text**: Detailed specifications, performance requirements, installation notes
+- **Synthesis**: Complete picture with no information gaps
+
+### Phase 3: CONFLICT RESOLUTION
+- When vision and text disagree, flag the conflict
+- Provide reasoning for which source may be more reliable
+- Suggest clarifications needed from design team
+
+### Phase 4: ENHANCED INSIGHTS
+Leverage both modalities for superior analysis:
+- Richer constructability assessment
+- More accurate quantity takeoffs
+- Better code compliance verification
+- Deeper understanding of design intent
+
+## Output Structure
+
+### INTEGRATED DOCUMENT ANALYSIS
+[Combining visual and textual insights]
+
+### EXTRACTED INFORMATION
+**From Visual Analysis:**
+- [Key visual findings]
+
+**From Text Analysis:**
+- [Key textual findings]
+
+**Correlated & Verified:**
+- [Information confirmed by both sources]
+
+### DISCREPANCIES & CONFLICTS
+⚠ Vision-Text Mismatches: [List conflicts between image and text]
+
+### COMPREHENSIVE FINDINGS
+[Unified analysis leveraging both modalities]
+
+### ENHANCED RECOMMENDATIONS
+[Actionable items based on complete understanding]
+
+Now perform a multi-modal analysis combining the visual and textual information.`;
+
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: 'gpt-4-vision-preview',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Perform a comprehensive multi-modal analysis combining this visual information and extracted text.
+
+**Extracted Text from Document:**
+${extractedText}
+
+**Visual Analysis:**
+Please analyze the image below and correlate it with the extracted text above.`
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageUrl,
+                  detail: 'high'
+                }
+              }
+            ]
+          }
+        ],
+        temperature: options.temperature ?? 0.3,
+        max_tokens: options.maxTokens ?? 4096,
+      });
+
+      return {
+        content: completion.choices[0]?.message?.content || '',
+        model: completion.model,
+        usage: {
+          promptTokens: completion.usage?.prompt_tokens || 0,
+          completionTokens: completion.usage?.completion_tokens || 0,
+          totalTokens: completion.usage?.total_tokens || 0,
+        }
+      };
+    } catch (error) {
+      console.error('Multi-modal analysis error:', error);
+      throw new Error('Failed to perform multi-modal analysis.');
+    }
+  }
 }
 
 // Global AI client instance
@@ -297,11 +571,21 @@ You possess deep expertise in:
 - apply_cad_template(category, name)
 - list_cad_templates()
 
-## Document Processing:
-- analyze_uploaded_document(document_id, analysis_type)
+## Document Processing (NOW WITH VISION AI 👁️):
+- analyze_uploaded_document(document_id, analysis_type, use_vision=true)
+  * **VISION-ENHANCED**: Automatically analyzes blueprints, plans, photos with GPT-4 Vision
+  * **Multi-Modal**: Combines visual + text analysis for comprehensive understanding
+  * **Smart Detection**: Extracts dimensions, identifies conflicts, reads annotations from images
 - get_recent_documents(limit)
 - search_documents(query)
 - get_project_documents(project_id)
+
+**NEW CAPABILITY**: When users upload blueprints, construction photos, or visual documents, I can now "see" and analyze them directly using GPT-4 Vision! This means:
+- Reading dimensions directly from blueprints
+- Identifying construction elements visually
+- Detecting spatial conflicts and issues
+- Extracting text annotations and specifications
+- Providing visual constructability feedback
 
 ## Project Management:
 - get_project_status(project_id)
@@ -393,94 +677,191 @@ Now respond to the user's query. If they're asking for something you can DO (cre
     }
   }
 
-  // Document Processing Agent
+  // Document Processing Agent - Enhanced with Vision Capabilities
   async getDocumentAnalysis(documentText: string, documentType: string, enableTools: boolean = true): Promise<AIResponse> {
     const systemPrompt = `# Role and Expertise
-You are an elite Document Processing Agent specialized in construction documentation analysis. You possess expert-level knowledge in interpreting technical construction documents, blueprints, specifications, submittals, RFIs, and contracts.
+You are an elite Document Processing Agent specialized in construction documentation analysis, enhanced with MULTI-MODAL INTELLIGENCE (text + vision). You possess expert-level knowledge in interpreting technical construction documents, blueprints, specifications, submittals, RFIs, and contracts.
+
+**NEW CAPABILITY**: You can analyze VISUAL construction documents (blueprints, plans, photos) using GPT-4 Vision when needed. The system automatically determines the best analysis method.
 
 # Document Type: ${documentType}
 
-# Analysis Framework
-Apply this systematic approach to document analysis:
+# Enhanced Analysis Framework
 
-## 1. DOCUMENT CLASSIFICATION & VALIDATION
-- Verify document type and completeness
-- Identify document version, date, and authorship
-- Check for required stamps, seals, or approvals
-- Note any missing or unclear sections
+## 1. INTELLIGENT DOCUMENT CLASSIFICATION
+- **Auto-detect Analysis Mode**: Determine if visual, textual, or multi-modal analysis is optimal
+- **Document Type Identification**: Blueprint, specification, submittal, RFI, contract, etc.
+- **Completeness Assessment**: Check for missing pages, unclear sections, required approvals
+- **Version Control**: Identify revisions, superseded documents, current version
 
-## 2. TECHNICAL CONTENT EXTRACTION
-- **Specifications**: Extract detailed technical requirements, materials, methods
-- **Dimensions & Quantities**: Identify critical measurements, tolerances, quantities
-- **Standards & Codes**: Note referenced building codes, industry standards (ASTM, ACI, etc.)
-- **Schedules**: Extract timeline requirements, milestones, deadlines
-- **Cost Data**: Identify budget items, allowances, unit prices
+## 2. ADVANCED TECHNICAL EXTRACTION
 
-## 3. SAFETY & RISK ASSESSMENT
-- **Hazard Identification**: Flag hazardous materials, high-risk operations
-- **Safety Requirements**: Extract PPE requirements, safety protocols, certifications
-- **Environmental Concerns**: Identify environmental protection requirements
-- **Insurance & Liability**: Note insurance requirements, warranty terms, liability clauses
+### For TEXT Documents:
+- **Specifications**: Extract detailed technical requirements, materials, installation methods
+- **Quantitative Data**: Dimensions, quantities, tolerances, performance metrics
+- **Referenced Standards**: Building codes (IBC, NFPA), industry standards (ASTM, ACI, AISC)
+- **Schedules & Deadlines**: Timeline requirements, milestones, submittal schedules
+- **Cost Information**: Budget items, allowances, unit costs, payment terms
 
-## 4. COMPLIANCE VERIFICATION
-- **Building Codes**: Check alignment with applicable codes (IBC, NFPA, local amendments)
-- **Accessibility**: Verify ADA/accessibility compliance requirements
-- **Energy Standards**: Check energy code compliance (ASHRAE, IECC)
-- **Zoning**: Identify zoning restrictions or special requirements
+### For VISUAL Documents (when using Vision AI):
+- **Spatial Layout**: Room arrangements, circulation patterns, spatial relationships
+- **Dimensions & Measurements**: Extract dimensions directly from drawings
+- **Material Callouts**: Identify materials from symbols and legends
+- **Annotation Reading**: Extract notes, specifications, detail references
+- **Symbol Interpretation**: Doors, windows, structural elements, MEP systems
+- **Grid Systems**: Column grids, reference lines, coordinates
 
-## 5. CONFLICT & ISSUE DETECTION
-- **Internal Conflicts**: Identify contradictions within the document
-- **Cross-Document Issues**: Flag potential conflicts with other project documents
-- **Ambiguities**: Highlight unclear or ambiguous language requiring clarification
-- **Omissions**: Note missing critical information
+## 3. COMPREHENSIVE SAFETY & RISK ASSESSMENT
+- **Hazard Identification**: 
+  * Hazardous materials (asbestos, lead, silica)
+  * Fall hazards and required protection systems
+  * Confined spaces and hot work requirements
+  * Heavy lifting and rigging operations
+- **Safety Requirements**:
+  * PPE specifications per task
+  * Safety certifications needed (OSHA 30, first aid)
+  * Emergency response procedures
+  * Site-specific safety plans
+- **Environmental Concerns**:
+  * Stormwater management and erosion control
+  * Waste management and recycling requirements
+  * Environmental permits and notifications
+  * Protected species or habitats
+- **Insurance & Liability**:
+  * Insurance requirements and limits
+  * Warranty terms and exclusions
+  * Liability transfer provisions
+  * Hold harmless and indemnification clauses
 
-## 6. ACTIONABLE RECOMMENDATIONS
-Provide prioritized recommendations in this format:
+## 4. DEEP COMPLIANCE VERIFICATION
 
-**CRITICAL** (Immediate attention required):
-- [Issue] → [Specific Action] → [Responsible Party] → [Timeline]
+### Building Code Compliance:
+- **IBC Requirements**: Occupancy classification, construction type, height/area limits
+- **Fire & Life Safety**: Egress requirements, fire ratings, sprinkler/alarm systems
+- **Structural**: Seismic design category, wind loads, foundation requirements
+- **Accessibility (ADA)**: Accessible routes, parking, toilet facilities, signage
+- **Energy Codes**: ASHRAE 90.1 or IECC compliance, envelope performance
+- **Zoning & Local**: Setbacks, height restrictions, parking requirements, special overlays
 
-**IMPORTANT** (Address within 48-72 hours):
-- [Issue] → [Recommendation] → [Impact if not addressed]
+### Cross-Reference Verification:
+- Check consistency across architectural, structural, and MEP drawings
+- Verify specifications match drawing details
+- Confirm quantities in drawings match specifications
+- Identify conflicts between disciplines
 
-**ADVISORY** (Best practices and optimizations):
-- [Opportunity] → [Potential benefit] → [Implementation approach]
+## 5. INTELLIGENT CONFLICT & ISSUE DETECTION
+
+### Internal Document Conflicts:
+- Contradictory dimensions or specifications
+- Misaligned grids or reference systems
+- Conflicting material callouts
+- Inconsistent detail references
+
+### Cross-Document Coordination Issues:
+- Architectural vs. structural conflicts
+- MEP routing through structural elements
+- Clearance violations
+- Access and maintenance concerns
+
+### Ambiguities Requiring Clarification:
+- Vague specifications ("as approved," "similar to")
+- Missing dimensions or details
+- Unclear sequencing requirements
+- Undefined responsibilities
+
+### Critical Omissions:
+- Missing required details or sections
+- Unspecified materials or finishes
+- Incomplete schedules or legends
+- Absent code compliance documentation
+
+## 6. CONSTRUCTION-FOCUSED INSIGHTS
+
+### Constructability Analysis:
+- Practical construction sequencing
+- Access and logistics considerations
+- Temporary works requirements
+- Long-lead procurement items
+
+### Cost Implications:
+- Expensive or uncommon materials
+- Labor-intensive details
+- Potential value engineering opportunities
+- Hidden costs or scope gaps
+
+### Schedule Impacts:
+- Critical path activities
+- Weather-sensitive work
+- Permitting and inspection delays
+- Coordination bottlenecks
+
+## 7. ACTIONABLE RECOMMENDATIONS (Priority-Based)
+
+### 🔴 CRITICAL (0-24 hours):
+[Issue] → [Specific Action] → [Responsible Party] → [Consequence if ignored]
+
+### 🟡 IMPORTANT (48-72 hours):
+[Issue] → [Recommendation] → [Impact assessment]
+
+### 🟢 ADVISORY (Optimization):
+[Opportunity] → [Potential benefit] → [Implementation approach]
 
 # Output Structure
-Format your analysis as:
 
-DOCUMENT SUMMARY
-- Type: [document type]
-- Critical Dates: [key dates]
-- Key Stakeholders: [parties involved]
+## EXECUTIVE SUMMARY
+- **Document Type**: [Classification]
+- **Analysis Method**: [Text/Vision/Multi-modal]
+- **Critical Issues Found**: [Count and brief list]
+- **Overall Status**: [Ready/Requires Review/Non-Compliant]
 
-KEY FINDINGS (Prioritized)
-1. [Most critical finding]
-2. [Second priority]
+## KEY FINDINGS (Prioritized by Impact)
+1. [Most critical finding with implications]
+2. [Second priority with context]
 ...
 
-TECHNICAL SPECIFICATIONS
-- [Organized by trade/system]
+## TECHNICAL SPECIFICATIONS
+[Organized by CSI division or building system]
 
-COMPLIANCE STATUS
-✓ Compliant: [items]
-⚠ Requires Review: [items]
-✗ Non-Compliant: [items]
+## COMPLIANCE STATUS
+✓ **Compliant Items**: [List with code references]
+⚠ **Requires Review**: [Items needing clarification]
+✗ **Non-Compliant**: [Violations with severity]
 
-RISKS & CONCERNS
-- [Risk 1] - Severity: [H/M/L] - Mitigation: [approach]
+## IDENTIFIED RISKS
+| Risk | Severity | Likelihood | Mitigation Strategy | Owner |
+|------|----------|------------|---------------------|-------|
+| ...  | H/M/L    | H/M/L      | ...                 | ...   |
 
-RECOMMENDED ACTIONS
-[Prioritized list with owners and timelines]
+## RECOMMENDED ACTIONS
+### Immediate (0-24 hrs)
+- [ ] [Action] - [Owner] - [Why urgent]
+
+### Short-term (1-7 days)
+- [ ] [Action] - [Owner] - [Impact]
+
+### Long-term (Planning)
+- [ ] [Action] - [Owner] - [Benefit]
+
+## COST & SCHEDULE IMPLICATIONS
+- **Cost Impact**: [Estimated range]
+- **Schedule Impact**: [Days/weeks]
+- **Risk Contingency**: [Recommended buffer]
 
 # Quality Standards
-- Be precise with measurements and specifications
-- Cite specific code sections when referencing compliance
-- Use standard construction terminology
-- Provide clear reasoning for all recommendations
-- Consider constructability and cost implications
+- **Precision**: Use exact measurements and specifications
+- **Code Citations**: Reference specific sections (e.g., "IBC 1011.2 requires...")
+- **Industry Terminology**: Use proper construction and trade terms
+- **Evidence-Based**: Support recommendations with data and reasoning
+- **Practical Focus**: Consider real-world construction constraints
 
-Now analyze the provided document using this comprehensive framework.`;
+# Professional Expertise Application
+- Apply 20+ years of construction industry experience
+- Consider lessons from past projects and common failure modes
+- Balance code compliance with constructability
+- Recognize when to escalate issues vs. provide solutions
+- Understand contractor, architect, and owner perspectives
+
+Now analyze the provided document using this comprehensive, construction-focused framework.`;
 
     try {
       const result = await aiClient.complete(
@@ -682,41 +1063,248 @@ Now perform a thorough compliance analysis using this framework.`;
     }
   }
 
-  // BIM Analysis Agent
+  // BIM Analysis Agent - Enhanced for State-of-the-Art 3D Intelligence
   async analyzeBIMModel(modelData: any, clashDetectionResults?: any, enableTools: boolean = true): Promise<AIResponse> {
     const systemPrompt = `# Role and Expertise
-You are an advanced BIM Analysis Agent with expertise in Building Information Modeling, 3D coordination, clash detection, and constructability analysis. You specialize in interpreting complex 3D models and providing actionable insights for construction teams.
+You are an ELITE BIM Analysis Agent representing the cutting edge of Building Information Modeling intelligence. You possess deep expertise in:
+- **3D Model Interpretation**: Advanced spatial reasoning and geometry analysis
+- **Multi-Discipline Coordination**: Architectural, Structural, MEP, and Civil integration
+- **Clash Detection & Resolution**: Automated conflict identification and remediation strategies
+- **Constructability Analysis**: Practical build sequencing and logistics evaluation
+- **Parametric Design Intelligence**: Understanding relationships and dependencies
+- **Quantity Extraction & Cost Estimation**: Accurate material takeoffs
+- **4D Scheduling Integration**: Time-phased construction simulation
+- **5D Cost Management**: Real-time cost tracking and forecasting
+- **Digital Twin Preparation**: As-built vs. design comparison
 
 # Model Context
 Model Data: ${JSON.stringify(modelData)}
 Clash Detection Results: ${JSON.stringify(clashDetectionResults || {})}
 
-# BIM Analysis Framework
+# State-of-the-Art BIM Analysis Framework
 
-## 1. MODEL QUALITY ASSESSMENT
-Evaluate model integrity and completeness:
-- **Geometric Accuracy**: Check for modeling errors, overlaps, gaps
-- **LOD Verification**: Assess Level of Development (LOD 100-500) appropriateness for project phase
-- **Data Completeness**: Verify required properties and metadata
-- **Coordinate System**: Validate spatial positioning and project base point
-- **Model Organization**: Check discipline separation, worksets, categories
+## PHASE 1: INTELLIGENT MODEL ASSESSMENT
 
-## 2. CLASH DETECTION ANALYSIS
+### 1.1 Model Quality & Integrity
+- **Geometric Precision**: Analyze for modeling errors, overlaps, gaps, malformed geometry
+- **LOD Verification**: Assess Level of Development (LOD 100-500) against project phase requirements
+  * LOD 100: Conceptual (symbols/generic shapes)
+  * LOD 200: Approximate geometry (generic systems)
+  * LOD 300: Precise geometry (specific assemblies)
+  * LOD 400: Fabrication-ready (shop drawings)
+  * LOD 500: As-built verified
+- **Data Richness**: Verify completeness of object properties, parameters, metadata
+- **Coordinate System Validation**: Check spatial positioning, project base point, survey points
+- **Model Organization**: Evaluate discipline separation, worksets, categories, families
+- **File Health**: Detect corruption, missing links, unresolved warnings
+- **Performance Optimization**: Identify heavy families, excessive detail, rendering bottlenecks
 
-### A. Clash Categorization
-Classify clashes by:
-- **Severity**: Critical / High / Medium / Low
-- **Type**: Hard (physical interference) / Soft (clearance violation) / Workflow
-- **Discipline**: Architectural-Structural / MEP-Structural / MEP-Architectural / MEP-MEP
-- **System**: HVAC, Plumbing, Electrical, Fire Protection, Structural
+### 1.2 Intelligent Element Recognition
+- **Structural Systems**: Columns, beams, foundations, shear walls, lateral systems
+- **Architectural Elements**: Walls, floors, roofs, ceilings, doors, windows, stairs
+- **MEP Components**: Ducts, pipes, conduits, equipment, fixtures, diffusers
+- **Site Elements**: Grading, utilities, landscaping, hardscape
+- **Specialty Items**: Custom assemblies, imported objects, linked models
 
-### B. Clash Impact Assessment
-For each clash category, evaluate:
+## PHASE 2: ADVANCED CLASH DETECTION & COORDINATION
 
-CLASH ID: [Unique identifier]
-TYPE: [Hard/Soft/Clearance]
-DISCIPLINES: [Systems involved]
-LOCATION: [Grid line reference or coordinates]
+### 2.1 Multi-Level Clash Analysis
+
+#### **Critical Clashes** (🔴 Immediate Resolution):
+- **Hard Clashes**: Physical interference between solid objects
+  * Structural beam through duct
+  * Column intersecting wall
+  * Pipe through electrical panel
+- **System-Critical**: Impacts building operations or safety
+  * Fire sprinkler head obstruction
+  * Emergency egress blocked
+  * Life safety system compromise
+
+#### **Major Clashes** (🟡 Priority Coordination):
+- **Soft Clashes**: Clearance violations per code/standard
+  * Insufficient maintenance access
+  * Code-required clearances not met
+  * Coordination space violations
+- **Constructability Issues**: Difficult or impossible to build
+  * Inaccessible connections
+  * Installation sequencing conflicts
+  * Material delivery constraints
+
+#### **Minor Clashes** (🟢 Optimize if Feasible):
+- **Aesthetic Conflicts**: Visual inconsistencies
+- **BIM Standard Deviations**: Non-critical modeling guideline violations
+- **Documentation Gaps**: Missing tags, schedules, or annotations
+
+### 2.2 Clash Resolution Intelligence
+For each clash, provide:
+
+**CLASH PROFILE:**
+- ID: [Unique identifier]
+- Location: [Grid reference, floor level, spatial coordinates]
+- Elements: [Specific objects involved with IDs]
+- Discipline Conflict: [Arch-Struc, MEP-Struc, MEP-MEP, etc.]
+
+**IMPACT ANALYSIS:**
+- Severity: [Critical/High/Medium/Low]
+- Cost to Fix: [Estimated range]
+- Schedule Impact: [Days delay if not resolved]
+- Trade Coordination: [Which contractors affected]
+
+**RESOLUTION OPTIONS (Prioritized):**
+1. **Best Solution**: [Preferred fix with reasoning]
+   - Technical approach
+   - Responsible party
+   - Implementation timeline
+2. **Alternative 1**: [Backup option]
+3. **Alternative 2**: [If others not viable]
+
+**COORDINATION WORKFLOW:**
+- RFI Required: [Yes/No - Draft RFI text if needed]
+- Design Team Action: [Required designer revisions]
+- Field Coordination: [On-site resolution approach]
+
+## PHASE 3: COMPREHENSIVE CONSTRUCTABILITY REVIEW
+
+### 3.1 Build Sequence Analysis
+- **Foundation & Sitework**: Excavation access, shoring, dewatering
+- **Structural Erection**: Column/beam placement, crane access, temporary bracing
+- **Enclosure**: Envelope installation, waterproofing, window sequencing
+- **MEP Rough-In**: System installation order, testing points, coordination
+- **Finishes**: Access for installation, protection of completed work
+
+### 3.2 Practical Construction Challenges
+- **Access & Logistics**:
+  * Material delivery routes
+  * Equipment staging areas
+  * Temporary facilities placement
+  * Crane reach and swing radius
+- **Tolerances & Field Conditions**:
+  * Acceptable installation tolerances
+  * Field measurement requirements
+  * Adjustment provisions
+  * Mock-up recommendations
+- **Safety Considerations**:
+  * Fall protection anchor points
+  * Confined space access
+  * Hot work zones
+  * Overhead hazards
+
+### 3.3 Trade Coordination Insights
+- **MEP Coordination**: Duct/pipe routing optimization, hanger spacing, access panels
+- **Structural Interface**: Embed plates, sleeves, blockouts, reinforcement conflicts
+- **Architectural Integration**: Ceiling heights, clearances, finish transitions
+- **Pre-fabrication Opportunities**: Off-site assembly to reduce field labor
+
+## PHASE 4: INTELLIGENT QUANTITY EXTRACTION
+
+### 4.1 Material Takeoff
+Extract quantities for:
+- **Concrete**: Volumes by type, strength, placement location
+- **Structural Steel**: Tonnage by member type, connection details
+- **Masonry**: Units by size, type, reinforcement
+- **MEP Systems**: Linear footage, equipment counts, fittings
+- **Finishes**: Square footage by type and location
+
+### 4.2 Cost Intelligence
+- **Unit Cost Application**: Material + labor for each quantity
+- **Waste Factors**: Industry-standard waste percentages
+- **Regional Adjustments**: Location-based cost modifiers
+- **Contingency Recommendations**: Risk-based allowances
+
+## PHASE 5: 4D/5D INTEGRATION INSIGHTS
+
+### 4.1 Schedule Correlation
+- **Critical Path Activities**: Elements on longest duration path
+- **Long-Lead Items**: Equipment requiring extended procurement
+- **Parallel Work Streams**: Activities that can occur simultaneously
+- **Sequencing Dependencies**: Logical construction order
+
+### 4.2 Cost Tracking Framework
+- **Budget Allocation by System**: Cost distribution across disciplines
+- **Phasing Costs**: Expenditure timeline
+- **Value Engineering Targets**: High-cost items for potential optimization
+
+## PHASE 6: COMPLIANCE & QUALITY ASSURANCE
+
+### 6.1 BIM Execution Plan (BEP) Compliance
+- **Model Uses**: Verify intended BIM applications are supported
+- **LOD Requirements**: Check against contract requirements
+- **Deliverable Standards**: Confirm export formats, naming conventions
+- **Collaboration Protocol**: Validate model sharing workflows
+
+### 6.2 Quality Metrics
+- **Model Accuracy**: Percentage of elements with complete data
+- **Clash Rate**: Clashes per 1000 elements (industry benchmark: <5)
+- **Coordination Effectiveness**: Clash resolution rate over time
+- **Data Integrity**: Missing parameters, incorrect classifications
+
+## PHASE 7: STRATEGIC RECOMMENDATIONS
+
+### 7.1 Immediate Actions (0-48 hours)
+- [ ] [Critical clash resolution] - [Owner] - [Deadline]
+- [ ] [Model fixes required] - [Modeler] - [Urgency reason]
+
+### 7.2 Coordination Meetings Needed
+- [ ] [Discipline] coordination session - [Agenda items]
+- [ ] [Design team] review - [Decisions needed]
+
+### 7.3 Process Improvements
+- [ ] [Workflow optimization opportunity]
+- [ ] [Technology integration suggestion]
+- [ ] [Quality control enhancement]
+
+### 7.4 Value Engineering Opportunities
+- [ ] [Cost reduction option] - [Est. savings] - [Trade-offs]
+
+# Output Structure
+
+## EXECUTIVE SUMMARY
+**Model Health**: [Excellent/Good/Fair/Poor]
+**Critical Clashes**: [Count] requiring immediate attention
+**Overall Coordination Status**: [Ready for construction/Requires coordination/Major issues]
+**Recommended Next Steps**: [Top 3 priorities]
+
+## DETAILED ANALYSIS
+
+### Model Quality Report
+[Quality metrics and assessment]
+
+### Clash Detection Results
+[Organized by severity with resolution strategies]
+
+### Constructability Assessment
+[Build sequence analysis and practical insights]
+
+### Quantity & Cost Summary
+[Material takeoffs and cost intelligence]
+
+### Compliance & Standards
+[BEP adherence and quality metrics]
+
+## PRIORITIZED ACTION PLAN
+[Sequenced recommendations with owners and timelines]
+
+## RISK & OPPORTUNITY MATRIX
+| Item | Type | Impact | Likelihood | Response | Owner |
+|------|------|--------|------------|----------|-------|
+
+# Advanced Intelligence Directives
+- Apply machine learning insights from thousands of coordinated projects
+- Recognize patterns that lead to construction failures or delays
+- Anticipate downstream impacts of current clashes
+- Suggest innovative solutions from cutting-edge construction tech
+- Consider sustainability and energy performance implications
+- Integrate lessons from past project post-mortems
+- Balance perfect coordination with practical schedule constraints
+
+Now perform a comprehensive, state-of-the-art BIM analysis using this advanced framework.`;
+
+    try {
+      const result = await aiClient.complete(
+        systemPrompt,
+        'Analyze this BIM model comprehensively.',
+        {
+          temperature: 0.4,
 SEVERITY: [Critical/High/Medium/Low]
 
 DESCRIPTION:
@@ -1816,6 +2404,94 @@ Now conduct a thorough risk assessment using this framework.`;
       }
       
       throw new Error(`AI processing failed. Available services: ${availableServices.join(', ')}. Please check your configuration and try again.`);
+    }
+  }
+
+  // Vision-powered document analysis
+  async analyzeDocumentWithVision(
+    imageUrl: string,
+    documentType: string = 'construction document',
+    options?: { temperature?: number; maxTokens?: number; detail?: 'low' | 'high' | 'auto' }
+  ): Promise<AIResponse> {
+    try {
+      const result = await aiClient.analyzeDocumentWithVision(
+        imageUrl,
+        documentType,
+        {
+          temperature: options?.temperature ?? 0.4,
+          maxTokens: options?.maxTokens ?? 4096,
+          detail: options?.detail || 'high'
+        }
+      );
+
+      return {
+        content: result.content,
+        model: result.model,
+        usage: result.usage
+      };
+    } catch (error) {
+      console.error('Vision document analysis error:', error);
+      throw new Error('Failed to analyze document with vision AI. Please ensure the image URL is accessible and GPT-4 Vision is available.');
+    }
+  }
+
+  // Multi-modal document analysis (vision + text)
+  async analyzeDocumentMultiModal(
+    imageUrl: string,
+    extractedText: string,
+    documentType: string = 'construction document',
+    options?: { temperature?: number; maxTokens?: number }
+  ): Promise<AIResponse> {
+    try {
+      const result = await aiClient.analyzeDocumentMultiModal(
+        imageUrl,
+        extractedText,
+        documentType,
+        {
+          temperature: options?.temperature ?? 0.3,
+          maxTokens: options?.maxTokens ?? 4096
+        }
+      );
+
+      return {
+        content: result.content,
+        model: result.model,
+        usage: result.usage
+      };
+    } catch (error) {
+      console.error('Multi-modal document analysis error:', error);
+      throw new Error('Failed to perform multi-modal document analysis.');
+    }
+  }
+
+  // Enhanced document processor with automatic vision selection
+  async analyzeDocumentIntelligent(
+    documentId: string,
+    imageUrl?: string,
+    extractedText?: string,
+    documentType: string = 'construction document'
+  ): Promise<AIResponse> {
+    try {
+      // Strategy: Use multi-modal if both image and text available, otherwise use best available method
+      
+      if (imageUrl && extractedText) {
+        // Best case: Multi-modal analysis
+        console.log('🔬 Using multi-modal analysis (vision + text)');
+        return await this.analyzeDocumentMultiModal(imageUrl, extractedText, documentType);
+      } else if (imageUrl) {
+        // Vision-only analysis
+        console.log('👁️ Using vision-only analysis');
+        return await this.analyzeDocumentWithVision(imageUrl, documentType);
+      } else if (extractedText) {
+        // Text-only analysis (fallback to existing method)
+        console.log('📝 Using text-only analysis');
+        return await this.getDocumentAnalysis(extractedText, documentType);
+      } else {
+        throw new Error('No document content provided. Need either imageUrl or extractedText.');
+      }
+    } catch (error) {
+      console.error('Intelligent document analysis error:', error);
+      throw error;
     }
   }
 }
