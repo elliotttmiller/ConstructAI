@@ -33,6 +33,9 @@ import {
   Loader2
 } from "lucide-react";
 import ThreeViewer from "@/components/bim/ThreeViewer";
+import { ParametricCADBuilder } from "@/components/cad/ParametricCADBuilder";
+import { LayerManager } from "@/components/bim/LayerManager";
+import type { CADGenerationResult } from "@/types/build123d";
 
 interface BIMModel {
   id: string;
@@ -78,6 +81,8 @@ export default function BIMPage() {
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [showClashes, setShowClashes] = useState(true);
+  const [generatedCADModel, setGeneratedCADModel] = useState<CADGenerationResult | null>(null);
+  const [threeScene, setThreeScene] = useState<any>(null);
 
   useEffect(() => {
     if (!session?.user) {
@@ -168,16 +173,21 @@ export default function BIMPage() {
             onClashesDetected={(clashes) => {
               console.log('Clashes detected:', clashes);
             }}
+            onSceneReady={(scene) => {
+              setThreeScene(scene);
+            }}
           />
         </div>
 
         {/* Right Sidebar */}
         <div className="w-80 border-l bg-background">
           <Tabs defaultValue="models" className="h-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="models">Models</TabsTrigger>
+              <TabsTrigger value="layers">Layers</TabsTrigger>
+              <TabsTrigger value="cad">CAD</TabsTrigger>
               <TabsTrigger value="clashes">Clashes</TabsTrigger>
-              <TabsTrigger value="properties">Properties</TabsTrigger>
+              <TabsTrigger value="properties">Props</TabsTrigger>
             </TabsList>
 
             <TabsContent value="models" className="p-4 space-y-4">
@@ -235,6 +245,42 @@ export default function BIMPage() {
                   ))}
                 </div>
               </div>
+            </TabsContent>
+
+            <TabsContent value="layers" className="p-0 h-full overflow-hidden">
+              <LayerManager 
+                scene={threeScene}
+                onLayerSelect={(layer) => {
+                  console.log('Layer selected:', layer);
+                }}
+                onLayerVisibilityChange={(layerId, visible) => {
+                  console.log('Layer visibility changed:', layerId, visible);
+                }}
+                onLayerLockChange={(layerId, locked) => {
+                  console.log('Layer lock changed:', layerId, locked);
+                }}
+                className="h-full border-0 rounded-none"
+              />
+            </TabsContent>
+
+            <TabsContent value="cad" className="p-4 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+              <ParametricCADBuilder
+                onModelGenerated={(result) => {
+                  setGeneratedCADModel(result);
+                  // Dispatch event to load model in ThreeViewer
+                  if (result.exports.gltf && typeof window !== 'undefined') {
+                    const event = new CustomEvent('loadCADModel', { 
+                      detail: { 
+                        url: `/api/cad/export/${result.model_id}/gltf`,
+                        modelId: result.model_id,
+                        properties: result.properties
+                      } 
+                    });
+                    window.dispatchEvent(event);
+                  }
+                }}
+                className="w-full"
+              />
             </TabsContent>
 
             <TabsContent value="clashes" className="p-4 space-y-4">

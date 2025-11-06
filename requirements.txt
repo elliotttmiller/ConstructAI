@@ -22,3 +22,8 @@ pyyaml>=6.0            # YAML configuration files
 aiofiles>=23.0.0       # Async file operations
 python-jose[cryptography]>=3.3.0  # JWT token handling
 passlib[bcrypt]>=1.7.4  # Password hashing
+
+# Build123d CAD Service Dependencies
+build123d>=0.5.0       # Parametric CAD modeling framework
+# Note: build123d requires cadquery-ocp which includes OpenCascade bindings
+# These will be installed automatically as dependencies
