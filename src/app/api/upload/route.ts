@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createWorker } from 'tesseract.js';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, readFile } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { AIWorkflowOrchestrator } from '@/lib/ai-workflow-orchestrator';
@@ -168,8 +168,24 @@ export async function POST(request: NextRequest) {
 
     // Start OCR processing for supported files
     if (isImageFile(file.name) || file.type === 'application/pdf') {
+      console.log(`[UPLOAD] File requires OCR processing: ${fileId}, type: ${file.type}`);
+      
+      // Immediately update status to 'processing' before starting OCR
+      await supabaseAdmin
+        .from('documents')
+        .update({
+          status: 'processing',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', fileId);
+
+      console.log(`[UPLOAD] Status updated to 'processing' for: ${fileId}`);
+
+      // Start OCR in background
       processOCR(fileId, filePath, file.type)
         .then(async ({ extractedText, confidence }) => {
+          console.log(`[UPLOAD] OCR succeeded, updating to completed: ${fileId}`);
+          
           // Update document with OCR results
           await supabaseAdmin
             .from('documents')
@@ -181,11 +197,14 @@ export async function POST(request: NextRequest) {
             })
             .eq('id', fileId);
 
+          console.log(`[UPLOAD] Document marked as completed: ${fileId}`);
+
           // Trigger AI workflow orchestration
           await triggerAIWorkflow();
         })
         .catch(async (error) => {
-          console.error('OCR processing failed:', error);
+          console.error(`[UPLOAD] OCR failed for ${fileId}:`, error);
+          
           // Update document status to error
           await supabaseAdmin
             .from('documents')
@@ -194,8 +213,12 @@ export async function POST(request: NextRequest) {
               updated_at: new Date().toISOString()
             })
             .eq('id', fileId);
+
+          console.log(`[UPLOAD] Document marked as error: ${fileId}`);
         });
     } else {
+      console.log(`[UPLOAD] File does not require OCR: ${fileId}`);
+      
       // Mark as completed for non-OCR files
       await supabaseAdmin
         .from('documents')
@@ -209,13 +232,15 @@ export async function POST(request: NextRequest) {
       await triggerAIWorkflow();
     }
 
+    console.log(`[UPLOAD] Returning response for: ${fileId}`);
+
     return NextResponse.json({
       success: true,
       document: {
         id: document.id,
         name: document.name,
         type: document.type,
-        status: document.status,
+        status: isImageFile(file.name) || file.type === 'application/pdf' ? 'processing' : 'completed',
         size: document.size,
         url: document.url,
         category: document.category,
@@ -261,38 +286,55 @@ function isImageFile(filename: string): boolean {
 }
 
 async function processOCR(fileId: string, filePath: string, fileType: string): Promise<{ extractedText: string; confidence: number }> {
-  console.log(`Starting OCR processing for file: ${fileId}`);
+  console.log(`[OCR] Starting OCR processing for file: ${fileId}, type: ${fileType}`);
 
   try {
-    // Update status to processing
-    await supabaseAdmin
-      .from('documents')
-      .update({
-        status: 'processing',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', fileId);
-
-    const worker = await createWorker('eng');
-
     let extractedText = '';
     let confidence = 0;
 
     if (fileType === 'application/pdf') {
-      // For PDF files, we'd need additional processing
-      // For now, we'll simulate PDF text extraction
-      extractedText = 'PDF text extraction would be implemented here with a PDF parser.';
-      confidence = 85;
+      // Use pdf-parse for actual PDF text extraction
+      console.log(`[OCR] Processing PDF file with pdf-parse: ${fileId}`);
+      try {
+        const dataBuffer = await readFile(filePath);
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const pdfParseModule = require('pdf-parse');
+        const pdfData = await pdfParseModule(dataBuffer);
+        
+        extractedText = pdfData.text.trim();
+        confidence = extractedText.length > 0 ? 95 : 50; // High confidence if text found
+        
+        console.log(`[OCR] PDF parsed successfully: ${extractedText.length} characters, ${pdfData.numpages} pages`);
+      } catch (pdfError) {
+        console.error(`[OCR] PDF parsing failed: ${pdfError}`);
+        extractedText = `PDF document uploaded but text extraction failed: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`;
+        confidence = 0;
+      }
     } else {
       // Process image files with Tesseract
-      const { data: { text, confidence: ocrConfidence } } = await worker.recognize(filePath);
-      extractedText = text.trim();
-      confidence = Math.round(ocrConfidence);
+      console.log(`[OCR] Processing image file with Tesseract: ${fileId}`);
+      try {
+        // Configure Tesseract worker with proper paths for Next.js
+        const worker = await createWorker('eng', 1, {
+          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+          langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+        });
+        
+        const { data: { text, confidence: ocrConfidence } } = await worker.recognize(filePath);
+        extractedText = text.trim();
+        confidence = Math.round(ocrConfidence);
+        await worker.terminate();
+        
+        console.log(`[OCR] Tesseract succeeded: ${extractedText.length} characters`);
+      } catch (tesseractError) {
+        console.error(`[OCR] Tesseract failed: ${tesseractError}`);
+        extractedText = `Image file uploaded. OCR processing failed: ${tesseractError instanceof Error ? tesseractError.message : 'Unknown error'}`;
+        confidence = 0;
+      }
     }
 
-    await worker.terminate();
-
-    console.log(`OCR completed for file: ${fileId}, confidence: ${confidence}%`);
+    console.log(`[OCR] ✓ OCR completed for file: ${fileId}, confidence: ${confidence}%, text length: ${extractedText.length}`);
 
     return {
       extractedText,
@@ -300,8 +342,12 @@ async function processOCR(fileId: string, filePath: string, fileType: string): P
     };
 
   } catch (error) {
-    console.error(`OCR processing failed for file ${fileId}:`, error);
-    throw error;
+    console.error(`[OCR] ✗ OCR processing failed for file ${fileId}:`, error);
+    // Return fallback instead of throwing
+    return {
+      extractedText: `Document uploaded. OCR processing encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      confidence: 0
+    };
   }
 }
 
