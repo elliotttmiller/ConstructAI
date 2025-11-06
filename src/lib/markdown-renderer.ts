@@ -141,7 +141,7 @@ function parseInlineFormatting(text: string): MarkdownElement[] {
   const elements: MarkdownElement[] = [];
   let currentPos = 0;
   
-  // Regex patterns for inline elements
+  // Regex patterns for inline elements - created once
   const patterns = [
     { type: 'bold' as const, regex: /\*\*(.+?)\*\*/g },
     { type: 'italic' as const, regex: /\*(.+?)\*/g },
@@ -159,13 +159,12 @@ function parseInlineFormatting(text: string): MarkdownElement[] {
   }> = [];
   
   for (const pattern of patterns) {
-    const regex = new RegExp(pattern.regex);
     let match;
-    while ((match = regex.exec(text)) !== null) {
+    while ((match = pattern.regex.exec(text)) !== null) {
       matches.push({
         type: pattern.type,
         start: match.index,
-        end: regex.lastIndex,
+        end: pattern.regex.lastIndex,
         content: match[1],
         href: match[2] // for links
       });
@@ -274,5 +273,5 @@ function escapeHtml(text: string): string {
     '"': '&quot;',
     "'": '&#039;'
   };
-  return text.replace(/[&<>"']/g, m => map[m]);
+  return text.replace(/[&<>"']/g, (m) => map[m] || m);
 }

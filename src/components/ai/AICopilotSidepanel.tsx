@@ -22,7 +22,7 @@ import {
   type PersistedMessage,
   type ToolExecution
 } from '@/lib/conversation-persistence';
-import SettingsPanel, { loadSettings, type CopilotSettings } from './SettingsPanel';
+import SettingsPanel, { loadSettings, saveSettings, type CopilotSettings } from './SettingsPanel';
 import {
   Send,
   Bot,
@@ -165,13 +165,10 @@ What would you like to work on today?`,
 
     const handleMouseUp = () => {
       setIsResizing(false);
-      // Save the new width
+      // Save the new width using settings utility
       const newSettings = { ...settings, panelWidth };
       setSettings(newSettings);
-      // Persist to localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('constructai_copilot_settings', JSON.stringify(newSettings));
-      }
+      saveSettings(newSettings);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
