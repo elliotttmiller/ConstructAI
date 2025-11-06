@@ -1,6 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   allowedDevOrigins: ["*.preview.same-app.com"],
+  // Optimize page transitions and loading
+  reactStrictMode: false, // Disable strict mode for faster development
+  // Note: swcMinify is now the default in Next.js 15+ and has been removed
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
+  },
   eslint: {
     // Completely disable ESLint during builds
     ignoreDuringBuilds: true,
@@ -8,6 +16,10 @@ const nextConfig = {
   typescript: {
     // Skip TypeScript type checking during build
     ignoreBuildErrors: true,
+  },
+  experimental: {
+    optimizeCss: true, // Optimize CSS loading
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'], // Tree-shake icon libraries
   },
   images: {
     unoptimized: true,

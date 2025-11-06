@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Production Configuration for ConstructAI Platform
  * Manages feature flags, performance settings, and production optimizations
@@ -328,51 +329,58 @@ export function checkBrowserCompatibility(): {
 export function initializeProduction(): void {
   const config = getConfig();
 
-  console.log('🚀 Initializing ConstructAI Production Environment');
-  console.log('📊 Configuration:', {
-    environment: process.env.NODE_ENV,
-    features: Object.entries(config.features)
-      .filter(([, enabled]) => enabled)
-      .map(([feature]) => feature),
-    performance: {
-      maxFileSize: `${(config.performance.maxFileSize / 1024 / 1024).toFixed(0)}MB`,
-      maxImageSize: `${config.performance.maxImageSize}px`,
-      caching: config.performance.enableCaching ? 'enabled' : 'disabled'
+  // Only log in development mode to reduce overhead
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🚀 Initializing ConstructAI Production Environment');
+    console.log('📊 Configuration:', {
+      environment: process.env.NODE_ENV,
+      features: Object.entries(config.features)
+        .filter(([, enabled]) => enabled)
+        .map(([feature]) => feature),
+      performance: {
+        maxFileSize: `${(config.performance.maxFileSize / 1024 / 1024).toFixed(0)}MB`,
+        maxImageSize: `${config.performance.maxImageSize}px`,
+        caching: config.performance.enableCaching ? 'enabled' : 'disabled'
+      }
+    });
+  }
+
+  // Skip browser compatibility check in production for faster load
+  if (config.ui.enableDebugMode && process.env.NODE_ENV === 'development') {
+    const compatibility = checkBrowserCompatibility();
+    if (!compatibility.compatible) {
+      console.error('❌ Browser compatibility issues:', compatibility.missing);
     }
-  });
-
-  // Browser compatibility check
-  const compatibility = checkBrowserCompatibility();
-  if (!compatibility.compatible) {
-    console.error('❌ Browser compatibility issues:', compatibility.missing);
-  }
-  if (compatibility.warnings.length > 0) {
-    console.warn('⚠️ Browser warnings:', compatibility.warnings);
+    if (compatibility.warnings.length > 0) {
+      console.warn('⚠️ Browser warnings:', compatibility.warnings);
+    }
   }
 
-  // Setup cleanup on page unload
+  // Setup cleanup on page unload (lightweight)
   if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', () => {
       ResourceManager.cleanupWorkers();
       CacheManager.clear();
-    });
+    }, { once: true });
 
-    // Memory monitoring in development
-    if (config.ui.enableDebugMode) {
+    // Memory monitoring only in debug mode and less frequently
+    if (config.ui.enableDebugMode && process.env.NODE_ENV === 'development') {
       setInterval(() => {
         const stats = ResourceManager.getResourceStats();
-        if (stats.memory.current > 50 * 1024 * 1024) { // 50MB threshold
+        if (stats.memory.current > 100 * 1024 * 1024) { // Increased threshold to 100MB
           console.warn('⚠️ High memory usage:', {
             current: `${(stats.memory.current / 1024 / 1024).toFixed(2)}MB`,
             peak: `${(stats.memory.peak / 1024 / 1024).toFixed(2)}MB`,
             workers: stats.workers
           });
         }
-      }, 30000); // Check every 30 seconds
+      }, 60000); // Check every 60 seconds instead of 30
     }
   }
 
-  console.log('✅ Production environment initialized successfully');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('✅ Production environment initialized successfully');
+  }
 }
 
 // Configuration and utilities are already exported above

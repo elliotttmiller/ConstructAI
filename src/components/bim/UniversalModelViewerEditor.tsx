@@ -15,6 +15,7 @@ import { Slider } from '@/components/ui/slider';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { ParametricCADBuilder } from '@/components/cad/ParametricCADBuilder';
+import { ScaleIn } from '@/components/transitions/AnimationWrappers';
 import type { CADGenerationResult } from '@/types/build123d';
 import { IntelligentModelRecognizer, type ModelAnalysis, type ModelConfiguration } from '@/lib/intelligent-model-recognizer';
 import { EnhancedBIMProcessor, type BIMAnalysis } from '@/lib/enhanced-bim-processor';
@@ -40,7 +41,9 @@ import {
   CheckCircle2,
   Info,
   Activity,
-  Zap
+  Zap,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface UniversalModelViewerEditorProps {
@@ -81,6 +84,8 @@ export function UniversalModelViewerEditor({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showGrid, setShowGrid] = useState(true);
   const [showAxes, setShowAxes] = useState(true);
+  const [layersUpdateTrigger, setLayersUpdateTrigger] = useState(0);
+  const [sidePanelOpen, setSidePanelOpen] = useState(true);
   
   // Analysis state
   const [modelAnalysis, setModelAnalysis] = useState<ModelAnalysis | null>(null);
@@ -299,6 +304,23 @@ export function UniversalModelViewerEditor({
       transformControlsRef.current.detach();
     }
   }, [transformMode, selectedObject]);
+
+  // Handle side panel toggle - resize viewport
+  useEffect(() => {
+    if (!cameraRef.current || !rendererRef.current || !mountRef.current) return;
+
+    // Small delay to let the CSS transition complete
+    const timeout = setTimeout(() => {
+      const width = mountRef.current?.clientWidth || 800;
+      const height = mountRef.current?.clientHeight || 600;
+
+      cameraRef.current!.aspect = width / height;
+      cameraRef.current!.updateProjectionMatrix();
+      rendererRef.current!.setSize(width, height);
+    }, 320); // Slightly longer than CSS transition (300ms)
+
+    return () => clearTimeout(timeout);
+  }, [sidePanelOpen]);
 
   // Load model file with intelligent recognition
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -626,13 +648,18 @@ export function UniversalModelViewerEditor({
   }, []);
 
   return (
-    <div className={`flex h-full w-full ${className}`}>
-      {/* 3D Viewport */}
-      <div className="flex-1 relative bg-slate-100">
+    <div className={`flex h-full w-full overflow-hidden ${className}`}>
+      {/* 3D Viewport - dynamically adjust width based on panel state */}
+      <div 
+        className="relative bg-slate-100 overflow-hidden transition-all duration-300 ease-in-out"
+        style={{ 
+          width: sidePanelOpen ? 'calc(100% - 320px)' : '100%'
+        }}
+      >
         <div ref={mountRef} className="absolute inset-0 w-full h-full" />
         
         {/* Toolbar */}
-        <div className="absolute top-4 left-4 flex flex-col gap-2">
+        <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
           <Card className="p-2">
             <div className="flex gap-1">
               <Button
@@ -652,6 +679,32 @@ export function UniversalModelViewerEditor({
                 <Settings className="h-4 w-4" />
               </Button>
             </div>
+          </Card>
+
+          {/* Upload Model Button */}
+          <Card className="p-2">
+            <Label htmlFor="file-upload" className="cursor-pointer">
+              <ScaleIn>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  asChild
+                >
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    <span>Load Model</span>
+                  </div>
+                </Button>
+              </ScaleIn>
+            </Label>
+            <input
+              id="file-upload"
+              type="file"
+              accept=".gltf,.glb,.obj,.fbx,.stl"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
           </Card>
 
           {viewMode === 'edit' && selectedObject && (
@@ -737,24 +790,150 @@ export function UniversalModelViewerEditor({
         )}
       </div>
 
+      {/* Side Panel Toggle Button */}
+      <Button
+        size="sm"
+        variant="secondary"
+        className="absolute top-1/2 -translate-y-1/2 z-30 h-20 w-6 rounded-l-md rounded-r-none bg-background/70 hover:bg-background/90 backdrop-blur-sm border-l border-y shadow-md transition-all duration-300 ease-in-out p-0"
+        style={{ 
+          right: sidePanelOpen ? '320px' : '0',
+          transition: 'right 0.3s ease-in-out'
+        }}
+        onClick={() => setSidePanelOpen(!sidePanelOpen)}
+        title={sidePanelOpen ? 'Close Panel' : 'Open Panel'}
+      >
+        {sidePanelOpen ? (
+          <ChevronRight className="h-5 w-5" />
+        ) : (
+          <ChevronLeft className="h-5 w-5" />
+        )}
+      </Button>
+
       {/* Side Panel */}
-      <div className="w-80 border-l bg-background overflow-y-auto">
-        <Tabs defaultValue="models" className="h-full">
-          <TabsList className="grid w-full grid-cols-5 text-xs">
+      {sidePanelOpen && (
+        <div className="w-80 border-l bg-background flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
+        <Tabs defaultValue="models" className="flex flex-col h-full">
+          <TabsList className="grid w-full grid-cols-5 text-xs flex-shrink-0">
             <TabsTrigger value="models">Models</TabsTrigger>
+            <TabsTrigger value="layers">Layers</TabsTrigger>
             <TabsTrigger value="analysis">
               <Activity className="h-3 w-3 mr-1" />
-              Analysis
+              AI
             </TabsTrigger>
             <TabsTrigger value="cad">
               <Sparkles className="h-3 w-3 mr-1" />
               CAD
             </TabsTrigger>
             <TabsTrigger value="properties">Props</TabsTrigger>
-            <TabsTrigger value="export">Export</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="analysis" className="p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto">
+            <TabsContent value="models" className="p-4 space-y-4 m-0">
+              <div className="space-y-2">
+                <h3 className="font-medium text-sm">Loaded Models ({loadedModels.length})</h3>
+                {loadedModels.map((model, index) => (
+                  <div
+                    key={index}
+                    className={`p-2 border rounded cursor-pointer hover:bg-muted transition-colors ${
+                      selectedObject === model ? 'bg-primary/10 border-primary' : ''
+                    }`}
+                    onClick={() => handleObjectSelection(model)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{model.name || `Model ${index + 1}`}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {model.type}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+                {loadedModels.length === 0 && (
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      No models loaded. Use the "Load Model" button to upload a 3D model file.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="layers" className="p-4 space-y-4 m-0">
+              <div>
+                <h3 className="font-medium text-sm mb-3">Scene Layers</h3>
+                <div className="space-y-2">
+                  {sceneRef.current && sceneRef.current.children.filter(obj => 
+                    obj.type !== 'GridHelper' && 
+                    obj.type !== 'AxesHelper' &&
+                    obj.type !== 'DirectionalLight' &&
+                    obj.type !== 'AmbientLight'
+                  ).length > 0 ? (
+                    sceneRef.current?.children.filter(obj => 
+                      obj.type !== 'GridHelper' && 
+                      obj.type !== 'AxesHelper' &&
+                      obj.type !== 'DirectionalLight' &&
+                      obj.type !== 'AmbientLight'
+                    ).map((object, index) => {
+                      const isVisible = object.visible;
+                      return (
+                        <div
+                          key={`${object.uuid}-${layersUpdateTrigger}`}
+                          className={`p-2 border rounded hover:bg-muted transition-colors ${
+                            selectedObject === object ? 'bg-primary/10 border-primary' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div 
+                              className="flex items-center gap-2 flex-1 cursor-pointer"
+                              onClick={() => handleObjectSelection(object)}
+                            >
+                              <Box className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium truncate">
+                                {object.name || `${object.type} ${index + 1}`}
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                object.visible = !object.visible;
+                                setLayersUpdateTrigger(prev => prev + 1);
+                              }}
+                            >
+                              {isVisible ? (
+                                <Eye className="h-3 w-3" />
+                              ) : (
+                                <EyeOff className="h-3 w-3 text-muted-foreground" />
+                              )}
+                            </Button>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                            <span>Type: {object.type}</span>
+                            {object instanceof THREE.Mesh && (
+                              <Badge variant="outline" className="text-xs">Mesh</Badge>
+                            )}
+                            {object instanceof THREE.Group && (
+                              <Badge variant="outline" className="text-xs">Group</Badge>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription className="text-xs">
+                        No layers available. Load a model to see layers.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="analysis" className="p-4 space-y-4 m-0">
             <div>
               <h3 className="font-medium text-sm mb-2">Model Analysis</h3>
               {modelAnalysis ? (
@@ -932,7 +1111,7 @@ export function UniversalModelViewerEditor({
             </div>
           </TabsContent>
 
-          <TabsContent value="cad" className="p-4 space-y-4">
+          <TabsContent value="cad" className="p-4 space-y-4 m-0">
             <div>
               <h3 className="font-medium text-sm mb-2">Parametric CAD Builder</h3>
               <p className="text-xs text-muted-foreground mb-4">
@@ -945,51 +1124,7 @@ export function UniversalModelViewerEditor({
             />
           </TabsContent>
 
-          <TabsContent value="models" className="p-4 space-y-4">
-            <div>
-              <Label htmlFor="file-upload" className="cursor-pointer">
-                <div className="border-2 border-dashed rounded-lg p-6 hover:border-primary transition-colors text-center">
-                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm font-medium">Upload Model</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    GLTF, GLB, OBJ, FBX, STL
-                  </p>
-                </div>
-              </Label>
-              <input
-                id="file-upload"
-                type="file"
-                accept=".gltf,.glb,.obj,.fbx,.stl"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="font-medium text-sm">Loaded Models ({loadedModels.length})</h3>
-              {loadedModels.map((model, index) => (
-                <div
-                  key={index}
-                  className={`p-2 border rounded cursor-pointer hover:bg-muted transition-colors ${
-                    selectedObject === model ? 'bg-primary/10 border-primary' : ''
-                  }`}
-                  onClick={() => handleObjectSelection(model)}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{model.name || `Model ${index + 1}`}</span>
-                    <Badge variant="secondary" className="text-xs">
-                      {model.type}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-              {loadedModels.length === 0 && (
-                <p className="text-xs text-muted-foreground">No models loaded yet</p>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="properties" className="p-4 space-y-4">
+          <TabsContent value="properties" className="p-4 space-y-4 m-0">
             {selectedObject ? (
               <>
                 <div>
@@ -1181,31 +1316,10 @@ export function UniversalModelViewerEditor({
               </div>
             )}
           </TabsContent>
-
-          <TabsContent value="export" className="p-4 space-y-4">
-            <div>
-              <h3 className="font-medium text-sm mb-2">Export Options</h3>
-              <p className="text-xs text-muted-foreground mb-4">
-                Export your model in various formats
-              </p>
-              
-              <div className="space-y-2">
-                {['GLTF', 'GLB', 'OBJ', 'STL', 'FBX'].map((format) => (
-                  <Button
-                    key={format}
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => onExport?.(format)}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export as {format}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </TabsContent>
+          </div>
         </Tabs>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

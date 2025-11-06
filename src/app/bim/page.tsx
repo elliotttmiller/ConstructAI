@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   Building2,
   RotateCcw,
@@ -32,10 +33,12 @@ import {
   Volume2,
   Loader2
 } from "lucide-react";
-import ThreeViewer from "@/components/bim/ThreeViewer";
-import { UniversalModelViewerEditor } from "@/components/bim/UniversalModelViewerEditor";
-import { ParametricCADBuilder } from "@/components/cad/ParametricCADBuilder";
-import { LayerManager } from "@/components/bim/LayerManager";
+import { 
+  LazyUniversalViewer, 
+  LazyThreeViewer,
+  LazyCADBuilder,
+  LazyLayerManager 
+} from "@/components/bim/LazyBIMComponents";
 import type { CADGenerationResult } from "@/types/build123d";
 
 interface BIMModel {
@@ -185,11 +188,12 @@ export default function BIMPage() {
       </div>
 
       <div className="flex-1 flex overflow-hidden min-h-0">
-        {viewerMode === 'universal' ? (
-          /* Universal Model Viewer/Editor */
-          <div className="flex-1 flex w-full h-full">
-            <UniversalModelViewerEditor
-              className="flex-1"
+        <ErrorBoundary componentName="3D Viewer">
+          {viewerMode === 'universal' ? (
+            /* Universal Model Viewer/Editor */
+            <div className="flex-1 flex w-full h-full">
+              <LazyUniversalViewer
+                className="flex-1"
               onModelLoaded={(model) => {
                 console.log('Model loaded in universal viewer:', model);
                 setThreeScene(model);
@@ -208,7 +212,7 @@ export default function BIMPage() {
             {/* Classic Viewer Mode */}
             <div className="flex-1 relative">
               {/* 3D Viewer Container */}
-              <ThreeViewer
+              <LazyThreeViewer
                 onAnalysisComplete={(analysis) => {
                   console.log('Analysis complete:', analysis);
                 }}
@@ -293,7 +297,7 @@ export default function BIMPage() {
             </TabsContent>
 
             <TabsContent value="layers" className="p-0 h-full overflow-hidden">
-              <LayerManager 
+              <LazyLayerManager 
                 scene={threeScene}
                 onLayerSelect={(layer) => {
                   console.log('Layer selected:', layer);
@@ -309,7 +313,7 @@ export default function BIMPage() {
             </TabsContent>
 
             <TabsContent value="cad" className="p-4 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-              <ParametricCADBuilder
+              <LazyCADBuilder
                 onModelGenerated={(result) => {
                   setGeneratedCADModel(result);
                   // Dispatch event to load model in ThreeViewer
@@ -405,6 +409,7 @@ export default function BIMPage() {
         </div>
           </>
         )}
+        </ErrorBoundary>
       </div>
     </div>
   );

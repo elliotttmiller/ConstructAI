@@ -1,14 +1,24 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import dynamic from "next/dynamic";
 import AppLayout from "@/components/layout/AppLayout";
 // import AuthGuard from "@/components/auth/AuthGuard"; // COMMENTED OUT FOR EASIER TESTING/DEVELOPMENT
 import { Toaster } from "@/components/ui/sonner";
-import { initializeProduction } from "@/lib/production-config";
 import CopilotContextProvider from "@/components/providers/CopilotContextProvider";
-import AICopilotSidepanel from "@/components/ai/AICopilotSidepanel";
-import FloatingAIButton from "@/components/ai/FloatingAIButton";
+import LoadingBar from "@/components/transitions/LoadingBar";
+
+// Lazy load AI components to reduce initial bundle size
+const AICopilotSidepanel = dynamic(
+  () => import("@/components/ai/AICopilotSidepanel"),
+  { ssr: false }
+);
+
+const FloatingAIButton = dynamic(
+  () => import("@/components/ai/FloatingAIButton"),
+  { ssr: false }
+);
 
 export default function ClientBody({
   children,
@@ -16,30 +26,47 @@ export default function ClientBody({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize production environment and remove extension classes
+  // Initialize production environment only once - with delay to not block rendering
   useEffect(() => {
-    // This runs only on the client after hydration
-    document.body.className = "antialiased";
+    if (!isInitialized) {
+      // Use requestIdleCallback to avoid blocking main thread
+      const initProd = () => {
+        import("@/lib/production-config")
+          .then(({ initializeProduction }) => {
+            initializeProduction();
+            setIsInitialized(true);
+          })
+          .catch((err) => {
+            console.warn("Production config failed to initialize:", err);
+            setIsInitialized(true); // Mark as initialized even on error
+          });
+      };
 
-    // Initialize production configuration and monitoring
-    initializeProduction();
-  }, []);
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(initProd, { timeout: 2000 });
+      } else {
+        setTimeout(initProd, 100);
+      }
+    }
+  }, [isInitialized]);
 
   // Check if current route is a public auth route
   const isAuthRoute = pathname?.startsWith('/auth/');
 
   return (
     <CopilotContextProvider>
+      <LoadingBar />
       <div className="antialiased">
         {/* AuthGuard COMMENTED OUT FOR EASIER TESTING/DEVELOPMENT */}
         {/* To re-enable authentication, uncomment the AuthGuard wrapper below */}
         {/* <AuthGuard> */}
           {isAuthRoute ? (
-            // Don't wrap auth pages with AppLayout
+            // Don't wrap auth pages with AppLayout - no transition wrapper for instant load
             children
           ) : (
-            // Wrap main app with AppLayout
+            // Wrap main app with AppLayout - no transition wrapper for instant navigation
             <AppLayout>
               {children}
             </AppLayout>

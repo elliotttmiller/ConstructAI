@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { OptimizedLink } from "@/components/navigation/OptimizedLink";
 import {
   MessageSquare,
   LayoutDashboard,
@@ -76,7 +77,23 @@ interface MainNavigationProps {
 
 export default function MainNavigation({ className }: MainNavigationProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+
+  // Prefetch all main routes on mount for instant navigation
+  useEffect(() => {
+    const routes = navigation.map(item => item.href).filter(Boolean);
+    
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        routes.forEach(route => router.prefetch(route));
+      });
+    } else {
+      setTimeout(() => {
+        routes.forEach(route => router.prefetch(route));
+      }, 1000);
+    }
+  }, [router]);
 
   const NavContent = () => (
     <div className="flex flex-col h-full">

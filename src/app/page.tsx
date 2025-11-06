@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DashboardSkeleton } from "@/components/ui/skeletons";
 import {
   Building2,
   Bot,
@@ -86,11 +87,7 @@ export default function Dashboard() {
   }, [session]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (!session?.user) {
