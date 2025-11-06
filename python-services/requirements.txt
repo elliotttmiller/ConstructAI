@@ -1,0 +1,27 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.24.0
+Pillow>=10.0.0
+opencv-python>=4.8.0
+python-multipart>=0.0.9
+pydantic>=2.0.0
+
+# Hunyuan3D-2 dependencies (when available)
+# Note: Install manually from https://github.com/Tencent-Hunyuan/Hunyuan3D-2
+# git+https://github.com/Tencent-Hunyuan/Hunyuan3D-2.git
+
+# Additional ML dependencies for full functionality
+diffusers>=0.21.0
+transformers>=4.30.0
+accelerate>=0.20.0
+xformers>=0.0.20  # Optional, for memory efficiency
+
+# Computer vision for blueprint analysis
+scikit-image>=0.21.0
+matplotlib>=3.7.0
+
+# Mesh processing (optional)
+trimesh>=3.20.0
+pymeshlab>=2022.2.post3

@@ -1,0 +1,24 @@
+# ConstructAI Platform - Python Dependencies
+# Required for start.py startup script and backend services
+
+# Core dependencies for start.py
+psutil>=5.9.0          # Process and system monitoring
+requests>=2.31.0        # HTTP requests for health checks
+httpx>=0.25.0          # Async HTTP client
+python-dotenv>=1.0.0   # Environment variable management
+
+# Backend API dependencies
+fastapi>=0.104.0       # Modern web framework
+uvicorn[standard]>=0.24.0  # ASGI server
+pydantic>=2.0.0        # Data validation
+python-multipart>=0.0.6  # Form data handling
+
+# Data processing
+numpy>=1.24.0          # Numerical computing
+pandas>=2.0.0          # Data manipulation
+pyyaml>=6.0            # YAML configuration files
+
+# Optional but recommended
+aiofiles>=23.0.0       # Async file operations
+python-jose[cryptography]>=3.3.0  # JWT token handling
+passlib[bcrypt]>=1.7.4  # Password hashing

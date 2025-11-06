@@ -1,0 +1,48 @@
+# Core PyTorch and ML dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.21.0
+pillow>=9.0.0
+opencv-python>=4.7.0
+transformers>=4.30.0
+diffusers>=0.25.0
+accelerate>=0.20.0
+xformers>=0.0.20
+einops
+
+# Hunyuan3D specific dependencies
+ninja
+pybind11
+omegaconf
+tqdm
+
+# 3D processing and mesh libraries
+trimesh>=3.15.0
+pymeshlab>=2022.2
+pygltflib>=1.16.0
+xatlas
+open3d>=0.17.0
+meshio>=5.3.0
+
+# Background removal and image processing
+rembg>=2.0.50
+onnxruntime>=1.15.0
+scikit-image>=0.20.0
+imageio>=2.28.0
+matplotlib>=3.7.0
+
+# Web server and API
+fastapi>=0.95.0
+uvicorn[standard]>=0.20.0
+python-multipart>=0.0.6
+aiofiles>=23.0.0
+
+# Development and demo tools
+gradio>=3.35.0  # For web interface
+rich>=13.0.0    # For better console output
+click>=8.0.0    # For CLI tools
+pyyaml>=6.0
+requests>=2.28.0
+
+# System monitoring
+psutil>=5.9.0
