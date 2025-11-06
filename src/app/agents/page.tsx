@@ -39,7 +39,7 @@ interface Agent {
 
 const agents: Agent[] = [
   {
-    id: 'suna-ai',
+    id: 'ai-assistant',
     name: 'AI Assistant',
     type: 'Master Orchestrator',
     status: 'online',

@@ -395,7 +395,7 @@ If no suitable member is available, respond with:
 RECOMMENDED: 0
 REASONING: [Explanation of constraints and suggestion for resolution]`;
 
-      const response = await this.aiService.getSunaResponse(assignmentPrompt, { task, teamMembers });
+      const response = await this.aiService.getAIAssistantResponse(assignmentPrompt, { task, teamMembers });
       
       // Extract suggested member index with improved parsing
       const recommendedMatch = response.content.match(/RECOMMENDED:\s*(\d+)/i);

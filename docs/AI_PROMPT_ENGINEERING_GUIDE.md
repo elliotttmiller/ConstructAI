@@ -10,7 +10,7 @@ This document details the comprehensive prompt engineering enhancements applied 
 
 #### A. **Chain-of-Thought (CoT) Reasoning**
 All agents now employ structured reasoning frameworks that break down complex problems into manageable steps:
-- **Suna AI**: 5-step framework (UNDERSTAND → ANALYZE → COORDINATE → SYNTHESIZE → DELIVER)
+- **AI Assistant**: 5-step framework (UNDERSTAND → ANALYZE → COORDINATE → SYNTHESIZE → DELIVER)
 - **Document Agent**: 6-step systematic analysis
 - **Compliance Agent**: 7-step comprehensive review
 - **BIM Agent**: 7-step analysis framework
@@ -52,7 +52,7 @@ Each agent's AI model parameters have been fine-tuned:
 
 | Agent | Model | Temperature | Max Tokens | Rationale |
 |-------|-------|-------------|------------|-----------|
-| Suna AI | GPT-4 Turbo | 0.7 | 1500 | Balanced creativity for diverse queries |
+| AI Assistant | GPT-4 Turbo | 0.7 | 1500 | Balanced creativity for diverse queries |
 | Document | Gemini Pro | 0.4 | 2048 | Precise technical analysis |
 | Compliance | GPT-4 Turbo | 0.3 | 2000 | Strict code interpretation |
 | BIM | Gemini Pro | 0.4 | 2048 | Technical accuracy with creativity |
@@ -63,15 +63,15 @@ Each agent's AI model parameters have been fine-tuned:
 - **0.3**: Highly deterministic, consistent responses (Code Compliance)
 - **0.4**: Moderate creativity, technical precision (Document, BIM, Risk)
 - **0.5**: Balanced approach (Project Management)
-- **0.7**: Higher creativity for diverse scenarios (Suna AI Orchestrator)
+- **0.7**: Higher creativity for diverse scenarios (AI Assistant Orchestrator)
 
 ## Agent-Specific Enhancements
 
-### 1. Suna AI - Master Orchestrator
+### 1. AI Assistant - Master Orchestrator
 
 **Before:**
 ```
-You are Suna AI, the master orchestrator for ConstructAI...
+You are the AI Assistant, the master orchestrator for ConstructAI...
 Respond as a knowledgeable construction industry expert...
 ```
 

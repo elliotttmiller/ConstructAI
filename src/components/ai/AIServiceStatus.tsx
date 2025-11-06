@@ -29,7 +29,7 @@ export default function AIServiceStatus() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: 'status check',
-          agentType: 'suna'
+          agentType: 'ai-assistant'
         })
       });
 

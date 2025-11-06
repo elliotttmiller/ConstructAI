@@ -6,6 +6,9 @@ import AppLayout from "@/components/layout/AppLayout";
 // import AuthGuard from "@/components/auth/AuthGuard"; // COMMENTED OUT FOR EASIER TESTING/DEVELOPMENT
 import { Toaster } from "@/components/ui/sonner";
 import { initializeProduction } from "@/lib/production-config";
+import CopilotContextProvider from "@/components/providers/CopilotContextProvider";
+import AICopilotSidepanel from "@/components/ai/AICopilotSidepanel";
+import FloatingAIButton from "@/components/ai/FloatingAIButton";
 
 export default function ClientBody({
   children,
@@ -27,21 +30,30 @@ export default function ClientBody({
   const isAuthRoute = pathname?.startsWith('/auth/');
 
   return (
-    <div className="antialiased">
-      {/* AuthGuard COMMENTED OUT FOR EASIER TESTING/DEVELOPMENT */}
-      {/* To re-enable authentication, uncomment the AuthGuard wrapper below */}
-      {/* <AuthGuard> */}
-        {isAuthRoute ? (
-          // Don't wrap auth pages with AppLayout
-          children
-        ) : (
-          // Wrap main app with AppLayout
-          <AppLayout>
-            {children}
-          </AppLayout>
+    <CopilotContextProvider>
+      <div className="antialiased">
+        {/* AuthGuard COMMENTED OUT FOR EASIER TESTING/DEVELOPMENT */}
+        {/* To re-enable authentication, uncomment the AuthGuard wrapper below */}
+        {/* <AuthGuard> */}
+          {isAuthRoute ? (
+            // Don't wrap auth pages with AppLayout
+            children
+          ) : (
+            // Wrap main app with AppLayout
+            <AppLayout>
+              {children}
+            </AppLayout>
+          )}
+        {/* </AuthGuard> */}
+        <Toaster />
+        {/* AI Copilot Components - Available on all non-auth pages */}
+        {!isAuthRoute && (
+          <>
+            <AICopilotSidepanel />
+            <FloatingAIButton />
+          </>
         )}
-      {/* </AuthGuard> */}
-      <Toaster />
-    </div>
+      </div>
+    </CopilotContextProvider>
   );
 }

@@ -76,7 +76,7 @@ Real Action Performed → Result Display → UI Updates (if needed)
 
 **Chat Area**:
 - Message history with user/AI bubbles
-- Agent type indicators (Suna, Document, BIM, PM, Compliance, Risk, Upload)
+- Agent type indicators (AI Assistant, Document, BIM, PM, Compliance, Risk, Upload)
 - Tool execution indicators (spinner, success/error states)
 - Rich content formatting (markdown, code blocks, tables)
 - Expandable tool result cards
@@ -204,7 +204,7 @@ interface CopilotContext {
 - "upload", "process" → Upload agent
 
 **Priority 4 - Default**:
-- No clear match → Suna orchestrator
+- No clear match → AI Assistant orchestrator
 
 **Routing Logic Pseudocode**:
 ```typescript

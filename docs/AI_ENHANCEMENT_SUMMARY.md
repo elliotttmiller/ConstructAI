@@ -28,7 +28,7 @@ This document summarizes the comprehensive review, audit, and enhancement of Con
 
 | Agent | Purpose | Lines Enhanced | Complexity Increase |
 |-------|---------|---------------|-------------------|
-| **Suna AI** | Master Orchestrator | 56 → 66 | +18% |
+| **AI Assistant** | Master Orchestrator | 56 → 66 | +18% |
 | **Document Processor** | Document Analysis | 33 → 236 | +615% |
 | **Compliance Checker** | Code Compliance | 43 → 287 | +567% |
 | **BIM Analyzer** | 3D Model Analysis | 35 → 270 | +671% |
@@ -42,7 +42,7 @@ This document summarizes the comprehensive review, audit, and enhancement of Con
 #### A. Chain-of-Thought (CoT) Reasoning ✅
 Each agent now employs structured, step-by-step reasoning:
 
-**Suna AI Framework**:
+**AI Assistant Framework**:
 ```
 UNDERSTAND → ANALYZE → COORDINATE → SYNTHESIZE → DELIVER
 ```
@@ -144,7 +144,7 @@ NEXT STEPS
 #### D. Few-Shot Learning Examples ✅
 Agents include example interaction patterns:
 
-**Suna AI Example Pattern**:
+**AI Assistant Example Pattern**:
 ```
 When asked about a project delay:
 1. Acknowledge concern and request details
@@ -163,7 +163,7 @@ When asked about a project delay:
 - No presence/frequency penalties
 
 **After**:
-| Parameter | Suna AI | Document | Compliance | BIM | PM | Risk |
+| Parameter | AI Assistant | Document | Compliance | BIM | PM | Risk |
 |-----------|---------|----------|------------|-----|-----|------|
 | Model | GPT-4 Turbo | Gemini Pro | GPT-4 Turbo | Gemini Pro | GPT-4 Turbo | Gemini Pro |
 | Temperature | 0.7 | 0.4 | 0.3 | 0.4 | 0.5 | 0.4 |
@@ -177,13 +177,13 @@ When asked about a project delay:
 - **0.3** (Compliance): Highly deterministic, consistent code interpretation
 - **0.4** (Document, BIM, Risk): Balanced technical precision with creativity
 - **0.5** (PM): Balanced approach for planning and insights
-- **0.7** (Suna AI): Higher creativity for diverse user queries
+- **0.7** (AI Assistant): Higher creativity for diverse user queries
 
 ---
 
 ## Detailed Enhancements by Agent
 
-### 1. Suna AI - Master Orchestrator 🎯
+### 1. AI Assistant - Master Orchestrator 🎯
 
 **Role Enhancement**:
 - "AI assistant" → "Enterprise-grade strategic intelligence hub"
@@ -193,14 +193,14 @@ When asked about a project delay:
 
 **Before**:
 ```typescript
-const systemPrompt = `You are Suna AI, the master orchestrator...
+const systemPrompt = `You are the AI Assistant, the master orchestrator...
 Respond as a knowledgeable construction industry expert...`;
 ```
 
 **After**:
 ```typescript
 const systemPrompt = `# Role and Identity
-You are Suna AI, the master orchestrator and strategic intelligence hub...
+You are the AI Assistant, the master orchestrator and strategic intelligence hub...
 
 # Expertise Profile
 - Construction project lifecycle management
@@ -518,7 +518,7 @@ REASONING: [2-3 sentences explaining why]`;
 ### Quantifiable Metrics
 
 1. **Token Usage Optimization**:
-   - Suna AI: 1000 → 1500 tokens (+50%)
+   - AI Assistant: 1000 → 1500 tokens (+50%)
    - Document: Default → 2048 tokens
    - Compliance: 1500 → 2000 tokens (+33%)
    - PM: 1200 → 2000 tokens (+67%)
@@ -529,7 +529,7 @@ REASONING: [2-3 sentences explaining why]`;
    - Error handling: Comprehensive coverage
 
 3. **Structured Reasoning**:
-   - Suna AI: 5-step framework
+   - AI Assistant: 5-step framework
    - Document: 6-step framework
    - Compliance: 7-step framework
    - BIM: 7-step framework
@@ -565,7 +565,7 @@ REASONING: [2-3 sentences explaining why]`;
 **GPT-4 Turbo** (OpenAI):
 - Use for: Complex reasoning, orchestration, compliance analysis
 - Strengths: Advanced reasoning, code interpretation, structured output
-- Agents: Suna AI, Compliance Checker, PM Bot
+- Agents: AI Assistant, Compliance Checker, PM Bot
 
 **Gemini Pro** (Google):
 - Use for: Technical analysis, large document processing

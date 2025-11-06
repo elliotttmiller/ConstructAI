@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
         uploadDate: new Date(doc.created_at)
       })),
       agentStatus: [
-        { name: 'Suna', status: 'active', tasks: Math.floor(Math.random() * 10) + 1 },
+        { name: 'AI Assistant', status: 'active', tasks: Math.floor(Math.random() * 10) + 1 },
         { name: 'Project Manager', status: 'active', tasks: Math.floor(Math.random() * 5) + 1 },
         { name: 'Code Compliance', status: 'active', tasks: Math.floor(Math.random() * 3) + 1 },
         { name: 'Schedule Optimizer', status: 'active', tasks: Math.floor(Math.random() * 4) + 1 },
