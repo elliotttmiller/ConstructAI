@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +17,10 @@ import {
   CheckCircle2, 
   AlertCircle,
   Info,
-  Settings
+  Settings,
+  Save,
+  Library,
+  Sparkles
 } from 'lucide-react';
 import type { 
   CADGenerationResult, 
@@ -25,6 +28,16 @@ import type {
   BoxParameters,
   ExportFormat 
 } from '@/types/build123d';
+
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  model_type: string;
+  default_parameters: any;
+  tags: string[];
+}
 
 interface ParametricCADBuilderProps {
   onModelGenerated?: (result: CADGenerationResult) => void;
@@ -35,10 +48,13 @@ export function ParametricCADBuilder({
   onModelGenerated, 
   className = '' 
 }: ParametricCADBuilderProps) {
-  const [activeTab, setActiveTab] = useState<'column' | 'box'>('column');
+  const [activeTab, setActiveTab] = useState<'column' | 'box' | 'templates'>('column');
   const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<CADGenerationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   // Column parameters state
   const [columnParams, setColumnParams] = useState<ColumnParameters>({
@@ -63,6 +79,70 @@ export function ParametricCADBuilder({
     corner_radius: 5,
     mounting_holes: false
   });
+
+  // Load templates on mount
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+
+  const loadTemplates = async () => {
+    setLoadingTemplates(true);
+    try {
+      const response = await fetch('/api/cad/templates');
+      const data = await response.json();
+      setTemplates(data.templates || []);
+    } catch (err) {
+      console.error('Failed to load templates:', err);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
+  const applyTemplate = (template: Template) => {
+    if (template.model_type === 'column') {
+      setColumnParams(template.default_parameters);
+      setActiveTab('column');
+    } else if (template.model_type === 'box') {
+      setBoxParams(template.default_parameters);
+      setActiveTab('box');
+    }
+  };
+
+  const saveModel = async () => {
+    if (!result) return;
+    
+    setSaving(true);
+    try {
+      const modelName = window.prompt('Enter a name for this model:');
+      if (!modelName) return;
+
+      const response = await fetch('/api/cad/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model_id: result.model_id,
+          model_type: result.model_type || activeTab,
+          name: modelName,
+          description: `${activeTab} model generated on ${new Date().toLocaleDateString()}`,
+          parameters: result.parameters,
+          properties: result.properties,
+          exports: result.exports,
+          material: result.material,
+        })
+      });
+
+      if (response.ok) {
+        alert('Model saved successfully!');
+      } else {
+        throw new Error('Failed to save model');
+      }
+    } catch (err) {
+      console.error('Save failed:', err);
+      alert('Failed to save model. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const generateColumn = useCallback(async () => {
     setGenerating(true);
@@ -183,17 +263,66 @@ export function ParametricCADBuilder({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'column' | 'box')}>
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'column' | 'box' | 'templates')}>
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="column" className="flex items-center gap-2">
               <Cylinder className="w-4 h-4" />
-              Structural Column
+              Column
             </TabsTrigger>
             <TabsTrigger value="box" className="flex items-center gap-2">
               <Box className="w-4 h-4" />
-              Box/Enclosure
+              Box
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="flex items-center gap-2">
+              <Library className="w-4 h-4" />
+              Templates
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="templates" className="space-y-4 mt-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium">Model Templates</h3>
+              <Badge variant="secondary">{templates.length} templates</Badge>
+            </div>
+            
+            {loadingTemplates ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {templates.map((template) => (
+                  <div
+                    key={template.id}
+                    className="p-3 border rounded-lg hover:bg-muted cursor-pointer transition-colors"
+                    onClick={() => applyTemplate(template)}
+                  >
+                    <div className="flex items-start justify-between mb-1">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Sparkles className="w-4 h-4 text-primary" />
+                          <span className="font-medium text-sm">{template.name}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {template.description}
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {template.tags.slice(0, 3).map((tag) => (
+                            <Badge key={tag} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="text-xs capitalize">
+                        {template.category}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
           <TabsContent value="column" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
@@ -506,6 +635,19 @@ export function ParametricCADBuilder({
             <div>
               <p className="text-sm font-medium mb-2">Export Options</p>
               <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={saveModel}
+                  disabled={saving}
+                  className="bg-primary"
+                >
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Save Model
+                </Button>
                 {result.exports.step && (
                   <Button
                     size="sm"

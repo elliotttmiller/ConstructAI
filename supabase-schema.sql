@@ -249,5 +249,114 @@ create trigger handle_updated_at before update on public.bim_models
 create trigger handle_updated_at before update on public.clash_detections
   for each row execute procedure public.handle_updated_at();
 
+-- Create parametric_cad_models table
+create table public.parametric_cad_models (
+  id uuid default uuid_generate_v4() primary key,
+  model_id text not null unique,
+  user_id uuid references public.users(id) on delete cascade not null,
+  project_id uuid references public.projects(id) on delete cascade,
+  model_type text not null check (model_type in ('column', 'box', 'primitive', 'custom')),
+  name text not null,
+  description text,
+  parameters jsonb not null,
+  properties jsonb not null,
+  exports jsonb not null,
+  material jsonb,
+  thumbnail_url text,
+  is_template boolean default false,
+  template_category text,
+  version integer not null default 1,
+  parent_model_id uuid references public.parametric_cad_models(id) on delete set null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Create index for faster queries
+create index idx_parametric_cad_models_user on public.parametric_cad_models(user_id);
+create index idx_parametric_cad_models_project on public.parametric_cad_models(project_id);
+create index idx_parametric_cad_models_type on public.parametric_cad_models(model_type);
+create index idx_parametric_cad_models_template on public.parametric_cad_models(is_template) where is_template = true;
+
+-- Add updated_at trigger for parametric_cad_models
+create trigger handle_updated_at before update on public.parametric_cad_models
+  for each row execute procedure public.handle_updated_at();
+
+-- Create model_templates table for predefined templates
+create table public.cad_model_templates (
+  id uuid default uuid_generate_v4() primary key,
+  name text not null,
+  description text not null,
+  category text not null check (category in ('structural', 'mechanical', 'architectural', 'mep', 'furniture', 'custom')),
+  model_type text not null,
+  default_parameters jsonb not null,
+  preview_url text,
+  tags text[] default array[]::text[],
+  is_public boolean default true,
+  created_by uuid references public.users(id) on delete set null,
+  usage_count integer default 0,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Create index for templates
+create index idx_cad_templates_category on public.cad_model_templates(category);
+create index idx_cad_templates_public on public.cad_model_templates(is_public) where is_public = true;
+
+-- Add updated_at trigger for cad_model_templates
+create trigger handle_updated_at before update on public.cad_model_templates
+  for each row execute procedure public.handle_updated_at();
+
+-- Insert default CAD model templates
+insert into public.cad_model_templates (name, description, category, model_type, default_parameters, tags)
+values
+  (
+    'Standard Steel Column',
+    'Standard structural steel column with base plate and capital',
+    'structural',
+    'column',
+    '{"height": 3000, "shaft_diameter": 300, "base_size": 500, "hole_count": 4, "hole_diameter": 20, "material": "steel", "add_capital": true}'::jsonb,
+    array['column', 'steel', 'structural', 'standard']
+  ),
+  (
+    'Light Aluminum Column',
+    'Lightweight aluminum column for interior structures',
+    'structural',
+    'column',
+    '{"height": 2500, "shaft_diameter": 200, "base_size": 400, "hole_count": 4, "hole_diameter": 16, "material": "aluminum", "add_capital": true}'::jsonb,
+    array['column', 'aluminum', 'lightweight', 'interior']
+  ),
+  (
+    'Heavy-Duty Concrete Column',
+    'Heavy-duty concrete column for high-load applications',
+    'structural',
+    'column',
+    '{"height": 4000, "shaft_diameter": 400, "base_size": 600, "hole_count": 8, "hole_diameter": 25, "material": "concrete", "add_capital": true}'::jsonb,
+    array['column', 'concrete', 'heavy-duty', 'exterior']
+  ),
+  (
+    'Small Equipment Box',
+    'Small enclosure for electrical equipment',
+    'mechanical',
+    'box',
+    '{"dimensions": {"width": 200, "height": 150, "depth": 100}, "wall_thickness": 3, "has_lid": true, "corner_radius": 5, "mounting_holes": true}'::jsonb,
+    array['box', 'enclosure', 'electrical', 'small']
+  ),
+  (
+    'Medium Storage Box',
+    'Medium-sized storage enclosure',
+    'mechanical',
+    'box',
+    '{"dimensions": {"width": 400, "height": 300, "depth": 200}, "wall_thickness": 5, "has_lid": true, "corner_radius": 10, "mounting_holes": true}'::jsonb,
+    array['box', 'storage', 'medium', 'general']
+  ),
+  (
+    'Large Industrial Enclosure',
+    'Large industrial enclosure for heavy equipment',
+    'mechanical',
+    'box',
+    '{"dimensions": {"width": 800, "height": 600, "depth": 400}, "wall_thickness": 10, "has_lid": true, "corner_radius": 20, "mounting_holes": true}'::jsonb,
+    array['box', 'industrial', 'large', 'heavy-duty']
+  );
+
 -- Note: Sample data will be created automatically when users sign up via NextAuth
 -- The users table is linked to auth.users and will be populated when you create accounts

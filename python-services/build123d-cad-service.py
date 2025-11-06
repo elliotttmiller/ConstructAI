@@ -17,9 +17,12 @@ import asyncio
 import logging
 import tempfile
 import shutil
+import hashlib
+import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pathlib import Path
+from functools import lru_cache
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,6 +70,29 @@ app.add_middleware(
 cad_jobs: Dict[str, Dict[str, Any]] = {}
 output_dir = Path(tempfile.gettempdir()) / "build123d_output"
 output_dir.mkdir(exist_ok=True)
+
+# Simple in-memory cache for generated models
+model_cache: Dict[str, Dict[str, Any]] = {}
+MAX_CACHE_SIZE = 100
+
+def get_cache_key(params: Dict[str, Any]) -> str:
+    """Generate a cache key from parameters"""
+    # Sort parameters for consistent hashing
+    param_str = json.dumps(params, sort_keys=True)
+    return hashlib.md5(param_str.encode()).hexdigest()
+
+def get_from_cache(cache_key: str) -> Optional[Dict[str, Any]]:
+    """Retrieve model from cache"""
+    return model_cache.get(cache_key)
+
+def add_to_cache(cache_key: str, result: Dict[str, Any]):
+    """Add model result to cache with size limit"""
+    if len(model_cache) >= MAX_CACHE_SIZE:
+        # Remove oldest entry (simple FIFO)
+        first_key = next(iter(model_cache))
+        del model_cache[first_key]
+    model_cache[cache_key] = result
+    logger.info(f"Cached model with key {cache_key[:8]}... (cache size: {len(model_cache)})")
 
 
 # ============================================================================
@@ -272,6 +298,8 @@ async def health_check():
         "build123d_installed": BUILD123D_AVAILABLE,
         "active_jobs": len([j for j in cad_jobs.values() if j["status"] == "processing"]),
         "total_jobs": len(cad_jobs),
+        "cache_size": len(model_cache),
+        "cache_max_size": MAX_CACHE_SIZE,
         "output_directory": str(output_dir),
         "timestamp": datetime.now().isoformat()
     }
@@ -291,10 +319,19 @@ async def generate_column(params: ColumnParameters):
     """
     logger.info(f"Generating column with params: {params.model_dump()}")
     
+    # Check cache first
+    cache_key = get_cache_key(params.model_dump())
+    cached_result = get_from_cache(cache_key)
+    if cached_result:
+        logger.info(f"Returning cached column model (key: {cache_key[:8]}...)")
+        return cached_result
+    
     # Demo mode if build123d not available
     if not BUILD123D_AVAILABLE:
         logger.warning("Running in demo mode - returning mock data")
-        return generate_demo_response("column", params.model_dump())
+        result = generate_demo_response("column", params.model_dump())
+        add_to_cache(cache_key, result)
+        return result
     
     try:
         # Create parametric model using build123d
@@ -359,7 +396,7 @@ async def generate_column(params: ColumnParameters):
         
         logger.info(f"Successfully generated column {model_id}")
         
-        return {
+        result = {
             "success": True,
             "model_id": model_id,
             "model_type": "structural_column",
@@ -372,6 +409,11 @@ async def generate_column(params: ColumnParameters):
                 "mass_kg": mass_kg
             }
         }
+        
+        # Cache the result
+        add_to_cache(cache_key, result)
+        
+        return result
         
     except Exception as e:
         logger.error(f"Column generation failed: {e}", exc_info=True)
@@ -395,8 +437,17 @@ async def generate_box(params: BoxParameters):
     """
     logger.info(f"Generating box with params: {params.model_dump()}")
     
+    # Check cache first
+    cache_key = get_cache_key(params.model_dump())
+    cached_result = get_from_cache(cache_key)
+    if cached_result:
+        logger.info(f"Returning cached box model (key: {cache_key[:8]}...)")
+        return cached_result
+    
     if not BUILD123D_AVAILABLE:
-        return generate_demo_response("box", params.model_dump())
+        result = generate_demo_response("box", params.model_dump())
+        add_to_cache(cache_key, result)
+        return result
     
     try:
         with BuildPart() as box:
@@ -439,7 +490,7 @@ async def generate_box(params: BoxParameters):
         
         logger.info(f"Successfully generated box {model_id}")
         
-        return {
+        result = {
             "success": True,
             "model_id": model_id,
             "model_type": "box_enclosure",
@@ -447,6 +498,11 @@ async def generate_box(params: BoxParameters):
             "properties": properties,
             "parameters": params.model_dump()
         }
+        
+        # Cache the result
+        add_to_cache(cache_key, result)
+        
+        return result
         
     except Exception as e:
         logger.error(f"Box generation failed: {e}", exc_info=True)
