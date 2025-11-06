@@ -289,12 +289,12 @@ async def generate_column(params: ColumnParameters):
     - Accurate physical properties
     - Multiple export formats (STEP, GLTF, STL)
     """
-    logger.info(f"Generating column with params: {params.dict()}")
+    logger.info(f"Generating column with params: {params.model_dump()}")
     
     # Demo mode if build123d not available
     if not BUILD123D_AVAILABLE:
         logger.warning("Running in demo mode - returning mock data")
-        return generate_demo_response("column", params.dict())
+        return generate_demo_response("column", params.model_dump())
     
     try:
         # Create parametric model using build123d
@@ -365,7 +365,7 @@ async def generate_column(params: ColumnParameters):
             "model_type": "structural_column",
             "exports": exports,
             "properties": properties,
-            "parameters": params.dict(),
+            "parameters": params.model_dump(),
             "material": {
                 "type": params.material,
                 "density": density,
@@ -393,10 +393,10 @@ async def generate_box(params: BoxParameters):
     - Optional lid
     - Optional mounting holes
     """
-    logger.info(f"Generating box with params: {params.dict()}")
+    logger.info(f"Generating box with params: {params.model_dump()}")
     
     if not BUILD123D_AVAILABLE:
-        return generate_demo_response("box", params.dict())
+        return generate_demo_response("box", params.model_dump())
     
     try:
         with BuildPart() as box:
@@ -445,7 +445,7 @@ async def generate_box(params: BoxParameters):
             "model_type": "box_enclosure",
             "exports": exports,
             "properties": properties,
-            "parameters": params.dict()
+            "parameters": params.model_dump()
         }
         
     except Exception as e:
