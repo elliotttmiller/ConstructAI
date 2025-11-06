@@ -2,6 +2,7 @@
  * Client-side caching utilities for API responses
  * Prevents redundant network requests and speeds up navigation
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import * as React from 'react';
 
@@ -106,9 +107,9 @@ if (typeof window !== 'undefined') {
  */
 export async function cachedFetch<T>(
   url: string,
-  options?: RequestInit & { cacheTTL?: number; skipCache?: boolean }
+  options?: RequestInit & { cacheTTL?: number; skipCache?: boolean; signal?: AbortSignal }
 ): Promise<T> {
-  const { cacheTTL, skipCache, ...fetchOptions } = options || {};
+  const { cacheTTL, skipCache, signal, ...fetchOptions } = options || {};
   const method = fetchOptions.method || 'GET';
   
   // Only cache GET requests
@@ -119,8 +120,8 @@ export async function cachedFetch<T>(
     }
   }
 
-  // Fetch from network
-  const response = await fetch(url, fetchOptions);
+  // Fetch from network with abort signal support
+  const response = await fetch(url, { ...fetchOptions, signal });
   
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
@@ -170,7 +171,15 @@ export function useCachedFetch<T>(
       try {
         setLoading(true);
         setError(null);
-        const result = await cachedFetch<T>(url, options);
+        
+        // Extract our custom options and pass through the rest
+        const { cacheTTL, skipCache, signal, ...fetchOptions } = options || {};
+        const result = await cachedFetch<T>(url, { 
+          ...fetchOptions, 
+          cacheTTL, 
+          skipCache, 
+          signal: signal ?? undefined
+        });
         
         if (!cancelled) {
           setData(result);

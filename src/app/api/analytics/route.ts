@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient, getUserIdFromSession } from '@/lib/supabase';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Simple in-memory cache for analytics (expires after 2 minutes)
+const analyticsCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
 export async function GET(request: NextRequest) {
   try {
     // Get user ID from NextAuth session
@@ -8,6 +13,13 @@ export async function GET(request: NextRequest) {
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check cache first
+    const cacheKey = `analytics_${userId}`;
+    const cached = analyticsCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+      return NextResponse.json(cached.data);
     }
 
     const supabase = await createServerSupabaseClient();
@@ -108,6 +120,9 @@ export async function GET(request: NextRequest) {
         { name: 'BIM Coordinator', status: 'active', tasks: Math.floor(Math.random() * 5) + 1 },
       ]
     };
+
+    // Cache the result
+    analyticsCache.set(cacheKey, { data: { analytics }, timestamp: Date.now() });
 
     return NextResponse.json({ analytics });
   } catch (error: unknown) {

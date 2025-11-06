@@ -2,11 +2,13 @@
  * Optimized data fetching hooks with built-in caching
  * Provides a consistent pattern for all API calls in the app
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { cachedFetch, apiCache } from './cache-utils';
+import { requestDeduplicator } from './request-deduplication';
 
 interface UseDataFetchOptions<T> {
   cacheTTL?: number;
@@ -36,8 +38,7 @@ export function useDataFetch<T>(
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const isMountedRef = useRef(true);
-  const fetchCountRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!url || !enabled) {
@@ -45,22 +46,42 @@ export function useDataFetch<T>(
       return;
     }
 
-    const fetchId = ++fetchCountRef.current;
+    // Cancel previous request if still in-flight
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       setLoading(true);
       setError(null);
 
-      const result = await cachedFetch<T>(url, { cacheTTL, skipCache });
+      // Use request deduplication to prevent duplicate calls
+      const key = requestDeduplicator.generateKey(url, { method: 'GET' });
+      const result = await requestDeduplicator.fetch<T>(key, async () => {
+        return cachedFetch<T>(url, { 
+          cacheTTL, 
+          skipCache,
+          signal: abortController.signal 
+        });
+      });
 
-      // Only update state if this is the latest fetch and component is still mounted
-      if (isMountedRef.current && fetchId === fetchCountRef.current) {
+      // Only update state if not aborted
+      if (!abortController.signal.aborted) {
         setData(result);
         setLoading(false);
         onSuccess?.(result);
       }
     } catch (err) {
-      if (isMountedRef.current && fetchId === fetchCountRef.current) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
+      
+      if (!abortController.signal.aborted) {
         const error = err instanceof Error ? err : new Error('Fetch failed');
         setError(error);
         setLoading(false);
@@ -71,8 +92,6 @@ export function useDataFetch<T>(
 
   // Initial fetch
   useEffect(() => {
-    isMountedRef.current = true;
-    
     if (url && enabled) {
       fetchData();
     } else {
@@ -80,7 +99,10 @@ export function useDataFetch<T>(
     }
 
     return () => {
-      isMountedRef.current = false;
+      // Abort on unmount
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, [url, enabled, fetchData, refetchOnMount]);
 

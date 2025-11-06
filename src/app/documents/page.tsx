@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,7 @@ const getStatusBadge = (status: string) => {
 export default function DocumentsPage() {
   const { data: session } = useSession();
   const [dragActive, setDragActive] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   // Use optimized data fetching with shorter cache for real-time updates
   const { data: documentsData, loading, error, refetch } = useDataFetch<{ documents: any[] }>(
@@ -92,19 +94,30 @@ export default function DocumentsPage() {
     }
   );
 
+  // Format file size helper (must be above usage)
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
   // Transform API data to component format
-  const documents: Document[] = documentsData?.documents?.map((d: any) => ({
-    id: d.id,
-    name: d.name,
-    type: d.type as any,
-    status: d.status as any,
-    size: formatFileSize(d.size),
-    uploadDate: new Date(d.created_at),
-    processedDate: d.updated_at ? new Date(d.updated_at) : undefined,
-    category: d.category,
-    extractedText: d.metadata?.extractedText || d.metadata?.extractedTextBlocks,
-    confidence: d.confidence || d.metadata?.confidence,
-  })) || [];
+  const documents: Document[] = useMemo(() => {
+    return documentsData?.documents?.map((d: any) => ({
+      id: d.id,
+      name: d.name,
+      type: d.type as any,
+      status: d.status as any,
+      size: formatFileSize(d.size),
+      uploadDate: new Date(d.created_at),
+      processedDate: d.updated_at ? new Date(d.updated_at) : undefined,
+      category: d.category,
+      extractedText: d.metadata?.extractedText || d.metadata?.extractedTextBlocks,
+      confidence: d.confidence || d.metadata?.confidence,
+    })) || [];
+  }, [documentsData]);
 
   // Set up polling for processing documents - but use refetch instead of fetchDocuments
   useEffect(() => {
@@ -121,13 +134,6 @@ export default function DocumentsPage() {
     return () => clearInterval(pollInterval);
   }, [session?.user, documents, refetch]);
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  };
 
   const handleViewDocument = (doc: Document) => {
     // Open document in new tab or modal
@@ -150,7 +156,7 @@ export default function DocumentsPage() {
       document.body.removeChild(a);
     } catch (err) {
       console.error('Error downloading document:', err);
-      setError('Failed to download document');
+      setLocalError('Failed to download document');
     }
   };
 
@@ -167,10 +173,10 @@ export default function DocumentsPage() {
       if (!response.ok) throw new Error('Delete failed');
 
       // Refresh documents list
-      await fetchDocuments();
+      await refetch();
     } catch (err) {
       console.error('Error deleting document:', err);
-      setError('Failed to delete document');
+      setLocalError('Failed to delete document');
     }
   };
 
@@ -183,10 +189,10 @@ export default function DocumentsPage() {
       if (!response.ok) throw new Error('Retry failed');
 
       // Refresh documents list
-      await fetchDocuments();
+      await refetch();
     } catch (err) {
       console.error('Error retrying document processing:', err);
-      setError('Failed to retry processing');
+      setLocalError('Failed to retry processing');
     }
   };
 
@@ -259,6 +265,15 @@ export default function DocumentsPage() {
     );
   }
 
+  if (localError) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          Error: {localError}
+        </AlertDescription>
+      </Alert>
+    );
+  }
   if (error) {
     return (
       <Alert variant="destructive">
@@ -346,8 +361,8 @@ export default function DocumentsPage() {
         onUploadComplete={(uploadedDocuments) => {
           console.log('Upload completed:', uploadedDocuments);
           // Refresh the document list immediately and after a short delay
-          fetchDocuments();
-          setTimeout(() => fetchDocuments(), 1000);
+          refetch();
+          setTimeout(() => refetch(), 1000);
         }}
         onUploadError={(error) => {
           console.error('Upload error:', error);

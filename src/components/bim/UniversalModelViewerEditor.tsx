@@ -15,7 +15,6 @@ import { Slider } from '@/components/ui/slider';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { ParametricCADBuilder } from '@/components/cad/ParametricCADBuilder';
-import { ScaleIn } from '@/components/transitions/AnimationWrappers';
 import type { CADGenerationResult } from '@/types/build123d';
 import { IntelligentModelRecognizer, type ModelAnalysis, type ModelConfiguration } from '@/lib/intelligent-model-recognizer';
 import { EnhancedBIMProcessor, type BIMAnalysis } from '@/lib/enhanced-bim-processor';
@@ -73,6 +72,7 @@ export function UniversalModelViewerEditor({
   const transformControlsRef = useRef<TransformControls | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const bimProcessorRef = useRef<EnhancedBIMProcessor | null>(null);
+  const isInitializedRef = useRef(false); // Prevent double initialization
 
   // State management
   const [viewMode, setViewMode] = useState<ViewMode>('view');
@@ -153,7 +153,10 @@ export function UniversalModelViewerEditor({
 
   // Initialize scene
   useEffect(() => {
-    if (!mountRef.current) return;
+    if (!mountRef.current || isInitializedRef.current) return;
+    
+    isInitializedRef.current = true;
+    console.log('🎬 Initializing 3D Viewer...');
 
     // Create scene
     const scene = new THREE.Scene();
@@ -254,26 +257,39 @@ export function UniversalModelViewerEditor({
     };
     renderer.domElement.addEventListener('click', handleClick);
 
-    // Animation loop
+    // Animation loop - only render when controls change
+    let needsRender = true;
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
-      orbitControls.update();
-      renderer.render(scene, camera);
+      
+      // Only render if controls have been updated or transform is active
+      const controlsChanged = orbitControls.update();
+      if (controlsChanged || needsRender) {
+        renderer.render(scene, camera);
+        needsRender = false;
+      }
     };
+    
+    // Trigger render on control changes
+    orbitControls.addEventListener('change', () => { needsRender = true; });
+    
     animate();
+    console.log('✅ 3D Viewer initialized');
 
     // Store the current mount element for cleanup
     const currentMount = mountRef.current;
 
     // Cleanup
     return () => {
+      console.log('🧹 Cleaning up 3D Viewer...');
+      isInitializedRef.current = false;
       window.removeEventListener('resize', handleResize);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
       renderer.domElement.removeEventListener('click', handleClick);
       renderer.dispose();
-      if (currentMount) {
+      if (currentMount && renderer.domElement.parentNode === currentMount) {
         currentMount.removeChild(renderer.domElement);
       }
     };
@@ -653,10 +669,11 @@ export function UniversalModelViewerEditor({
       <div 
         className="relative bg-slate-100 overflow-hidden transition-all duration-300 ease-in-out"
         style={{ 
-          width: sidePanelOpen ? 'calc(100% - 320px)' : '100%'
+          width: sidePanelOpen ? 'calc(100% - 320px)' : '100%',
+          height: '100%'
         }}
       >
-        <div ref={mountRef} className="absolute inset-0 w-full h-full" />
+        <div ref={mountRef} className="w-full h-full" />
         
         {/* Toolbar */}
         <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
@@ -684,19 +701,17 @@ export function UniversalModelViewerEditor({
           {/* Upload Model Button */}
           <Card className="p-2">
             <Label htmlFor="file-upload" className="cursor-pointer">
-              <ScaleIn>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full"
-                  asChild
-                >
-                  <div className="flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    <span>Load Model</span>
-                  </div>
-                </Button>
-              </ScaleIn>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                asChild
+              >
+                <div className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  <span>Load Model</span>
+                </div>
+              </Button>
             </Label>
             <input
               id="file-upload"

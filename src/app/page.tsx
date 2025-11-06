@@ -72,7 +72,7 @@ export default function Dashboard() {
     const fetchAnalytics = async () => {
       try {
         // Use cached fetch for faster subsequent loads
-        const data = await cachedFetch('/api/analytics', { cacheTTL: CACHE_TTL.MEDIUM });
+        const data = await cachedFetch('/api/analytics', { cacheTTL: CACHE_TTL.MEDIUM }) as { analytics: Analytics };
         setAnalytics(data.analytics);
       } catch (err) {
         console.error('Error fetching analytics:', err);

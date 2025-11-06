@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient, getUserIdFromSession } from '@/lib/supabase';
-import { AIWorkflowOrchestrator } from '@/lib/ai-workflow-orchestrator';
+import { jobQueue } from '@/lib/job-queue';
+import { ClashDetectionService, type Clash } from '@/lib/clash-detection';
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,40 +51,67 @@ export async function GET(request: NextRequest) {
       projectName: model.project?.name
     }));
 
-    // Mock clash detection data (in a real app, this would come from actual clash detection service)
-    const clashes = [
-      {
-        id: '1',
-        type: 'hard',
-        severity: 'critical',
-        description: 'HVAC duct intersects with structural beam',
-        elements: ['Beam_B1_001', 'Duct_HVAC_042'],
-        location: 'Level 3, Grid B-C/3-4',
-        modelId: transformedModels[0]?.id
-      },
-      {
-        id: '2',
-        type: 'soft',
-        severity: 'major',
-        description: 'Electrical conduit clearance issue',
-        elements: ['Conduit_E1_023', 'Pipe_P2_015'],
-        location: 'Level 2, Grid D-E/5-6',
-        modelId: transformedModels[0]?.id
-      },
-      {
-        id: '3',
-        type: 'clearance',
-        severity: 'minor',
-        description: 'Door swing conflicts with equipment',
-        elements: ['Door_D3_008', 'Equipment_EQ_012'],
-        location: 'Level 1, Room 103',
-        modelId: transformedModels[0]?.id
+    // Get real clash detection if models have geometry data
+    const clashDetectionService = ClashDetectionService.getInstance();
+    let clashes: Clash[] = [];
+
+    if (transformedModels.length > 0) {
+      try {
+        // In production, this would parse actual model geometry
+        // For now, we'll use placeholder data with TODO markers
+        // TODO: Integrate with IFC parser (web-ifc), Forge API, or Three.js geometry
+        
+        const modelId = transformedModels[0].id;
+        const modelElements = await clashDetectionService.parseModelElements(null);
+        
+        if (modelElements.length > 0) {
+          // Run actual clash detection
+          clashes = await clashDetectionService.detectClashes(modelId, modelElements);
+        } else {
+          // Fallback to sample data for demo purposes
+          // TODO: Remove this once real model parsing is implemented
+          clashes = [
+            {
+              id: '1',
+              type: 'hard' as const,
+              severity: 'critical' as const,
+              description: 'HVAC duct intersects with structural beam',
+              elements: ['Beam_B1_001', 'Duct_HVAC_042'],
+              location: 'Level 3, Grid B-C/3-4',
+              distance: 0,
+              modelId
+            },
+            {
+              id: '2',
+              type: 'soft' as const,
+              severity: 'major' as const,
+              description: 'Electrical conduit clearance issue',
+              elements: ['Conduit_E1_023', 'Pipe_P2_015'],
+              location: 'Level 2, Grid D-E/5-6',
+              distance: 35,
+              modelId
+            },
+            {
+              id: '3',
+              type: 'clearance' as const,
+              severity: 'minor' as const,
+              description: 'Door swing conflicts with equipment',
+              elements: ['Door_D3_008', 'Equipment_EQ_012'],
+              location: 'Level 1, Room 103',
+              distance: 75,
+              modelId
+            }
+          ];
+        }
+      } catch (error) {
+        console.error('Clash detection failed:', error);
+        // Continue without clash data
       }
-    ];
+    }
 
     return NextResponse.json({ 
       models: transformedModels,
-      clashes: transformedModels.length > 0 ? clashes : []
+      clashes
     });
   } catch (error: unknown) {
     console.error('Unexpected error:', error);
@@ -131,25 +159,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Trigger AI workflow orchestration for BIM analysis
-    const orchestrator = AIWorkflowOrchestrator.getInstance();
-    orchestrator.handleBIMAnalysis(model.id, {
+    // Queue BIM analysis as background job instead of blocking
+    const jobId = await jobQueue.addJob('bim-analysis', {
+      modelId: model.id,
       userId,
       projectId: project_id,
-      documentId: model.id
-    }).then(async (workflowResult) => {
-      if (workflowResult.success && workflowResult.actions && workflowResult.actions.length > 0) {
-        await orchestrator.executeActions(workflowResult.actions, {
-          userId,
-          projectId: project_id,
-          documentId: model.id
-        });
-      }
-    }).catch((error) => {
-      console.error('AI workflow orchestration failed:', error);
+      documentId: model.id,
+    }, {
+      priority: 'high',
+      maxAttempts: 3,
     });
 
-    return NextResponse.json({ model }, { status: 201 });
+    console.log(`[BIM] Queued analysis job: ${jobId} for model: ${model.id}`);
+
+    // Return immediately with job ID - don't wait for AI analysis
+    return NextResponse.json({ 
+      model, 
+      jobId,
+      message: 'Model created successfully. Analysis queued in background.' 
+    }, { status: 201 });
   } catch (error: unknown) {
     console.error('Unexpected error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
