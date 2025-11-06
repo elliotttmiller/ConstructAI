@@ -11,13 +11,18 @@ A comprehensive Next.js application that integrates Revit API with intelligent a
 
 ## ✨ Features
 
-### 🤖 AI Agent Orchestration
-- **Suna AI Chat Interface** - Central conversational hub with real-time messaging
+### 🤖 Autonomous AI Execution System ⭐ NEW
+- **True Autonomous Agents** - AI agents don't just respond, they **execute tasks autonomously**
+- **Autonomous Document Processing** - Auto-upload, OCR, analysis, and classification
+- **Autonomous BIM Workflows** - Automated model analysis, clash detection, report generation
+- **Autonomous Task Management** - AI creates, assigns, and manages tasks automatically
+- **Autonomous Database Operations** - Complex queries and data insights executed in background
+- **Real-time Workflow Monitoring** - Live dashboard showing all autonomous executions
+- **Priority-Based Queue System** - Critical tasks execute first with automatic retry logic
+- **Suna AI Chat Interface** - Central conversational hub with autonomous action detection
 - **Multi-Agent Dashboard** - Coordinate Data Upload Bot, PM Bot, Design Converter
 - **Real-time WebSocket** - Live agent interactions and status updates
 - **Task Routing** - Intelligent distribution of work across specialized agents
-- **AI Workflow Orchestration** - End-to-end automated workflows across all platform operations
-- **Intelligent Auto-Assignment** - AI-powered task assignment based on team capabilities
 
 ### 🏢 3D BIM Visualization
 - **Interactive 3D Viewer** - Three.js WebGL rendering with sample building model
@@ -281,6 +286,7 @@ Comprehensive guides are available in the [`/docs`](./docs) folder:
 - **[Production Deployment](./docs/PRODUCTION_DEPLOYMENT.md)** - Production environment guide
 
 ### Features & Integrations
+- **[🤖 Autonomous AI System](./docs/AUTONOMOUS_AI_SYSTEM.md)** - ⭐ Complete guide to autonomous AI workflow execution
 - **[AI Workflow Orchestration](./docs/AI_WORKFLOW_ORCHESTRATION.md)** - End-to-end AI workflow integration guide
 - **[Hunyuan3D Complete Guide](./docs/HUNYUAN3D_COMPLETE_GUIDE.md)** - Complete 2D to 3D conversion setup and deployment
 - **[Blueprint Recognition](./docs/BLUEPRINT_RECOGNITION_ENHANCEMENTS.md)** - AI-powered blueprint processing

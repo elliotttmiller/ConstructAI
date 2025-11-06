@@ -246,6 +246,8 @@ export class DatabaseExecutor implements TaskExecutor {
 
   private groupBy(items: any[], key: string): Record<string, number> {
     const groups: Record<string, number> = {};
+    if (!items) return groups;
+    
     items.forEach(item => {
       const value = item[key] || 'unassigned';
       groups[value] = (groups[value] || 0) + 1;
@@ -253,11 +255,11 @@ export class DatabaseExecutor implements TaskExecutor {
     return groups;
   }
 
-  private generateRecommendations(project: any, tasks: any[], documents: any[]): string[] {
+  private generateRecommendations(project: any, tasks: any[] | null, documents: any[] | null): string[] {
     const recommendations: string[] = [];
 
     // Check progress
-    if (project && project.progress < 25 && tasks?.length > 10) {
+    if (project && project.progress < 25 && tasks && tasks.length > 10) {
       recommendations.push('Project has many tasks but low progress - consider reviewing task assignments');
     }
 

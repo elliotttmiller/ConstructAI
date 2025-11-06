@@ -171,6 +171,7 @@ export interface AIResponse {
     totalTokens: number;
   };
   reasoning?: string;
+  autonomousActions?: Array<{ taskId: string; type: string; action: string }>;
 }
 
 export class ConstructionAIService {
