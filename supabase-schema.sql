@@ -1,3 +1,14 @@
+-- Drop tables if they exist (for clean rebuilds; destructive!)
+drop table if exists public.cad_model_templates cascade;
+drop table if exists public.parametric_cad_models cascade;
+drop table if exists public.agent_logs cascade;
+drop table if exists public.clash_detections cascade;
+drop table if exists public.bim_models cascade;
+drop table if exists public.tasks cascade;
+drop table if exists public.chat_messages cascade;
+drop table if exists public.documents cascade;
+drop table if exists public.projects cascade;
+drop table if exists public.users cascade;
 -- Enable necessary extensions
 create extension if not exists "uuid-ossp";
 
@@ -357,6 +368,19 @@ values
     '{"dimensions": {"width": 800, "height": 600, "depth": 400}, "wall_thickness": 10, "has_lid": true, "corner_radius": 20, "mounting_holes": true}'::jsonb,
     array['box', 'industrial', 'large', 'heavy-duty']
   );
+
+-- Additional indexes for foreign key columns (performance optimization)
+create index idx_documents_project_id on public.documents(project_id);
+create index idx_documents_uploaded_by on public.documents(uploaded_by);
+create index idx_tasks_project_id on public.tasks(project_id);
+create index idx_tasks_assigned_to on public.tasks(assigned_to);
+create index idx_tasks_created_by on public.tasks(created_by);
+create index idx_bim_models_project_id on public.bim_models(project_id);
+create index idx_bim_models_uploaded_by on public.bim_models(uploaded_by);
+create index idx_clash_detections_model_id on public.clash_detections(model_id);
+create index idx_clash_detections_project_id on public.clash_detections(project_id);
+create index idx_agent_logs_user_id on public.agent_logs(user_id);
+create index idx_agent_logs_project_id on public.agent_logs(project_id);
 
 -- Note: Sample data will be created automatically when users sign up via NextAuth
 -- The users table is linked to auth.users and will be populated when you create accounts
