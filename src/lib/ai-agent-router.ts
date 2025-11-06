@@ -36,8 +36,8 @@ const AGENT_PROFILES: Record<AgentType, {
     contextPages: ['documents']
   },
   'bim-analyzer': {
-    keywords: ['bim', '3d', 'model', 'ifc', 'clash', 'coordination', 'revit', 'geometry', 'spatial', 'collision', 'quantity takeoff'],
-    capabilities: ['BIM analysis', 'clash detection', 'model coordination', 'quantity extraction'],
+    keywords: ['bim', '3d', 'model', 'ifc', 'clash', 'coordination', 'revit', 'geometry', 'spatial', 'collision', 'quantity takeoff', 'cad', 'parametric', 'generate', 'create model', 'structural column', 'box', 'enclosure', 'build', 'design'],
+    capabilities: ['BIM analysis', 'clash detection', 'model coordination', 'quantity extraction', 'parametric CAD generation', '3D model creation', 'build123d integration'],
     contextPages: ['bim']
   },
   'cost-estimator': {
