@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
@@ -93,6 +94,58 @@ export function UniversalModelViewerEditor({
   const [objectColor, setObjectColor] = useState('#ffffff');
   const [objectOpacity, setObjectOpacity] = useState(1.0);
 
+  // Handle transform changes
+  const handleTransformChange = useCallback(() => {
+    if (!selectedObject) return;
+    
+    setObjectPosition({
+      x: selectedObject.position.x,
+      y: selectedObject.position.y,
+      z: selectedObject.position.z
+    });
+    setObjectRotation({
+      x: selectedObject.rotation.x,
+      y: selectedObject.rotation.y,
+      z: selectedObject.rotation.z
+    });
+    setObjectScale({
+      x: selectedObject.scale.x,
+      y: selectedObject.scale.y,
+      z: selectedObject.scale.z
+    });
+    
+    onModelUpdated?.(selectedObject);
+  }, [selectedObject, onModelUpdated]);
+
+  // Handle object selection
+  const handleObjectSelection = useCallback((object: THREE.Object3D) => {
+    setSelectedObject(object);
+    setViewMode('edit');
+    
+    // Update property displays
+    setObjectPosition({
+      x: object.position.x,
+      y: object.position.y,
+      z: object.position.z
+    });
+    setObjectRotation({
+      x: object.rotation.x,
+      y: object.rotation.y,
+      z: object.rotation.z
+    });
+    setObjectScale({
+      x: object.scale.x,
+      y: object.scale.y,
+      z: object.scale.z
+    });
+
+    // Get material properties if available
+    if (object instanceof THREE.Mesh && object.material instanceof THREE.MeshStandardMaterial) {
+      setObjectColor(`#${object.material.color.getHexString()}`);
+      setObjectOpacity(object.material.opacity);
+    }
+  }, []);
+
   // Initialize scene
   useEffect(() => {
     if (!mountRef.current) return;
@@ -158,8 +211,9 @@ export function UniversalModelViewerEditor({
     transformControls.addEventListener('dragging-changed', (event) => {
       orbitControls.enabled = !event.value;
     });
-    transformControls.addEventListener('change', handleTransformChange);
-    scene.add(transformControls as unknown as THREE.Object3D);
+    
+    // Note: We'll add the transform controls to the scene later when needed
+    // scene.add(transformControls);
     transformControlsRef.current = transformControls;
 
     // Handle window resize
@@ -203,6 +257,9 @@ export function UniversalModelViewerEditor({
     };
     animate();
 
+    // Store the current mount element for cleanup
+    const currentMount = mountRef.current;
+
     // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -211,11 +268,11 @@ export function UniversalModelViewerEditor({
       }
       renderer.domElement.removeEventListener('click', handleClick);
       renderer.dispose();
-      if (mountRef.current) {
-        mountRef.current.removeChild(renderer.domElement);
+      if (currentMount) {
+        currentMount.removeChild(renderer.domElement);
       }
     };
-  }, []);
+  }, [handleObjectSelection]);
 
   // Update grid visibility
   useEffect(() => {
@@ -242,58 +299,6 @@ export function UniversalModelViewerEditor({
       transformControlsRef.current.detach();
     }
   }, [transformMode, selectedObject]);
-
-  // Handle transform changes
-  const handleTransformChange = useCallback(() => {
-    if (!selectedObject) return;
-    
-    setObjectPosition({
-      x: selectedObject.position.x,
-      y: selectedObject.position.y,
-      z: selectedObject.position.z
-    });
-    setObjectRotation({
-      x: selectedObject.rotation.x,
-      y: selectedObject.rotation.y,
-      z: selectedObject.rotation.z
-    });
-    setObjectScale({
-      x: selectedObject.scale.x,
-      y: selectedObject.scale.y,
-      z: selectedObject.scale.z
-    });
-    
-    onModelUpdated?.(selectedObject);
-  }, [selectedObject, onModelUpdated]);
-
-  // Handle object selection
-  const handleObjectSelection = useCallback((object: THREE.Object3D) => {
-    setSelectedObject(object);
-    setViewMode('edit');
-    
-    // Update property displays
-    setObjectPosition({
-      x: object.position.x,
-      y: object.position.y,
-      z: object.position.z
-    });
-    setObjectRotation({
-      x: object.rotation.x,
-      y: object.rotation.y,
-      z: object.rotation.z
-    });
-    setObjectScale({
-      x: object.scale.x,
-      y: object.scale.y,
-      z: object.scale.z
-    });
-
-    // Get material properties if available
-    if (object instanceof THREE.Mesh && object.material instanceof THREE.MeshStandardMaterial) {
-      setObjectColor(`#${object.material.color.getHexString()}`);
-      setObjectOpacity(object.material.opacity);
-    }
-  }, []);
 
   // Load model file with intelligent recognition
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -504,17 +509,50 @@ export function UniversalModelViewerEditor({
 
   // Handle CAD model generation
   const handleCADModelGenerated = useCallback(async (result: CADGenerationResult) => {
-    if (!sceneRef.current || !result.model_url) return;
+    if (!sceneRef.current || !result.exports.gltf) return;
 
     setLoading(true);
     try {
       // Load the generated GLTF model
-      const loadedObject = await loadGLTFModel(result.model_url, result.model_type);
+      const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+      const loader = new GLTFLoader();
+      
+      const gltf = await new Promise<any>((resolve, reject) => {
+        loader.load(result.exports.gltf!, resolve, undefined, reject);
+      });
+      
+      const loadedObject = gltf.scene;
+      loadedObject.name = result.model_type;
+      loadedObject.traverse((child: any) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
       
       if (loadedObject) {
         sceneRef.current.add(loadedObject);
         setLoadedModels(prev => [...prev, loadedObject]);
-        fitCameraToObject(loadedObject);
+        
+        // Fit camera to object
+        if (cameraRef.current && orbitControlsRef.current) {
+          const box = new THREE.Box3().setFromObject(loadedObject);
+          const size = box.getSize(new THREE.Vector3());
+          const center = box.getCenter(new THREE.Vector3());
+          
+          const maxDim = Math.max(size.x, size.y, size.z);
+          const fov = cameraRef.current.fov * (Math.PI / 180);
+          let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+          cameraZ *= 1.5;
+          
+          cameraRef.current.position.set(center.x + cameraZ, center.y + cameraZ, center.z + cameraZ);
+          cameraRef.current.lookAt(center);
+          cameraRef.current.updateProjectionMatrix();
+          
+          orbitControlsRef.current.target.copy(center);
+          orbitControlsRef.current.update();
+        }
+        
         onModelLoaded?.(loadedObject);
       }
     } catch (error) {
@@ -588,10 +626,10 @@ export function UniversalModelViewerEditor({
   }, []);
 
   return (
-    <div className={`flex h-full ${className}`}>
+    <div className={`flex h-full w-full ${className}`}>
       {/* 3D Viewport */}
-      <div className="flex-1 relative">
-        <div ref={mountRef} className="w-full h-full" />
+      <div className="flex-1 relative bg-slate-100">
+        <div ref={mountRef} className="absolute inset-0 w-full h-full" />
         
         {/* Toolbar */}
         <div className="absolute top-4 left-4 flex flex-col gap-2">

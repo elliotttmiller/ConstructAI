@@ -86,6 +86,7 @@ export default function BIMPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [threeScene, setThreeScene] = useState<any>(null);
   const sceneInitializedRef = useRef(false);
+  const [viewerMode, setViewerMode] = useState<'classic' | 'universal'>('universal');
 
   useEffect(() => {
     if (!session?.user) {
@@ -137,7 +138,7 @@ export default function BIMPage() {
     );
   }
 
-  const [viewerMode, setViewerMode] = useState<'classic' | 'universal'>('universal');
+
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
@@ -186,19 +187,22 @@ export default function BIMPage() {
       <div className="flex-1 flex overflow-hidden min-h-0">
         {viewerMode === 'universal' ? (
           /* Universal Model Viewer/Editor */
-          <UniversalModelViewerEditor
-            onModelLoaded={(model) => {
-              console.log('Model loaded in universal viewer:', model);
-              setThreeScene(model);
-            }}
-            onModelUpdated={(model) => {
-              console.log('Model updated:', model);
-            }}
-            onExport={(format) => {
-              console.log('Export requested:', format);
-              // TODO: Implement export functionality
-            }}
-          />
+          <div className="flex-1 flex w-full h-full">
+            <UniversalModelViewerEditor
+              className="flex-1"
+              onModelLoaded={(model) => {
+                console.log('Model loaded in universal viewer:', model);
+                setThreeScene(model);
+              }}
+              onModelUpdated={(model) => {
+                console.log('Model updated:', model);
+              }}
+              onExport={(format) => {
+                console.log('Export requested:', format);
+                // TODO: Implement export functionality
+              }}
+            />
+          </div>
         ) : (
           <>
             {/* Classic Viewer Mode */}
