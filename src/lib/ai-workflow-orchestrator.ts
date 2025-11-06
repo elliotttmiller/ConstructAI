@@ -359,23 +359,55 @@ export class AIWorkflowOrchestrator {
         };
       }
 
-      // 4. Use AI to suggest best assignment
-      const assignmentPrompt = `
-Task: ${task.title}
-Description: ${task.description}
-Priority: ${task.priority}
-Due Date: ${task.due_date}
+      // 4. Use AI to suggest best assignment with enhanced reasoning
+      const assignmentPrompt = `You are an expert team coordinator. Analyze this task and recommend the best team member for assignment.
 
-Team Members:
-${teamMembers.map((m, i) => `${i + 1}. ${m.name} (${m.role || 'Member'})`).join('\n')}
+# Task Details
+**Title**: ${task.title}
+**Description**: ${task.description}
+**Priority**: ${task.priority}
+**Due Date**: ${task.due_date}
+**Estimated Effort**: ${task.metadata?.estimated_hours || 'Not specified'} hours
 
-Based on the task requirements and team members' roles, who should be assigned to this task? Reply with just the number.`;
+# Available Team Members
+${teamMembers.map((m, i) => `${i + 1}. ${m.name}
+   - Role: ${m.role || 'Member'}
+   - Skills: ${m.metadata?.skills?.join(', ') || 'General construction'}
+   - Current Workload: ${m.metadata?.current_tasks || 'Unknown'}
+   - Availability: ${m.metadata?.availability || 'Available'}`).join('\n\n')}
+
+# Assignment Criteria
+Consider the following factors:
+1. **Skill Match**: Does the member have relevant skills for this task?
+2. **Experience Level**: Is their experience appropriate for the task complexity?
+3. **Current Workload**: Do they have capacity to take on this task?
+4. **Priority Alignment**: Can they meet the due date given their schedule?
+5. **Role Appropriateness**: Is this task within their job responsibilities?
+
+# Response Format
+Provide your recommendation as:
+RECOMMENDED: [Member number]
+REASONING: [2-3 sentences explaining why this member is the best choice]
+
+If no suitable member is available, respond with:
+RECOMMENDED: 0
+REASONING: [Explanation of constraints and suggestion for resolution]`;
 
       const response = await this.aiService.getSunaResponse(assignmentPrompt, { task, teamMembers });
       
-      // Extract suggested member index
-      const suggestedIndex = parseInt(response.content.match(/\d+/)?.[0] || '1') - 1;
-      const suggestedMember = teamMembers[Math.max(0, Math.min(suggestedIndex, teamMembers.length - 1))];
+      // Extract suggested member index with improved parsing
+      const recommendedMatch = response.content.match(/RECOMMENDED:\s*(\d+)/i);
+      const suggestedIndex = recommendedMatch ? parseInt(recommendedMatch[1]) - 1 : 0;
+      
+      // Validate index is within bounds
+      if (suggestedIndex < 0 || suggestedIndex >= teamMembers.length) {
+        return {
+          success: true,
+          data: { task, reason: 'no_suitable_assignment', aiResponse: response.content }
+        };
+      }
+      
+      const suggestedMember = teamMembers[suggestedIndex];
 
       // 5. Update task with AI assignment
       await supabaseAdmin
@@ -385,7 +417,8 @@ Based on the task requirements and team members' roles, who should be assigned t
           metadata: {
             ...task.metadata,
             ai_assigned: true,
-            assignment_reason: response.content
+            assignment_reason: response.content,
+            assignment_date: new Date().toISOString()
           }
         })
         .eq('id', taskId);
