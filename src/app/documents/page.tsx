@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useDataFetch } from "@/lib/data-fetching-hooks";
 import {
   Upload,
   FileText,
@@ -78,87 +79,52 @@ const getStatusBadge = (status: string) => {
 
 export default function DocumentsPage() {
   const { data: session } = useSession();
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
-  useEffect(() => {
-    if (!session?.user) {
-      setLoading(false);
-      return;
+  // Use optimized data fetching with shorter cache for real-time updates
+  const { data: documentsData, loading, error, refetch } = useDataFetch<{ documents: any[] }>(
+    session?.user ? '/api/documents' : null,
+    {
+      cacheTTL: 30000, // Cache for 30 seconds (shorter due to processing updates)
+      onError: (err) => console.error('Error fetching documents:', err),
     }
+  );
 
-    fetchDocuments();
+  // Transform API data to component format
+  const documents: Document[] = documentsData?.documents?.map((d: any) => ({
+    id: d.id,
+    name: d.name,
+    type: d.type as any,
+    status: d.status as any,
+    size: formatFileSize(d.size),
+    uploadDate: new Date(d.created_at),
+    processedDate: d.updated_at ? new Date(d.updated_at) : undefined,
+    category: d.category,
+    extractedText: d.metadata?.extractedText || d.metadata?.extractedTextBlocks,
+    confidence: d.metadata?.confidence,
+  })) || [];
 
-    // Set up polling for processing documents
+  // Set up polling for processing documents - but use refetch instead of fetchDocuments
+  useEffect(() => {
+    if (!session?.user) return;
+
+    const hasProcessing = documents.some(d => d.status === 'processing');
+    if (!hasProcessing) return;
+
+    // Poll every 3 seconds if there are processing documents
     const pollInterval = setInterval(() => {
-      const hasProcessing = documents.some(d => d.status === 'processing');
-      if (hasProcessing) {
-        fetchDocuments();
-      }
-    }, 3000); // Poll every 3 seconds if there are processing documents
+      refetch();
+    }, 3000);
 
     return () => clearInterval(pollInterval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.id]);
-
-  const fetchDocuments = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/documents');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch documents');
-      }
-
-      const data = await response.json();
-      
-      // Define the API document type
-      type ApiDocument = {
-        id: string;
-        name: string;
-        type: string;
-        status: string;
-        size: number;
-        created_at: string;
-        updated_at?: string;
-        category?: string;
-        metadata?: {
-          extractedText?: number;
-          extractedTextBlocks?: number;
-        };
-        confidence?: number;
-      };
-      
-      // Transform the data to match the expected format
-      const transformedDocuments = data.documents.map((d: ApiDocument) => ({
-        id: d.id,
-        name: d.name,
-        type: d.type,
-        status: d.status,
-        size: formatFileSize(d.size),
-        uploadDate: new Date(d.created_at),
-        processedDate: d.updated_at ? new Date(d.updated_at) : undefined,
-        category: d.category,
-        extractedText: d.metadata?.extractedText || d.metadata?.extractedTextBlocks || 0,
-        confidence: d.confidence || 0
-      }));
-      
-      setDocuments(transformedDocuments);
-      setError(null);
-    } catch (err: unknown) {
-      console.error('Error fetching documents:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load documents');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [session?.user, documents, refetch]);
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
   const handleViewDocument = (doc: Document) => {
@@ -264,11 +230,10 @@ export default function DocumentsPage() {
         const data = await response.json();
         console.log('File uploaded:', data);
         
-        // Refresh documents list
-        await fetchDocuments();
+        // Refresh documents list using refetch
+        await refetch();
       } catch (err) {
         console.error('Error uploading file:', err);
-        setError(`Failed to upload ${file.name}`);
       }
     }
   };
@@ -300,7 +265,7 @@ export default function DocumentsPage() {
     return (
       <Alert variant="destructive">
         <AlertDescription>
-          Error loading documents: {error}
+          Error loading documents: {error.message}
         </AlertDescription>
       </Alert>
     );

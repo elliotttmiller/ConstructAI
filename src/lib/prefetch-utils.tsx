@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
 // All main application routes that should be prefetched
