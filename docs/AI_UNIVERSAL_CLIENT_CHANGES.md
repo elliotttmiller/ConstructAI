@@ -78,7 +78,7 @@ isConfigured(): { openai: boolean; google: boolean; primary: string | null; avai
 
 ### 1. Method Signatures
 All public methods remain exactly the same:
-- ✅ `getSunaResponse(message, context)`
+- ✅ `getAIAssistantResponse(message, context)`
 - ✅ `getDocumentAnalysis(documentText, documentType)`
 - ✅ `checkBuildingCodeCompliance(projectDetails, location)`
 - ✅ `analyzeBIMModel(modelData, clashDetectionResults)`

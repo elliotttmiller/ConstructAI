@@ -85,7 +85,7 @@ interface TypingIndicator {
 }
 
 const AGENT_TYPES = {
-  suna: {
+  'ai-assistant': {
     name: 'AI',
     description: 'Main construction coordinator and project orchestrator',
     icon: Bot,
@@ -141,7 +141,7 @@ export default function ChatPage() {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([]);
-  const [selectedAgent, setSelectedAgent] = useState<string>('suna');
+  const [selectedAgent, setSelectedAgent] = useState<string>('ai-assistant');
   const [selectedProject, setSelectedProject] = useState<string | null>(null); // null = general chat
   const [projects, setProjects] = useState<Project[]>([]);
   const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>({});
@@ -290,7 +290,7 @@ export default function ChatPage() {
 
 What would you like to work on today?`,
         role: 'assistant',
-        agentType: 'suna',
+        agentType: 'ai-assistant',
         userId: 'system',
         timestamp: new Date(),
         metadata: {
@@ -497,7 +497,7 @@ What would you like to work on today?`,
 
   // Quick action buttons
   const quickActions = [
-    { label: 'Project Status', query: 'What is the current status of my construction project?', agent: 'suna' },
+    { label: 'Project Status', query: 'What is the current status of my construction project?', agent: 'ai-assistant' },
     { label: 'Upload Documents', query: 'I need to upload and process construction documents', agent: 'document-processor' },
     { label: 'Run BIM Analysis', query: 'Analyze my 3D building model for clashes and issues', agent: 'bim-analyzer' },
     { label: 'Cost Estimate', query: 'Generate a cost estimate for my project', agent: 'cost-estimator' },

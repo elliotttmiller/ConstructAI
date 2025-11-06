@@ -147,7 +147,7 @@ The sidepanel connects to the existing AI infrastructure:
 7. docs/AI_PROMPT_ENGINEERING_GUIDE.md
 8. docs/AI_WORKFLOW_ORCHESTRATION.md
 
-**Note**: Function name `getSunaResponse()` was kept unchanged for API compatibility.
+**Note**: All naming has been updated to use universal terminology. Function renamed from `getSunaResponse()` to `getAIAssistantResponse()` and agent type changed from 'suna' to 'ai-assistant'.
 
 ---
 
@@ -217,10 +217,10 @@ The sidepanel connects to the existing AI infrastructure:
 **Rationale**: Simpler implementation, fewer dependencies, sufficient for current needs  
 **Result**: Lightweight, maintainable solution
 
-### 4. API Compatibility
-**Decision**: Kept `getSunaResponse()` function name unchanged  
-**Rationale**: Maintains backward compatibility with existing code  
-**Result**: No breaking changes to API contracts
+### 4. Universal Naming
+**Decision**: Renamed `getSunaResponse()` to `getAIAssistantResponse()` and changed agent type from 'suna' to 'ai-assistant'  
+**Rationale**: More universal, friendly terminology without brand-specific references  
+**Result**: Cleaner, more professional codebase with universal naming
 
 ---
 

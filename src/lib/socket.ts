@@ -101,12 +101,12 @@ class SocketService {
     this.emit('user_typing', {
       userId: 'ai_agent',
       isTyping: true,
-      agentType: message.agentType || 'suna'
+      agentType: message.agentType || 'ai-assistant'
     });
 
     // Update agent status to processing
     this.emit('agent_status_changed', {
-      agentType: message.agentType || 'suna',
+      agentType: message.agentType || 'ai-assistant',
       status: 'processing',
       lastActivity: new Date(),
       message: 'Processing your request...'
@@ -130,12 +130,12 @@ class SocketService {
         this.emit('user_typing', {
           userId: 'ai_agent',
           isTyping: false,
-          agentType: message.agentType || 'suna'
+          agentType: message.agentType || 'ai-assistant'
         });
 
         // Update agent status to online
         this.emit('agent_status_changed', {
-          agentType: message.agentType || 'suna',
+          agentType: message.agentType || 'ai-assistant',
           status: 'online',
           lastActivity: new Date(),
           message: 'Ready to assist'
@@ -157,12 +157,12 @@ class SocketService {
       this.emit('user_typing', {
         userId: 'ai_agent',
         isTyping: false,
-        agentType: message.agentType || 'suna'
+        agentType: message.agentType || 'ai-assistant'
       });
 
       // Update agent status to offline
       this.emit('agent_status_changed', {
-        agentType: message.agentType || 'suna',
+        agentType: message.agentType || 'ai-assistant',
         status: 'offline',
         lastActivity: new Date(),
         message: 'Service temporarily unavailable'
@@ -180,7 +180,7 @@ class SocketService {
         },
         body: JSON.stringify({
           message: message.content,
-          agentType: message.agentType || 'suna',
+          agentType: message.agentType || 'ai-assistant',
           userId: message.userId,
           context: {
             projectId: message.projectId,
@@ -196,7 +196,7 @@ class SocketService {
         id: `ai_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         content: aiResponse.content,
         role: 'assistant',
-        agentType: message.agentType || 'suna',
+        agentType: message.agentType || 'ai-assistant',
         userId: 'ai_system',
         timestamp: new Date(),
         projectId: message.projectId,
@@ -382,7 +382,7 @@ class SocketService {
 
   // Agent status simulation
   public simulateAgentActivity() {
-    const agents = ['suna', 'document-processor', 'bim-analyzer', 'cost-estimator', 'safety-monitor'];
+    const agents = ['ai-assistant', 'document-processor', 'bim-analyzer', 'cost-estimator', 'safety-monitor'];
 
     setInterval(() => {
       const randomAgent = agents[Math.floor(Math.random() * agents.length)];
@@ -400,7 +400,7 @@ class SocketService {
 
   private getAgentStatusMessage(agent: string, status: string): string {
     const messages = {
-      'suna': {
+      'ai-assistant': {
         'online': 'Ready to assist with construction management',
         'busy': 'Analyzing project data and generating insights',
         'processing': 'Processing construction documents'
@@ -427,7 +427,7 @@ class SocketService {
       }
     };
 
-    return messages[agent as keyof typeof messages]?.[status as keyof typeof messages['suna']] || 'Active';
+    return messages[agent as keyof typeof messages]?.[status as keyof typeof messages['ai-assistant']] || 'Active';
   }
 }
 

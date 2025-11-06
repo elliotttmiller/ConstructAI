@@ -275,7 +275,7 @@ export class ConstructionAIService {
   }
 
   // AI Assistant - Master Orchestrator
-  async getSunaResponse(message: string, context?: any, enableTools: boolean = false): Promise<AIResponse> {
+  async getAIAssistantResponse(message: string, context?: any, enableTools: boolean = false): Promise<AIResponse> {
     const systemPrompt = `# Role and Identity
 You are the AI Assistant, the master orchestrator and strategic intelligence hub for ConstructAI—an enterprise-grade construction management platform. You serve as the primary interface between users and a sophisticated ecosystem of specialized AI agents.
 
@@ -1652,8 +1652,8 @@ Now conduct a thorough risk assessment using this framework.`;
     enableTools: boolean = true  // Enable autonomous tools by default
   ): Promise<AIResponse> {
     switch (agentType) {
-      case 'suna':
-        return this.getSunaResponse(messages[messages.length - 1].content, context, enableTools);
+      case 'ai-assistant':
+        return this.getAIAssistantResponse(messages[messages.length - 1].content, context, enableTools);
       case 'upload':
       case 'document':
         return this.getDocumentAnalysis(messages[messages.length - 1].content, context?.documentType || 'general', enableTools);
@@ -1666,7 +1666,7 @@ Now conduct a thorough risk assessment using this framework.`;
       case 'risk':
         return this.assessProjectRisks(context?.projectData, context?.weatherData, enableTools);
       default:
-        return this.getSunaResponse(messages[messages.length - 1].content, context, enableTools);
+        return this.getAIAssistantResponse(messages[messages.length - 1].content, context, enableTools);
     }
   }
 

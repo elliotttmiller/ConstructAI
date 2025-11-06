@@ -47,7 +47,7 @@ const AGENT_ICONS: Record<string, any> = {
   'pm-bot': Calculator,
   'compliance-checker': Shield,
   'team-coordinator': Users,
-  'suna': Zap
+  'ai-assistant': Zap
 };
 
 export default function WorkflowMonitor() {

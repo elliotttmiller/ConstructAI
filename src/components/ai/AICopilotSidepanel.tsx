@@ -30,7 +30,7 @@ interface ChatMessage {
 }
 
 const AGENT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  'suna': Bot,
+  'ai-assistant': Bot,
   'document-processor': FileText,
   'bim-analyzer': Building,
   'cost-estimator': Calculator,
@@ -75,7 +75,7 @@ export default function AICopilotSidepanel() {
 
 What would you like to work on today?`,
         role: 'assistant',
-        agentType: 'suna',
+        agentType: 'ai-assistant',
         timestamp: new Date(),
       }]);
     }
@@ -101,7 +101,7 @@ What would you like to work on today?`,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: inputValue,
-          agentType: 'suna',
+          agentType: 'ai-assistant',
           context: {
             ...context,
             userId: session?.user?.email,
@@ -117,7 +117,7 @@ What would you like to work on today?`,
         id: Date.now().toString() + '_assistant',
         content: data.response || data.content || 'I received your message.',
         role: 'assistant',
-        agentType: 'suna',
+        agentType: 'ai-assistant',
         timestamp: new Date(),
       };
 
@@ -128,7 +128,7 @@ What would you like to work on today?`,
         id: Date.now().toString() + '_error',
         content: 'Sorry, I encountered an error processing your request. Please try again.',
         role: 'assistant',
-        agentType: 'suna',
+        agentType: 'ai-assistant',
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMessage]);

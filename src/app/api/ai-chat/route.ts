@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       // Use the multi-agent conversation handler
       response = await aiService.handleMultiAgentConversation(
         [{ role: 'user', content: message, agentType }],
-        agentType || 'suna',
+        agentType || 'ai-assistant',
         context
       );
     } catch (error) {
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         { 
           error: error instanceof Error ? error.message : 'Failed to process AI request',
           serviceStatus,
-          agentType: agentType || 'suna'
+          agentType: agentType || 'ai-assistant'
         },
         { status: 500 }
       );
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       ...response,
       serviceStatus,
       timestamp: new Date().toISOString(),
-      agentType: agentType || 'suna'
+      agentType: agentType || 'ai-assistant'
     });
 
   } catch (error) {

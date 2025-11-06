@@ -126,9 +126,9 @@ async completeWithTools(
 
 ### 3. Agent Integration
 
-#### Updated `getSunaResponse()` Method
+#### Updated `getAIAssistantResponse()` Method
 ```typescript
-async getSunaResponse(
+async getAIAssistantResponse(
   message: string, 
   context?: any, 
   enableTools: boolean = false  // NEW PARAMETER
@@ -352,7 +352,7 @@ Chat API (/api/ai-chat)
       ↓
 handleMultiAgentConversation(enableTools=true)
       ↓
-getSunaResponse(message, context, enableTools=true)
+getAIAssistantResponse(message, context, enableTools=true)
       ↓
 UniversalAIClient.completeWithTools()
       ↓
@@ -483,14 +483,14 @@ The autonomous AI agent system is now **fully operational**. AI agents can:
 
 ### Files Changed
 - `src/lib/ai-agent-tools.ts` - NEW: Tool definitions
-- `src/lib/ai-services.ts` - Added `completeWithTools()` method, updated `getSunaResponse()`
+- `src/lib/ai-services.ts` - Added `completeWithTools()` method, updated `getAIAssistantResponse()`
 - `test_autonomous_ai.py` - NEW: Autonomous execution test suite
 
 ### Key Methods
 - `getToolDefinitions()` - Returns array of tool definitions for OpenAI
 - `executeAgentTool(name, params)` - Executes a tool by name
 - `completeWithTools(prompt, message, options)` - OpenAI function calling loop
-- `getSunaResponse(message, context, enableTools)` - Main agent with tool support
+- `getAIAssistantResponse(message, context, enableTools)` - Main agent with tool support
 
 ### Testing
 ```bash
