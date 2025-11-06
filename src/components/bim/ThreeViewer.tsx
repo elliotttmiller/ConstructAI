@@ -104,8 +104,18 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
 
   // Enhanced file upload handler with real Hunyuan3D-2 conversion
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('🎯 File upload handler triggered');
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      console.warn('⚠️ No file selected');
+      return;
+    }
+
+    console.log('📁 File selected:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
 
     // Store uploaded file for overlay
     setUploadedFile(file);
@@ -117,14 +127,23 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     const is2DBlueprint = ['pdf', 'jpg', 'jpeg', 'png', 'dwg', 'dxf'].includes(fileExtension || '');
     const is3DModel = ['ifc', 'rvt', 'obj', 'fbx', 'gltf', 'glb'].includes(fileExtension || '');
 
+    console.log('🔍 File type detected:', {
+      extension: fileExtension,
+      is2DBlueprint,
+      is3DModel
+    });
+
     try {
       if (is2DBlueprint) {
+        console.log('📐 Processing as 2D blueprint');
         // Real Hunyuan3D-2 Blueprint to 3D Model Conversion
         await convertBlueprintTo3DOptimized(file);
       } else if (is3DModel) {
+        console.log('🎨 Processing as 3D model');
         // Direct 3D Model Processing
         await simulate3DModelProcessing(file);
       } else {
+        console.log('📄 Processing as generic document');
         // Generic document processing
         await simulateDocumentProcessing(file);
       }
@@ -476,13 +495,23 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     if (!sceneRef.current) return;
 
     try {
+      console.log('🔄 Loading OBJ model:', fileName);
       const { OBJLoader } = await import('three/examples/jsm/loaders/OBJLoader.js');
       const loader = new OBJLoader();
 
       const object = await new Promise<THREE.Group>((resolve, reject) => {
-        loader.load(fileUrl, resolve, undefined, reject);
+        loader.load(
+          fileUrl,
+          resolve,
+          (progress) => {
+            const percent = (progress.loaded / progress.total) * 100;
+            console.log(`Loading: ${percent.toFixed(1)}%`);
+          },
+          reject
+        );
       });
 
+      console.log('✅ OBJ parsed, adding to scene...');
       clearScene();
 
       object.name = 'UploadedModel';
@@ -490,22 +519,44 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       object.userData.fileName = fileName;
 
       // Apply default material if needed
+      let meshCount = 0;
       object.traverse((child) => {
         if (child instanceof THREE.Mesh) {
+          meshCount++;
           child.castShadow = true;
           child.receiveShadow = true;
           if (!child.material) {
-            child.material = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+            child.material = new THREE.MeshStandardMaterial({ 
+              color: 0xcccccc,
+              roughness: 0.7,
+              metalness: 0.2
+            });
+          } else if (child.material instanceof THREE.Material) {
+            // Ensure material is visible
+            child.material.transparent = false;
+            child.material.opacity = 1;
+            child.material.needsUpdate = true;
           }
         }
       });
 
       sceneRef.current.add(object);
+      console.log(`✅ OBJ model added to scene: ${fileName}, meshes: ${meshCount}`);
+      console.log('🎬 Scene children count:', sceneRef.current.children.length);
+      
+      // Verify the object is in the scene
+      const inScene = sceneRef.current.children.includes(object);
+      console.log('✓ Object in scene:', inScene);
+      
       fitCameraToObject(object);
-
-      console.log('✅ OBJ model loaded:', fileName);
+      
+      // Force a render update
+      if (rendererRef.current && cameraRef.current) {
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+        console.log('🎨 Forced render update');
+      }
     } catch (error) {
-      console.error('Failed to load OBJ:', error);
+      console.error('❌ Failed to load OBJ:', error);
       throw error;
     }
   };
@@ -602,11 +653,25 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
 
   // Fit camera to object
   const fitCameraToObject = (object: THREE.Object3D) => {
-    if (!cameraRef.current || !controlsRef.current) return;
+    if (!cameraRef.current || !controlsRef.current) {
+      console.warn('⚠️ Camera or controls not initialized');
+      return;
+    }
 
     const box = new THREE.Box3().setFromObject(object);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
+
+    console.log('📦 Object bounds:', {
+      size: { x: size.x.toFixed(2), y: size.y.toFixed(2), z: size.z.toFixed(2) },
+      center: { x: center.x.toFixed(2), y: center.y.toFixed(2), z: center.z.toFixed(2) }
+    });
+
+    // Check if object has valid size
+    if (size.x === 0 && size.y === 0 && size.z === 0) {
+      console.error('❌ Object has zero size, cannot fit camera');
+      return;
+    }
 
     const maxDim = Math.max(size.x, size.y, size.z);
     const fov = cameraRef.current.fov * (Math.PI / 180);
@@ -625,7 +690,11 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     controlsRef.current.target.copy(center);
     controlsRef.current.update();
 
-    console.log('📷 Camera fitted to object:', { size, center, cameraZ });
+    console.log('📷 Camera fitted to object:', { 
+      cameraPosition: cameraRef.current.position,
+      targetCenter: center,
+      distance: cameraZ 
+    });
   };
 
   // Load real AI-generated model
@@ -832,9 +901,20 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
 
   // Initialize Three.js scene
   const initializeScene = useCallback(() => {
-    if (!mountRef.current || sceneInitializedRef.current) return;
+    if (!mountRef.current) return;
+    
+    // Check if scene is already initialized AND renderer is still mounted
+    if (sceneInitializedRef.current && 
+        rendererRef.current && 
+        rendererRef.current.domElement &&
+        mountRef.current.contains(rendererRef.current.domElement)) {
+      console.log('⏭️ Scene already initialized, skipping');
+      return;
+    }
 
-    // Mark as initialized to prevent re-initialization
+    console.log('🎬 Initializing scene...');
+    
+    // Mark as initialized
     sceneInitializedRef.current = true;
 
     // Scene setup
@@ -866,7 +946,7 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     }
 
     // Lighting setup
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -882,8 +962,12 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     directionalLight.shadow.camera.bottom = -100;
     scene.add(directionalLight);
 
-    // Don't auto-load demo model - wait for user to upload a file
-    // loadEnhancedDemoModel();
+    // Add grid helper for reference
+    const gridHelper = new THREE.GridHelper(100, 10, 0x888888, 0xcccccc);
+    gridHelper.userData.type = 'helper';
+    scene.add(gridHelper);
+
+    console.log('✅ Scene initialized');
 
     // Animation loop
     const animate = () => {
@@ -920,8 +1004,11 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
       controlsRef.current.dispose();
     }
 
-    if (mountRef.current && rendererRef.current) {
-      mountRef.current.removeChild(rendererRef.current.domElement);
+    if (mountRef.current && rendererRef.current && rendererRef.current.domElement) {
+      // Check if the element is actually a child before removing
+      if (mountRef.current.contains(rendererRef.current.domElement)) {
+        mountRef.current.removeChild(rendererRef.current.domElement);
+      }
     }
   }, []);
 

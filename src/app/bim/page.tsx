@@ -137,9 +137,9 @@ export default function BIMPage() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="border-b p-4">
+      <div className="border-b p-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">3D BIM Viewer</h1>
@@ -164,7 +164,7 @@ export default function BIMPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Main Viewer */}
         <div className="flex-1 relative">
           {/* 3D Viewer Container */}
