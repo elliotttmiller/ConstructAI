@@ -96,10 +96,10 @@ Now, respond to the user's query using this framework. Think step-by-step and pr
           { role: "system", content: systemPrompt },
           { role: "user", content: message }
         ],
-        max_tokens: 1500,
-        temperature: 0.7,
-        presence_penalty: 0.1,
-        frequency_penalty: 0.1,
+        max_tokens: 1500, // Increased for comprehensive responses
+        temperature: 0.7, // Balanced creativity for diverse user queries
+        presence_penalty: 0.1, // Encourage diverse topics
+        frequency_penalty: 0.1, // Reduce repetition
       });
 
       const response = completion.choices[0]?.message?.content || "I apologize, but I couldn't process your request at the moment.";
@@ -212,10 +212,10 @@ Now analyze the provided document using this comprehensive framework.`;
       const model = genAI.getGenerativeModel({ 
         model: "gemini-pro",
         generationConfig: {
-          temperature: 0.4,
-          topP: 0.95,
-          topK: 40,
-          maxOutputTokens: 2048,
+          temperature: 0.4, // Technical precision with moderate creativity
+          topP: 0.95, // High diversity in token selection
+          topK: 40, // Moderate token pool for quality
+          maxOutputTokens: 2048, // Extended for detailed analysis
         },
       });
       const result = await model.generateContent([
@@ -401,10 +401,10 @@ Now perform a thorough compliance analysis using this framework.`;
           { role: "system", content: systemPrompt },
           { role: "user", content: `Please analyze this project for building code compliance.` }
         ],
-        max_tokens: 2000,
-        temperature: 0.3,
-        presence_penalty: 0.0,
-        frequency_penalty: 0.0,
+        max_tokens: 2000, // Extended for comprehensive compliance review
+        temperature: 0.3, // Low for consistent, deterministic code interpretation
+        presence_penalty: 0.0, // No penalty for code-focused responses
+        frequency_penalty: 0.0, // Allow repeated code references
       });
 
       const response = completion.choices[0]?.message?.content || "Unable to complete compliance analysis.";
@@ -633,15 +633,15 @@ Now analyze the BIM model using this comprehensive framework.`;
       const model = genAI.getGenerativeModel({ 
         model: "gemini-pro",
         generationConfig: {
-          temperature: 0.4,
-          topP: 0.9,
-          topK: 40,
-          maxOutputTokens: 2048,
+          temperature: 0.4, // Technical accuracy with moderate creativity
+          topP: 0.9, // Slightly focused for technical precision
+          topK: 40, // Balanced token pool
+          maxOutputTokens: 2048, // Extended for detailed BIM analysis
         },
       });
       const result = await model.generateContent([
         systemPrompt,
-        `Please analyze this BIM model and provide comprehensive insights.`
+        `Please analyze this BIM model using the comprehensive framework above, focusing on clash detection, constructability analysis, and system coordination. Provide detailed insights with prioritized recommendations.`
       ]);
 
       const response = await result.response;
@@ -934,10 +934,10 @@ Now provide comprehensive project management insights using this framework.`;
           { role: "system", content: systemPrompt },
           { role: "user", content: `Please analyze this project and provide management insights.` }
         ],
-        max_tokens: 2000,
-        temperature: 0.5,
-        presence_penalty: 0.1,
-        frequency_penalty: 0.1,
+        max_tokens: 2000, // Extended for comprehensive PM analysis
+        temperature: 0.5, // Balanced creativity and precision for planning
+        presence_penalty: 0.1, // Encourage diverse topics
+        frequency_penalty: 0.1, // Reduce repetitive recommendations
       });
 
       const response = completion.choices[0]?.message?.content || "Unable to complete project analysis.";
@@ -1413,10 +1413,10 @@ Now conduct a thorough risk assessment using this framework.`;
       const model = genAI.getGenerativeModel({ 
         model: "gemini-pro",
         generationConfig: {
-          temperature: 0.4,
-          topP: 0.95,
-          topK: 40,
-          maxOutputTokens: 2048,
+          temperature: 0.4, // Conservative for risk assessment
+          topP: 0.95, // High diversity for comprehensive risk identification
+          topK: 40, // Balanced token pool
+          maxOutputTokens: 2048, // Extended for detailed risk analysis
         },
       });
       const result = await model.generateContent([
