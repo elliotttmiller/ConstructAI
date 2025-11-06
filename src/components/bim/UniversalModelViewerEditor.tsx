@@ -11,6 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
+import { ParametricCADBuilder } from '@/components/cad/ParametricCADBuilder';
+import type { CADGenerationResult } from '@/types/build123d';
 import { 
   Upload, 
   Download, 
@@ -27,7 +29,8 @@ import {
   Grid3x3,
   Layers,
   Box,
-  Loader2
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 
 interface UniversalModelViewerEditorProps {
@@ -423,6 +426,28 @@ export function UniversalModelViewerEditor({
     orbitControlsRef.current.update();
   };
 
+  // Handle CAD model generation
+  const handleCADModelGenerated = useCallback(async (result: CADGenerationResult) => {
+    if (!sceneRef.current || !result.model_url) return;
+
+    setLoading(true);
+    try {
+      // Load the generated GLTF model
+      const loadedObject = await loadGLTFModel(result.model_url, result.model_type);
+      
+      if (loadedObject) {
+        sceneRef.current.add(loadedObject);
+        setLoadedModels(prev => [...prev, loadedObject]);
+        fitCameraToObject(loadedObject);
+        onModelLoaded?.(loadedObject);
+      }
+    } catch (error) {
+      console.error('Failed to load CAD model:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [onModelLoaded]);
+
   // Update object properties
   const updateObjectProperty = useCallback((property: string, axis: 'x' | 'y' | 'z', value: number) => {
     if (!selectedObject) return;
@@ -589,11 +614,28 @@ export function UniversalModelViewerEditor({
       {/* Side Panel */}
       <div className="w-80 border-l bg-background overflow-y-auto">
         <Tabs defaultValue="models" className="h-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="models">Models</TabsTrigger>
+            <TabsTrigger value="cad">
+              <Sparkles className="h-4 w-4 mr-1" />
+              CAD
+            </TabsTrigger>
             <TabsTrigger value="properties">Properties</TabsTrigger>
             <TabsTrigger value="export">Export</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="cad" className="p-4 space-y-4">
+            <div>
+              <h3 className="font-medium text-sm mb-2">Parametric CAD Builder</h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Generate 3D models programmatically
+              </p>
+            </div>
+            <ParametricCADBuilder
+              onModelGenerated={handleCADModelGenerated}
+              className="border-0 shadow-none"
+            />
+          </TabsContent>
 
           <TabsContent value="models" className="p-4 space-y-4">
             <div>
