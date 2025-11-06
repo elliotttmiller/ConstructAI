@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDataFetch, useMutation } from "@/lib/data-fetching-hooks";
+import { PageSkeleton } from "@/components/ui/loading-skeletons";
 import {
   Building2,
   Calendar,
@@ -170,11 +171,7 @@ export default function ProjectsPage() {
   const totalSpent = projects.reduce((sum, p) => sum + p.spent, 0);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   if (!session?.user) {

@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useDataFetch } from "@/lib/data-fetching-hooks";
+import { PageSkeleton } from "@/components/ui/loading-skeletons";
 import {
   Upload,
   FileText,
@@ -101,7 +102,7 @@ export default function DocumentsPage() {
     processedDate: d.updated_at ? new Date(d.updated_at) : undefined,
     category: d.category,
     extractedText: d.metadata?.extractedText || d.metadata?.extractedTextBlocks,
-    confidence: d.metadata?.confidence,
+    confidence: d.confidence || d.metadata?.confidence,
   })) || [];
 
   // Set up polling for processing documents - but use refetch instead of fetchDocuments
@@ -244,11 +245,7 @@ export default function DocumentsPage() {
   const errorCount = documents.filter(d => d.status === 'error').length;
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   if (!session?.user) {

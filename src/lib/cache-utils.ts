@@ -193,6 +193,3 @@ export function useCachedFetch<T>(
 
   return { data, loading, error };
 }
-
-// Add React import
-import * as React from 'react';

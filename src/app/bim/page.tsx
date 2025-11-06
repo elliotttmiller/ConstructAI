@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useDataFetch } from "@/lib/data-fetching-hooks";
+import { PageSkeleton } from "@/components/ui/loading-skeletons";
 import {
   Building2,
   RotateCcw,
@@ -79,9 +81,6 @@ const getSeverityColor = (severity: string) => {
 
 export default function BIMPage() {
   const { data: session } = useSession();
-  const [models, setModels] = useState<BIMModel[]>([]);
-  const [clashes, setClashes] = useState<ClashItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [showClashes, setShowClashes] = useState(true);
@@ -91,46 +90,27 @@ export default function BIMPage() {
   const sceneInitializedRef = useRef(false);
   const [viewerMode, setViewerMode] = useState<'classic' | 'universal'>('universal');
 
+  // Use optimized data fetching with caching for BIM data
+  const { data: bimData, loading, error, refetch } = useDataFetch<{ models: BIMModel[]; clashes: ClashItem[] }>(
+    session?.user ? '/api/bim' : null,
+    {
+      cacheTTL: 60000, // Cache for 1 minute (BIM data doesn't change frequently)
+      onError: (err) => console.error('Error fetching BIM data:', err),
+    }
+  );
+
+  const models = bimData?.models || [];
+  const clashes = bimData?.clashes || [];
+
+  // Set selected model when models are loaded
   useEffect(() => {
-    if (!session?.user) {
-      setLoading(false);
-      return;
+    if (models.length > 0 && !selectedModel) {
+      setSelectedModel(models[0].id);
     }
-
-    fetchBIMData();
-    // Only run once when session is available
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.id]); // Changed from [session] to prevent excessive re-renders
-
-  const fetchBIMData = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/bim');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch BIM data');
-      }
-
-      const data = await response.json();
-      setModels(data.models || []);
-      setClashes(data.clashes || []);
-      
-      if (data.models && data.models.length > 0) {
-        setSelectedModel(data.models[0].id);
-      }
-    } catch (err) {
-      console.error('Error fetching BIM data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [models, selectedModel]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   if (!session?.user) {

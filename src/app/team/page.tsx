@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useDataFetch } from "@/lib/data-fetching-hooks";
+import { PageSkeleton } from "@/components/ui/loading-skeletons";
 import {
   Users,
   Plus,
@@ -118,11 +119,7 @@ export default function TeamPage() {
   const totalTasks = teamMembers.reduce((sum, m) => sum + m.tasksCompleted, 0);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   if (!session?.user) {

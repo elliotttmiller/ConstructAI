@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 import CopilotContextProvider from "@/components/providers/CopilotContextProvider";
 import LoadingBar from "@/components/transitions/LoadingBar";
 import { useGlobalPrefetch } from "@/lib/prefetch-utils";
+import { useRouteSpecificPrefetch } from "@/lib/route-prefetch-strategies";
 
 // Lazy load AI components to reduce initial bundle size
 const AICopilotSidepanel = dynamic(
@@ -31,6 +32,9 @@ export default function ClientBody({
 
   // Global route prefetching for instant navigation
   useGlobalPrefetch();
+  
+  // Route-specific prefetching based on current page context
+  useRouteSpecificPrefetch();
 
   // Initialize production environment only once - with delay to not block rendering
   useEffect(() => {
