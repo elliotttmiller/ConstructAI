@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 
 // Context data structure based on blueprint
 export interface CopilotContext {
@@ -66,7 +66,6 @@ interface CopilotContextProviderProps {
 
 export default function CopilotContextProvider({ children }: CopilotContextProviderProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   
   // Initialize with saved panel state from localStorage
   const [isOpen, setIsOpen] = useState(false);
