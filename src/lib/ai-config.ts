@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import OpenAI from 'openai';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // AI Model Configuration Interface
 export interface AIModelConfig {
@@ -116,12 +115,6 @@ export class AIConfigManager {
       console.log('✅ OpenAI client initialized');
     }
 
-    // Initialize Google AI client if any Google models are configured
-    const hasGoogle = Array.from(this.configs.values()).some(c => c.provider === 'google' && c.enabled);
-    if (hasGoogle && process.env.GOOGLE_AI_API_KEY) {
-      this.clients.set('google', new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY));
-      console.log('✅ Google AI client initialized');
-    }
 
     // Initialize Azure OpenAI if configured
     if (process.env.AZURE_OPENAI_API_KEY && process.env.AZURE_OPENAI_ENDPOINT) {

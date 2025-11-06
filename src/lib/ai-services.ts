@@ -1,13 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import OpenAI from 'openai';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { aiConfig } from './ai-config';
 import { getToolDefinitions, executeAgentTool, ToolResult } from './ai-agent-tools';
 
 // Universal AI Client Manager
 class UniversalAIClient {
   private openai: OpenAI | null = null;
-  private genAI: GoogleGenerativeAI | null = null;
   private primaryProvider: 'openai' | 'google' | null = null;
 
   constructor() {
@@ -23,17 +21,7 @@ class UniversalAIClient {
       });
       this.primaryProvider = 'openai';
       console.log('✅ OpenAI initialized as primary AI provider');
-    }
-
-    if (process.env.GOOGLE_AI_API_KEY) {
-      this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
-      if (!this.primaryProvider) {
-        this.primaryProvider = 'google';
-        console.log('✅ Google AI initialized as primary AI provider');
-      } else {
-        console.log('✅ Google AI initialized as fallback provider');
-      }
-    }
+    } 
 
     if (!this.primaryProvider) {
       console.warn('⚠️ No AI providers configured. Please set OPENAI_API_KEY or GOOGLE_AI_API_KEY');
@@ -61,9 +49,7 @@ class UniversalAIClient {
       try {
         if (provider === 'openai') {
           return await this.completeWithOpenAI(systemPrompt, userMessage, options);
-        } else if (provider === 'google') {
-          return await this.completeWithGoogle(systemPrompt, userMessage, options);
-        }
+        } 
       } catch (error) {
         console.error(`${provider} failed, trying next provider:`, error);
         // Continue to next provider
@@ -104,42 +90,11 @@ class UniversalAIClient {
     };
   }
 
-  private async completeWithGoogle(
-    systemPrompt: string,
-    userMessage: string,
-    options: { temperature?: number; maxTokens?: number; model?: string }
-  ) {
-    if (!this.genAI) throw new Error('Google AI not initialized');
-
-    const model = this.genAI.getGenerativeModel({
-      model: options.model || 'gemini-pro',
-      generationConfig: {
-        temperature: options.temperature ?? 0.7,
-        topP: 0.95,
-        topK: 40,
-        maxOutputTokens: options.maxTokens ?? 2048,
-      },
-    });
-
-    const result = await model.generateContent([
-      systemPrompt,
-      userMessage
-    ]);
-
-    const response = await result.response;
-    return {
-      content: response.text(),
-      model: 'gemini-pro',
-      usage: undefined
-    };
-  }
-
   private getAvailableProviders(): ('openai' | 'google')[] {
     const providers: ('openai' | 'google')[] = [];
     
     // Priority order
     if (this.openai) providers.push('openai');
-    if (this.genAI) providers.push('google');
     
     return providers;
   }
@@ -147,7 +102,6 @@ class UniversalAIClient {
   getStatus() {
     return {
       openai: !!this.openai,
-      google: !!this.genAI,
       primary: this.primaryProvider,
       available: this.getAvailableProviders()
     };
@@ -1671,11 +1625,10 @@ Now conduct a thorough risk assessment using this framework.`;
   }
 
   // Check if AI services are properly configured
-  isConfigured(): { openai: boolean; google: boolean; primary: string | null; available: string[] } {
+  isConfigured(): { openai: boolean; primary: string | null; available: string[] } {
     const status = aiClient.getStatus();
     return {
       openai: status.openai,
-      google: status.google,
       primary: status.primary,
       available: status.available
     };
