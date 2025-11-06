@@ -42,7 +42,7 @@ export const AI_AGENT_TOOLS: Tool[] = [
   // Document Processing Tools
   {
     name: 'analyze_uploaded_document',
-    description: 'Analyzes a document that has been uploaded to the system. Triggers real OCR and document processing workflow. IMPORTANT: Use the document UUID (e.g., "7d9f45cd-abd1-4a5a-b2c9-caeb6c738f6d"), NOT the filename. Use get_recent_documents to find the document ID first if you only know the filename.',
+    description: 'Analyzes a document that has been uploaded to the system. Triggers real OCR and document processing workflow with VISION AI support for blueprints and visual documents. IMPORTANT: Use the document UUID (e.g., "7d9f45cd-abd1-4a5a-b2c9-caeb6c738f6d"), NOT the filename. Use get_recent_documents to find the document ID first if you only know the filename. Automatically uses GPT-4 Vision for image-based documents (PDFs, blueprints, photos).',
     parameters: {
       type: 'object',
       properties: {
@@ -52,34 +52,121 @@ export const AI_AGENT_TOOLS: Tool[] = [
         },
         analysis_type: {
           type: 'string',
-          enum: ['compliance', 'specifications', 'general', 'cost'],
-          description: 'Type of analysis to perform'
+          enum: ['compliance', 'specifications', 'general', 'cost', 'vision', 'multimodal'],
+          description: 'Type of analysis to perform. Use "vision" for blueprint/image analysis, "multimodal" for combined vision+text'
+        },
+        use_vision: {
+          type: 'boolean',
+          description: 'Whether to use GPT-4 Vision for image analysis (recommended for blueprints, plans, photos)',
+          default: true
         }
       },
       required: ['document_id']
     },
     execute: async (params) => {
       try {
-        const orchestrator = AIWorkflowOrchestrator.getInstance();
-        const result = await orchestrator.handleDocumentUpload(
-          params.document_id,
-          { 
-            userId: 'ai_agent_system',
-            documentId: params.document_id,
-            metadata: { triggeredBy: 'ai_agent', timestamp: Date.now() }
-          }
+        // Fetch document details from database
+        const { data: document, error: docError } = await supabase
+          .from('documents')
+          .select('*')
+          .eq('id', params.document_id)
+          .single();
+
+        if (docError || !document) {
+          return {
+            success: false,
+            error: 'Document not found',
+            message: `Could not find document with ID: ${params.document_id}. Use get_recent_documents to find the correct document ID.`
+          };
+        }
+
+        console.log(`📄 Analyzing document: ${document.name} (${document.type})`);
+
+        // Determine if vision analysis is appropriate
+        const isImageDocument = ['pdf', 'jpg', 'jpeg', 'png', 'dwg', 'dxf'].includes(
+          document.type?.toLowerCase() || ''
         );
+        const shouldUseVision = (params.use_vision !== false && isImageDocument) || 
+                                params.analysis_type === 'vision' || 
+                                params.analysis_type === 'multimodal';
+
+        // Use the AI service for intelligent analysis
+        const { aiService } = await import('@/lib/ai-services');
+        
+        let analysisResult;
+
+        if (shouldUseVision && document.url) {
+          console.log('🔬 Using intelligent AI analysis with vision support');
+          
+          // Get extracted text if available (for multi-modal)
+          const extractedText = document.ocr_text || document.extracted_content || '';
+
+          analysisResult = await aiService.analyzeDocumentIntelligent(
+            params.document_id,
+            document.url, // Image URL for vision
+            extractedText, // OCR text for multi-modal
+            document.category || 'construction document'
+          );
+        } else if (document.ocr_text || document.extracted_content) {
+          console.log('📝 Using text-only analysis');
+          const textContent = document.ocr_text || document.extracted_content || '';
+          
+          analysisResult = await aiService.getDocumentAnalysis(
+            textContent,
+            document.category || 'general'
+          );
+        } else {
+          // Trigger workflow orchestrator for extraction
+          const orchestrator = AIWorkflowOrchestrator.getInstance();
+          const result = await orchestrator.handleDocumentUpload(
+            params.document_id,
+            { 
+              userId: 'ai_agent_system',
+              documentId: params.document_id,
+              metadata: { 
+                triggeredBy: 'ai_agent', 
+                timestamp: Date.now(),
+                analysisType: params.analysis_type,
+                useVision: shouldUseVision
+              }
+            }
+          );
+
+          return {
+            success: true,
+            data: result,
+            message: `Document ${document.name} processed successfully with workflow orchestration`
+          };
+        }
+
+        // Update document with analysis results
+        await supabase
+          .from('documents')
+          .update({
+            ai_analysis: analysisResult.content,
+            analysis_model: analysisResult.model,
+            status: 'analyzed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', params.document_id);
 
         return {
           success: true,
-          data: result,
-          message: `Document ${params.document_id} analyzed successfully`
+          data: {
+            document_id: params.document_id,
+            document_name: document.name,
+            analysis: analysisResult.content,
+            model: analysisResult.model,
+            analysis_method: shouldUseVision ? 'vision-enhanced' : 'text-only',
+            usage: analysisResult.usage
+          },
+          message: `✅ Successfully analyzed "${document.name}" using ${shouldUseVision ? 'GPT-4 Vision (advanced)' : 'text analysis'}\n\nModel: ${analysisResult.model}\n\n${analysisResult.content.substring(0, 500)}...`
         };
       } catch (error) {
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Unknown error',
-          message: 'Failed to analyze document'
+          message: 'Failed to analyze document. Please check the document ID and try again.'
         };
       }
     }
