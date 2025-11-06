@@ -97,11 +97,17 @@ export function useRouteSpecificPrefetch() {
       const prefetchAPIs = () => {
         apisToPrefetch.forEach(async (endpoint) => {
           try {
-            // Use low priority fetch to not block other requests
-            await fetch(endpoint, {
+            // Use low priority fetch if supported, otherwise normal fetch
+            const fetchOptions: RequestInit = {
               method: 'GET',
-              priority: 'low' as RequestPriority,
-            });
+            };
+            
+            // Only add priority if supported
+            if ('priority' in Request.prototype) {
+              (fetchOptions as any).priority = 'low';
+            }
+            
+            await fetch(endpoint, fetchOptions);
           } catch (err) {
             // Silently fail - it's just a prefetch
             console.debug('API prefetch failed:', endpoint);

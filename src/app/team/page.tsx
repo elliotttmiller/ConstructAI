@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useDataFetch } from "@/lib/data-fetching-hooks";
 import { PageSkeleton } from "@/components/ui/loading-skeletons";
+import { CACHE_TTL } from "@/lib/cache-config";
 import {
   Users,
   Plus,
@@ -89,7 +90,7 @@ export default function TeamPage() {
   const { data: teamData, loading, error } = useDataFetch<{ users: any[] }>(
     session?.user ? '/api/team' : null,
     {
-      cacheTTL: 120000, // Cache for 2 minutes
+      cacheTTL: CACHE_TTL.LONG, // Team data is relatively stable
       onError: (err) => console.error('Error fetching team members:', err),
     }
   );

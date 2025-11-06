@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useDataFetch } from "@/lib/data-fetching-hooks";
 import { PageSkeleton } from "@/components/ui/loading-skeletons";
+import { CACHE_TTL } from "@/lib/cache-config";
 import {
   Building2,
   RotateCcw,
@@ -94,7 +95,7 @@ export default function BIMPage() {
   const { data: bimData, loading, error, refetch } = useDataFetch<{ models: BIMModel[]; clashes: ClashItem[] }>(
     session?.user ? '/api/bim' : null,
     {
-      cacheTTL: 60000, // Cache for 1 minute (BIM data doesn't change frequently)
+      cacheTTL: CACHE_TTL.MEDIUM, // BIM data doesn't change frequently
       onError: (err) => console.error('Error fetching BIM data:', err),
     }
   );

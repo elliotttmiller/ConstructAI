@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useDataFetch } from "@/lib/data-fetching-hooks";
 import { PageSkeleton } from "@/components/ui/loading-skeletons";
+import { CACHE_TTL } from "@/lib/cache-config";
 import {
   Upload,
   FileText,
@@ -86,7 +87,7 @@ export default function DocumentsPage() {
   const { data: documentsData, loading, error, refetch } = useDataFetch<{ documents: any[] }>(
     session?.user ? '/api/documents' : null,
     {
-      cacheTTL: 30000, // Cache for 30 seconds (shorter due to processing updates)
+      cacheTTL: CACHE_TTL.SHORT, // Short cache for real-time processing updates
       onError: (err) => console.error('Error fetching documents:', err),
     }
   );

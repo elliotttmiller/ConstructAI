@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDataFetch, useMutation } from "@/lib/data-fetching-hooks";
 import { PageSkeleton } from "@/components/ui/loading-skeletons";
+import { CACHE_TTL } from "@/lib/cache-config";
 import {
   Building2,
   Calendar,
@@ -97,7 +98,7 @@ export default function ProjectsPage() {
   const { data: projectsData, loading, error, refetch } = useDataFetch<{ projects: any[] }>(
     session?.user ? '/api/projects' : null,
     {
-      cacheTTL: 120000, // Cache for 2 minutes
+      cacheTTL: CACHE_TTL.LONG, // Projects data is relatively stable
       onError: (err) => console.error('Error fetching projects:', err),
     }
   );
