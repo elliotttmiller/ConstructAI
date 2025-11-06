@@ -196,6 +196,280 @@ class UniversalAIClient {
       toolCalls: executedTools
     };
   }
+
+  // Vision-based document analysis with OpenAI GPT-4 Vision
+  async analyzeDocumentWithVision(
+    imageUrl: string,
+    documentType: string,
+    options: {
+      temperature?: number;
+      maxTokens?: number;
+      detail?: 'low' | 'high' | 'auto';
+    } = {}
+  ): Promise<{ content: string; model: string; usage?: any }> {
+    if (!this.openai) {
+      throw new Error('OpenAI not initialized. Vision API requires OpenAI.');
+    }
+
+    const systemPrompt = `# Role: Elite Construction Document Vision Analyst
+
+You are an advanced AI specialist in visual analysis of construction documents, blueprints, plans, and technical drawings. You possess expert-level knowledge in:
+- Reading and interpreting architectural blueprints and construction plans
+- Identifying building elements, dimensions, annotations, and specifications
+- Recognizing construction symbols, codes, and standards
+- Detecting issues, conflicts, or missing information in visual documents
+- Understanding spatial relationships and construction sequences
+
+## Document Type: ${documentType}
+
+## Analysis Framework
+
+### 1. VISUAL DOCUMENT ASSESSMENT
+- **Document Quality**: Assess clarity, resolution, completeness
+- **Document Type**: Confirm type (floor plan, elevation, section, detail, etc.)
+- **Scale & Units**: Identify scale bars, dimension units, coordinate system
+- **Legend & Symbols**: Interpret symbol legend, material hatching, line types
+
+### 2. TECHNICAL CONTENT EXTRACTION
+- **Dimensions**: Extract all critical dimensions, tolerances, elevations
+- **Room/Space Layout**: Identify rooms, areas, square footages
+- **Structural Elements**: Locate columns, beams, walls, foundations
+- **MEP Systems**: Identify HVAC, electrical, plumbing routing and equipment
+- **Materials**: Note specified materials from visual indicators and annotations
+- **Annotations**: Extract all text annotations, call-outs, notes, specifications
+
+### 3. COMPLIANCE & CODE REVIEW (Visual)
+- **Egress Paths**: Verify exit routes, door swing directions, corridor widths
+- **Accessibility**: Check visual indicators of ADA compliance (ramps, clearances)
+- **Fire Safety**: Identify fire-rated assemblies, sprinkler coverage, extinguishers
+- **Spatial Requirements**: Verify minimum room dimensions per code
+
+### 4. CONFLICT & ISSUE DETECTION
+- **Spatial Conflicts**: Identify overlapping elements or insufficient clearances
+- **Inconsistencies**: Spot dimension conflicts, misaligned grids, incorrect references
+- **Missing Information**: Note gaps in dimensions, unlabeled spaces, incomplete details
+- **Constructability Concerns**: Flag difficult-to-build details or sequencing issues
+
+### 5. INTELLIGENT INSIGHTS
+- **Design Intent**: Interpret the architect's/engineer's design approach
+- **Construction Implications**: Provide constructability feedback
+- **Cost Implications**: Note potentially expensive or complex elements
+- **Schedule Impacts**: Identify long-lead items or sequencing challenges
+
+## Output Format
+
+Provide a structured analysis:
+
+### DOCUMENT SUMMARY
+- Type: [blueprint type]
+- Scale: [detected scale]
+- Project Phase: [schematic/DD/CD]
+- Sheet Number: [if visible]
+
+### KEY MEASUREMENTS & DIMENSIONS
+[Organized by area/element]
+
+### SPATIAL LAYOUT
+[Room-by-room or area breakdown with square footages]
+
+### MATERIALS & SPECIFICATIONS
+[Materials identified from visual indicators]
+
+### CRITICAL FINDINGS
+🔴 CRITICAL: [Issues requiring immediate attention]
+🟡 WARNING: [Items needing review or clarification]
+🟢 OBSERVATIONS: [General notes and suggestions]
+
+### COMPLIANCE INDICATORS
+✓ Appears Compliant: [Visual compliance with codes]
+⚠ Requires Verification: [Items needing detailed review]
+✗ Potential Violations: [Visual code conflicts]
+
+### CONSTRUCTABILITY ASSESSMENT
+[Practical construction considerations]
+
+### RECOMMENDED ACTIONS
+1. [Action] - Priority: [High/Medium/Low]
+
+## Vision Analysis Best Practices
+- Be precise when extracting dimensions
+- Note if text is illegible or dimensions unclear
+- Distinguish between existing and new construction
+- Identify revision clouds or change indicators
+- Reference specific areas using grid lines or spatial descriptions
+- State confidence level for interpretations (certain/likely/uncertain)
+
+Now analyze the provided construction document image.`;
+
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: 'gpt-4-vision-preview',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Analyze this ${documentType} construction document in detail. Extract all visible information, measurements, and provide professional construction insights.`
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageUrl,
+                  detail: options.detail || 'high' // Use 'high' for detailed blueprint analysis
+                }
+              }
+            ]
+          }
+        ],
+        temperature: options.temperature ?? 0.4, // Lower temperature for precise technical analysis
+        max_tokens: options.maxTokens ?? 4096, // Higher token limit for detailed analysis
+      });
+
+      return {
+        content: completion.choices[0]?.message?.content || '',
+        model: completion.model,
+        usage: {
+          promptTokens: completion.usage?.prompt_tokens || 0,
+          completionTokens: completion.usage?.completion_tokens || 0,
+          totalTokens: completion.usage?.total_tokens || 0,
+        }
+      };
+    } catch (error) {
+      console.error('Vision API error:', error);
+      throw new Error('Failed to analyze document with vision. This may be because GPT-4 Vision is not available or the image is invalid.');
+    }
+  }
+
+  // Multi-modal document analysis combining vision and text
+  async analyzeDocumentMultiModal(
+    imageUrl: string,
+    extractedText: string,
+    documentType: string,
+    options: {
+      temperature?: number;
+      maxTokens?: number;
+    } = {}
+  ): Promise<{ content: string; model: string; usage?: any }> {
+    if (!this.openai) {
+      throw new Error('OpenAI not initialized');
+    }
+
+    const systemPrompt = `# Role: Multi-Modal Construction Document Intelligence
+
+You are an advanced AI that combines VISUAL and TEXTUAL analysis for comprehensive construction document intelligence. You excel at:
+- Cross-referencing visual and textual information for accuracy
+- Detecting discrepancies between drawings and written specifications
+- Providing holistic document understanding
+- Delivering actionable construction insights
+
+## Document Type: ${documentType}
+
+## Multi-Modal Analysis Approach
+
+### Phase 1: VISUAL-TEXT CORRELATION
+- Cross-reference dimensions in drawing with text specifications
+- Verify material callouts match visual indicators
+- Confirm quantities between visual count and text specifications
+- Check for text-image discrepancies
+
+### Phase 2: COMPREHENSIVE EXTRACTION
+Combine information from both modalities:
+- **From Image**: Spatial layout, dimensions, visual relationships, symbols
+- **From Text**: Detailed specifications, performance requirements, installation notes
+- **Synthesis**: Complete picture with no information gaps
+
+### Phase 3: CONFLICT RESOLUTION
+- When vision and text disagree, flag the conflict
+- Provide reasoning for which source may be more reliable
+- Suggest clarifications needed from design team
+
+### Phase 4: ENHANCED INSIGHTS
+Leverage both modalities for superior analysis:
+- Richer constructability assessment
+- More accurate quantity takeoffs
+- Better code compliance verification
+- Deeper understanding of design intent
+
+## Output Structure
+
+### INTEGRATED DOCUMENT ANALYSIS
+[Combining visual and textual insights]
+
+### EXTRACTED INFORMATION
+**From Visual Analysis:**
+- [Key visual findings]
+
+**From Text Analysis:**
+- [Key textual findings]
+
+**Correlated & Verified:**
+- [Information confirmed by both sources]
+
+### DISCREPANCIES & CONFLICTS
+⚠ Vision-Text Mismatches: [List conflicts between image and text]
+
+### COMPREHENSIVE FINDINGS
+[Unified analysis leveraging both modalities]
+
+### ENHANCED RECOMMENDATIONS
+[Actionable items based on complete understanding]
+
+Now perform a multi-modal analysis combining the visual and textual information.`;
+
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: 'gpt-4-vision-preview',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Perform a comprehensive multi-modal analysis combining this visual information and extracted text.
+
+**Extracted Text from Document:**
+${extractedText}
+
+**Visual Analysis:**
+Please analyze the image below and correlate it with the extracted text above.`
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageUrl,
+                  detail: 'high'
+                }
+              }
+            ]
+          }
+        ],
+        temperature: options.temperature ?? 0.3,
+        max_tokens: options.maxTokens ?? 4096,
+      });
+
+      return {
+        content: completion.choices[0]?.message?.content || '',
+        model: completion.model,
+        usage: {
+          promptTokens: completion.usage?.prompt_tokens || 0,
+          completionTokens: completion.usage?.completion_tokens || 0,
+          totalTokens: completion.usage?.total_tokens || 0,
+        }
+      };
+    } catch (error) {
+      console.error('Multi-modal analysis error:', error);
+      throw new Error('Failed to perform multi-modal analysis.');
+    }
+  }
 }
 
 // Global AI client instance
@@ -1816,6 +2090,94 @@ Now conduct a thorough risk assessment using this framework.`;
       }
       
       throw new Error(`AI processing failed. Available services: ${availableServices.join(', ')}. Please check your configuration and try again.`);
+    }
+  }
+
+  // Vision-powered document analysis
+  async analyzeDocumentWithVision(
+    imageUrl: string,
+    documentType: string = 'construction document',
+    options?: { temperature?: number; maxTokens?: number; detail?: 'low' | 'high' | 'auto' }
+  ): Promise<AIResponse> {
+    try {
+      const result = await aiClient.analyzeDocumentWithVision(
+        imageUrl,
+        documentType,
+        {
+          temperature: options?.temperature ?? 0.4,
+          maxTokens: options?.maxTokens ?? 4096,
+          detail: options?.detail || 'high'
+        }
+      );
+
+      return {
+        content: result.content,
+        model: result.model,
+        usage: result.usage
+      };
+    } catch (error) {
+      console.error('Vision document analysis error:', error);
+      throw new Error('Failed to analyze document with vision AI. Please ensure the image URL is accessible and GPT-4 Vision is available.');
+    }
+  }
+
+  // Multi-modal document analysis (vision + text)
+  async analyzeDocumentMultiModal(
+    imageUrl: string,
+    extractedText: string,
+    documentType: string = 'construction document',
+    options?: { temperature?: number; maxTokens?: number }
+  ): Promise<AIResponse> {
+    try {
+      const result = await aiClient.analyzeDocumentMultiModal(
+        imageUrl,
+        extractedText,
+        documentType,
+        {
+          temperature: options?.temperature ?? 0.3,
+          maxTokens: options?.maxTokens ?? 4096
+        }
+      );
+
+      return {
+        content: result.content,
+        model: result.model,
+        usage: result.usage
+      };
+    } catch (error) {
+      console.error('Multi-modal document analysis error:', error);
+      throw new Error('Failed to perform multi-modal document analysis.');
+    }
+  }
+
+  // Enhanced document processor with automatic vision selection
+  async analyzeDocumentIntelligent(
+    documentId: string,
+    imageUrl?: string,
+    extractedText?: string,
+    documentType: string = 'construction document'
+  ): Promise<AIResponse> {
+    try {
+      // Strategy: Use multi-modal if both image and text available, otherwise use best available method
+      
+      if (imageUrl && extractedText) {
+        // Best case: Multi-modal analysis
+        console.log('🔬 Using multi-modal analysis (vision + text)');
+        return await this.analyzeDocumentMultiModal(imageUrl, extractedText, documentType);
+      } else if (imageUrl) {
+        // Vision-only analysis
+        console.log('👁️ Using vision-only analysis');
+        return await this.analyzeDocumentWithVision(imageUrl, documentType);
+      } else if (extractedText) {
+        // Text-only analysis (fallback to existing method)
+        console.log('📝 Using text-only analysis');
+        return await this.getDocumentAnalysis(extractedText, documentType);
+      } else {
+        throw new Error('No document content provided. Need either imageUrl or extractedText.');
+      }
+    } catch (error) {
+      console.error('Intelligent document analysis error:', error);
+      throw error;
     }
   }
 }
