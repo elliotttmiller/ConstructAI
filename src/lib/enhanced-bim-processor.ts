@@ -277,10 +277,13 @@ export class EnhancedBIMProcessor {
   
   /**
    * Calculate volume of geometry
+   * NOTE: Currently uses simplified bounding box approach.
+   * For production use, consider implementing proper mesh volume calculation
+   * using signed volume of triangles or similar algorithms.
    */
   private calculateVolume(geometry: THREE.BufferGeometry): number {
-    // Simple bounding box volume for now
-    // TODO: Implement proper mesh volume calculation
+    // Simplified bounding box volume calculation
+    // This provides a rough estimate but is not geometrically accurate
     geometry.computeBoundingBox();
     const box = geometry.boundingBox!;
     const size = new THREE.Vector3();
@@ -429,12 +432,16 @@ export class EnhancedBIMProcessor {
     // Check stair dimensions (safety)
     const stairs = Array.from(this.elements.values()).filter(e => e.type === 'stair');
     stairs.forEach(stair => {
+      const size = new THREE.Vector3();
+      stair.boundingBox.getSize(size);
+      const width = Math.max(size.x, size.z);
+      
       checks.push({
         id: `fire_safety_stair_${stair.id}`,
         category: 'fire-safety',
         name: 'Stair Width Compliance',
-        status: 'pass', // Simplified
-        description: 'Stair dimensions meet minimum requirements',
+        status: width >= 1.1 ? 'pass' : 'warning',
+        description: `Stair width: ${width.toFixed(2)}m (minimum 1.1m recommended for commercial)`,
         reference: 'IBC 2018'
       });
     });
@@ -543,7 +550,7 @@ export class EnhancedBIMProcessor {
       drawCalls: this.elements.size,
       triangleCount: Math.floor(triangleCount),
       materialCount: materialSet.size,
-      textureMemory: 0 // TODO: Calculate texture memory
+      textureMemory: 0 // Texture memory calculation not yet implemented - would require traversing all materials and calculating texture sizes
     };
   }
   

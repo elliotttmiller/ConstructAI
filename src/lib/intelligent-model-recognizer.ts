@@ -91,16 +91,16 @@ export class IntelligentModelRecognizer {
     const fileSize = file.size;
     
     // Determine file type category
-    const isBIM = this.isBIMFormat(extension);
-    const isCAD = this.isCADFormat(extension);
-    const isArchitectural = this.isArchitecturalFile(fileName);
-    const isStructural = this.isStructuralFile(fileName);
-    const isMEP = this.isMEPFile(fileName);
-    const isManufacturing = this.isManufacturingFile(fileName);
+    const isBIM = IntelligentModelRecognizer.isBIMFormat(extension);
+    const isCAD = IntelligentModelRecognizer.isCADFormat(extension);
+    const isArchitectural = IntelligentModelRecognizer.isArchitecturalFile(fileName);
+    const isStructural = IntelligentModelRecognizer.isStructuralFile(fileName);
+    const isMEP = IntelligentModelRecognizer.isMEPFile(fileName);
+    const isManufacturing = IntelligentModelRecognizer.isManufacturingFile(fileName);
     
     // Estimate complexity based on file size and type
-    const complexity = this.estimateComplexity(fileSize, extension);
-    const estimatedVertexCount = this.estimateVertexCount(fileSize, extension);
+    const complexity = IntelligentModelRecognizer.estimateComplexity(fileSize, extension);
+    const estimatedVertexCount = IntelligentModelRecognizer.estimateVertexCount(fileSize, extension);
     const estimatedPolygonCount = Math.floor(estimatedVertexCount / 3);
     
     // Determine optimal settings
@@ -117,9 +117,9 @@ export class IntelligentModelRecognizer {
     const hasLayers = isBIM || extension === 'ifc';
     
     // Detect units and coordinate system
-    const detectedUnits = this.detectUnits(fileName, extension);
-    const suggestedScale = this.calculateScale(detectedUnits);
-    const coordinateSystem = this.detectCoordinateSystem(extension);
+    const detectedUnits = IntelligentModelRecognizer.detectUnits(fileName, extension);
+    const suggestedScale = IntelligentModelRecognizer.calculateScale(detectedUnits);
+    const coordinateSystem = IntelligentModelRecognizer.detectCoordinateSystem(extension);
     
     return {
       fileType: this.getFileTypeDescription(extension),
@@ -139,7 +139,7 @@ export class IntelligentModelRecognizer {
       enableShadows,
       enableAO,
       enableAntialiasing,
-      maxTextureSize: this.getMaxTextureSize(complexity),
+      maxTextureSize: IntelligentModelRecognizer.getMaxTextureSize(complexity),
       requiresDecimation,
       requiresOptimization,
       supportsInstancing,
@@ -158,7 +158,7 @@ export class IntelligentModelRecognizer {
     const isHighComplexity = analysis.complexity === 'high' || analysis.complexity === 'very-high';
     
     return {
-      loader: this.selectLoader(analysis.fileExtension),
+      loader: IntelligentModelRecognizer.selectLoader(analysis.fileExtension),
       
       // Rendering
       castShadow: analysis.enableShadows && !isHighComplexity,
