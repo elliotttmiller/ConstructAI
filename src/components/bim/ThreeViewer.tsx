@@ -44,12 +44,14 @@ interface OverlayElement {
 interface ThreeViewerProps {
   onAnalysisComplete?: (analysis: BIMAnalysis) => void;
   onClashesDetected?: (clashes: any[]) => void;
+  onSceneReady?: (scene: THREE.Scene) => void;
   className?: string;
 }
 
 const ThreeViewer: React.FC<ThreeViewerProps> = ({
   onAnalysisComplete,
   onClashesDetected,
+  onSceneReady,
   className = ""
 }) => {
   // Refs
@@ -888,7 +890,12 @@ const ThreeViewer: React.FC<ThreeViewerProps> = ({
     };
     animate();
 
-  }, [initializeRenderer]);
+    // Notify parent component that scene is ready
+    if (onSceneReady) {
+      onSceneReady(scene);
+    }
+
+  }, [initializeRenderer, onSceneReady]);
 
   // Cleanup function
   const cleanup = useCallback(() => {

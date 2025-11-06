@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import ThreeViewer from "@/components/bim/ThreeViewer";
 import { ParametricCADBuilder } from "@/components/cad/ParametricCADBuilder";
+import { LayerManager } from "@/components/bim/LayerManager";
 import type { CADGenerationResult } from "@/types/build123d";
 
 interface BIMModel {
@@ -81,6 +82,7 @@ export default function BIMPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showClashes, setShowClashes] = useState(true);
   const [generatedCADModel, setGeneratedCADModel] = useState<CADGenerationResult | null>(null);
+  const [threeScene, setThreeScene] = useState<any>(null);
 
   useEffect(() => {
     if (!session?.user) {
@@ -171,14 +173,18 @@ export default function BIMPage() {
             onClashesDetected={(clashes) => {
               console.log('Clashes detected:', clashes);
             }}
+            onSceneReady={(scene) => {
+              setThreeScene(scene);
+            }}
           />
         </div>
 
         {/* Right Sidebar */}
         <div className="w-80 border-l bg-background">
           <Tabs defaultValue="models" className="h-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="models">Models</TabsTrigger>
+              <TabsTrigger value="layers">Layers</TabsTrigger>
               <TabsTrigger value="cad">CAD</TabsTrigger>
               <TabsTrigger value="clashes">Clashes</TabsTrigger>
               <TabsTrigger value="properties">Props</TabsTrigger>
@@ -239,6 +245,22 @@ export default function BIMPage() {
                   ))}
                 </div>
               </div>
+            </TabsContent>
+
+            <TabsContent value="layers" className="p-0 h-full overflow-hidden">
+              <LayerManager 
+                scene={threeScene}
+                onLayerSelect={(layer) => {
+                  console.log('Layer selected:', layer);
+                }}
+                onLayerVisibilityChange={(layerId, visible) => {
+                  console.log('Layer visibility changed:', layerId, visible);
+                }}
+                onLayerLockChange={(layerId, locked) => {
+                  console.log('Layer lock changed:', layerId, locked);
+                }}
+                className="h-full border-0 rounded-none"
+              />
             </TabsContent>
 
             <TabsContent value="cad" className="p-4 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
