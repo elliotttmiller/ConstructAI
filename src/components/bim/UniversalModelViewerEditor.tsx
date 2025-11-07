@@ -310,10 +310,10 @@ export function UniversalModelViewerEditor({
         orbitControlsRef.current.dispose();
       }
       if (transformControlsRef.current) {
-        transformControlsRef.current.detach();
         if (scene) {
           scene.remove(transformControlsRef.current.getHelper());
         }
+        transformControlsRef.current.detach();
         transformControlsRef.current.dispose();
       }
       
