@@ -232,8 +232,8 @@ export function UniversalModelViewerEditor({
       // Update properties when transform changes
       handleTransformChange();
     });
-    // Add TransformControls to scene so it's visible
-    scene.add(transformControls);
+    // Add TransformControls helper to scene so it's visible
+    scene.add(transformControls.getHelper());
     transformControlsRef.current = transformControls;
 
     // Handle window resize
@@ -312,7 +312,7 @@ export function UniversalModelViewerEditor({
       if (transformControlsRef.current) {
         transformControlsRef.current.detach();
         if (scene) {
-          scene.remove(transformControlsRef.current);
+          scene.remove(transformControlsRef.current.getHelper());
         }
         transformControlsRef.current.dispose();
       }
