@@ -223,7 +223,7 @@ export function UniversalModelViewerEditor({
     orbitControls.dampingFactor = 0.05;
     orbitControlsRef.current = orbitControls;
 
-    // Add transform controls - FIXED: only add as child, don't add to scene (it's not a THREE.Object3D)
+    // Add transform controls
     const transformControls = new TransformControls(camera, renderer.domElement);
     transformControls.addEventListener('dragging-changed', (event) => {
       orbitControls.enabled = !event.value;
@@ -232,8 +232,8 @@ export function UniversalModelViewerEditor({
       // Update properties when transform changes
       handleTransformChange();
     });
-    // TransformControls extends Object3D but needs special handling
-    // It attaches to the renderer automatically, no need to add to scene
+    // Add TransformControls to scene so it's visible
+    scene.add(transformControls);
     transformControlsRef.current = transformControls;
 
     // Handle window resize
@@ -310,6 +310,10 @@ export function UniversalModelViewerEditor({
         orbitControlsRef.current.dispose();
       }
       if (transformControlsRef.current) {
+        transformControlsRef.current.detach();
+        if (scene) {
+          scene.remove(transformControlsRef.current);
+        }
         transformControlsRef.current.dispose();
       }
       
