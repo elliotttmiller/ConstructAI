@@ -298,8 +298,9 @@ async function processOCR(fileId: string, filePath: string, fileType: string): P
       try {
         const dataBuffer = await readFile(filePath);
         
-        // Import pdfjs-dist dynamically
-        const pdfjsLib = await import('pdfjs-dist');
+        // Import pdfjs-dist legacy build for Node.js (avoids DOMMatrix errors)
+        // Legacy build provides polyfills for browser APIs like DOMMatrix, Canvas, etc.
+        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
         
         // Load the PDF document
         const loadingTask = pdfjsLib.getDocument({
@@ -349,22 +350,26 @@ async function processOCR(fileId: string, filePath: string, fileType: string): P
       // Process image files with Tesseract
       console.log(`[OCR] Processing image file with Tesseract: ${fileId}`);
       try {
-        // Configure Tesseract worker with proper paths for Next.js
+        // Configure Tesseract worker for Node.js
+        // In Node.js, Tesseract automatically uses local paths from node_modules
+        // DO NOT use CDN URLs (workerPath, corePath, langPath) in Node.js - causes ERR_WORKER_PATH
         const worker = await createWorker('eng', 1, {
-          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-          langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+          logger: (m) => console.log(`[OCR-Tesseract] ${m.status}: ${m.progress ? (m.progress * 100).toFixed(0) + '%' : ''}`),
         });
         
+        // Recognize text from the image file
         const { data: { text, confidence: ocrConfidence } } = await worker.recognize(filePath);
         extractedText = text.trim();
         confidence = Math.round(ocrConfidence);
+        
+        // Terminate worker to free resources
         await worker.terminate();
         
-        console.log(`[OCR] Tesseract succeeded: ${extractedText.length} characters`);
+        console.log(`[OCR] Tesseract succeeded: ${extractedText.length} characters, ${confidence}% confidence`);
       } catch (tesseractError) {
         console.error(`[OCR] Tesseract failed: ${tesseractError}`);
-        extractedText = `Image file uploaded. OCR processing failed: ${tesseractError instanceof Error ? tesseractError.message : 'Unknown error'}`;
+        const errorMsg = tesseractError instanceof Error ? tesseractError.message : 'Unknown error';
+        extractedText = `Image file uploaded. OCR processing failed: ${errorMsg}`;
         confidence = 0;
       }
     }

@@ -4,7 +4,7 @@
  * Central service for coordinating multi-agent AI workflows across the platform
  */
 
-import ConstructionAIService, { AIResponse } from './ai-services';
+import aiClient, { AIResponse } from './ai-services';
 import { supabaseAdmin } from './supabase';
 import socketService from './socket';
 
@@ -37,11 +37,11 @@ export interface WorkflowAction {
  */
 export class AIWorkflowOrchestrator {
   private static instance: AIWorkflowOrchestrator;
-  private aiService: ConstructionAIService;
+  private aiService = aiClient;
 
   private constructor() {
-    // Use singleton AI service
-    this.aiService = ConstructionAIService.getInstance();
+  // Use singleton AI service
+  this.aiService = aiClient;
   }
 
   public static getInstance(): AIWorkflowOrchestrator {
@@ -74,16 +74,33 @@ export class AIWorkflowOrchestrator {
         throw new Error('Failed to fetch document details');
       }
 
-      // 2. Run AI document analysis
-      const aiAnalysis = await this.aiService.getDocumentAnalysis(
-        document.extracted_text || document.name,
-        document.type
-      );
+      // 2. Ensure uploaded file is in public/uploads and generate public URL
+      let publicUrl = '';
+      if (document.file_name) {
+        // Assume file is saved to public/uploads/file_name
+        publicUrl = `/uploads/${document.file_name}`;
+      } else if (document.image_name) {
+        publicUrl = `/uploads/${document.image_name}`;
+      }
 
-      // 3. Extract insights and recommendations
+      // 3. Run AI document analysis (Vision if image, else text)
+      let aiAnalysis;
+      if (publicUrl && document.type && document.type.toLowerCase().includes('image')) {
+        aiAnalysis = await this.aiService.analyzeDocumentWithVision(
+          `${publicUrl}`,
+          document.type
+        );
+      } else {
+        aiAnalysis = await this.aiService.getDocumentAnalysis(
+          document.extracted_text || document.name,
+          document.type
+        );
+      }
+
+      // 4. Extract insights and recommendations
       const insights = this.extractInsights(aiAnalysis.content);
-      
-      // 4. Update document with AI analysis
+
+      // 5. Update document with AI analysis and public URL
       await supabaseAdmin
         .from('documents')
         .update({
@@ -91,15 +108,16 @@ export class AIWorkflowOrchestrator {
             ...document.metadata,
             ai_analysis: aiAnalysis.content,
             ai_insights: insights,
-            analyzed_at: new Date().toISOString()
+            analyzed_at: new Date().toISOString(),
+            public_url: publicUrl || null
           }
         })
         .eq('id', documentId);
 
-      // 5. Create follow-up actions
+      // 6. Create follow-up actions
       const actions = await this.generateDocumentActions(document, aiAnalysis, context);
 
-      // 6. Log workflow completion
+      // 7. Log workflow completion
       await this.logWorkflowEvent('document_analysis', documentId, context, {
         insights: insights.length,
         actions: actions.length
@@ -113,7 +131,7 @@ export class AIWorkflowOrchestrator {
 
       return {
         success: true,
-        data: { document, aiAnalysis },
+        data: { document, aiAnalysis, publicUrl },
         insights,
         actions
       };

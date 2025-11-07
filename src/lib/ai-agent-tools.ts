@@ -91,7 +91,7 @@ export const AI_AGENT_TOOLS: Tool[] = [
                                 params.analysis_type === 'multimodal';
 
         // Use the AI service for intelligent analysis
-        const { aiService } = await import('@/lib/ai-services');
+        const aiClient = (await import('@/lib/ai-services')).default;
         
         let analysisResult;
 
@@ -99,19 +99,27 @@ export const AI_AGENT_TOOLS: Tool[] = [
           console.log('🔬 Using intelligent AI analysis with vision support');
           
           // Get extracted text if available (for multi-modal)
-          const extractedText = document.ocr_text || document.extracted_content || '';
+          // Database field is 'extracted_text' from OCR processing
+          const extractedText = document.extracted_text || '';
 
-          analysisResult = await aiService.analyzeDocumentIntelligent(
-            params.document_id,
-            document.url, // Image URL for vision
-            extractedText, // OCR text for multi-modal
-            document.category || 'construction document'
-          );
-        } else if (document.ocr_text || document.extracted_content) {
+          // Use multi-modal if we have both image and text, otherwise vision-only
+          if (extractedText && extractedText.length > 0) {
+            analysisResult = await aiClient.analyzeDocumentMultiModal(
+              document.url,
+              extractedText,
+              document.category || 'construction document'
+            );
+          } else {
+            analysisResult = await aiClient.analyzeDocumentWithVision(
+              document.url,
+              document.category || 'construction document'
+            );
+          }
+        } else if (document.extracted_text) {
           console.log('📝 Using text-only analysis');
-          const textContent = document.ocr_text || document.extracted_content || '';
+          const textContent = document.extracted_text || '';
           
-          analysisResult = await aiService.getDocumentAnalysis(
+          analysisResult = await aiClient.getDocumentAnalysis(
             textContent,
             document.category || 'general'
           );
@@ -544,7 +552,7 @@ export const AI_AGENT_TOOLS: Tool[] = [
         let query = supabase
           .from('documents')
           .select('*')
-          .or(`name.ilike.%${params.query}%,ocr_text.ilike.%${params.query}%`);
+          .or(`name.ilike.%${params.query}%,extracted_text.ilike.%${params.query}%`);
 
         if (params.project_id) {
           query = query.eq('project_id', params.project_id);

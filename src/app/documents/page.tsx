@@ -29,7 +29,9 @@ import {
   FileSpreadsheet,
   RotateCcw,
   Zap,
-  Loader2
+  Loader2,
+  Square,
+  CheckSquare
 } from "lucide-react";
 import FileUpload from "@/components/documents/FileUpload";
 
@@ -84,6 +86,8 @@ export default function DocumentsPage() {
   const { data: session } = useSession();
   const [dragActive, setDragActive] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Use optimized data fetching with shorter cache for real-time updates
   const { data: documentsData, loading, error, refetch } = useDataFetch<{ documents: any[] }>(
@@ -177,6 +181,53 @@ export default function DocumentsPage() {
     } catch (err) {
       console.error('Error deleting document:', err);
       setLocalError('Failed to delete document');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedDocuments.size === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedDocuments.size} document(s)?`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      // Delete all selected documents in parallel
+      await Promise.all(
+        Array.from(selectedDocuments).map(docId =>
+          fetch(`/api/documents/${docId}`, { method: 'DELETE' })
+        )
+      );
+
+      // Clear selection and refresh
+      setSelectedDocuments(new Set());
+      await refetch();
+    } catch (err) {
+      console.error('Error deleting documents:', err);
+      setLocalError('Failed to delete some documents');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const toggleDocumentSelection = (docId: string) => {
+    setSelectedDocuments(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(docId)) {
+        newSet.delete(docId);
+      } else {
+        newSet.add(docId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedDocuments.size === documents.length) {
+      setSelectedDocuments(new Set());
+    } else {
+      setSelectedDocuments(new Set(documents.map(d => d.id)));
     }
   };
 
@@ -399,10 +450,66 @@ export default function DocumentsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {selectedDocuments.size > 0 && (
+                <div className="mb-4 p-3 bg-muted rounded-lg flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    {selectedDocuments.size} document(s) selected
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={handleBulkDelete}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Selected
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
               <div className="space-y-3">
+                {documents.length > 0 && (
+                  <div className="flex items-center p-2 border-b">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={toggleSelectAll}
+                      className="mr-2"
+                    >
+                      {selectedDocuments.size === documents.length ? (
+                        <CheckSquare className="h-5 w-5" />
+                      ) : (
+                        <Square className="h-5 w-5" />
+                      )}
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      {selectedDocuments.size === documents.length ? 'Deselect All' : 'Select All'}
+                    </span>
+                  </div>
+                )}
                 {documents.map((doc) => (
                   <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                     <div className="flex items-center space-x-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleDocumentSelection(doc.id)}
+                        className="p-0 h-auto hover:bg-transparent"
+                      >
+                        {selectedDocuments.has(doc.id) ? (
+                          <CheckSquare className="h-5 w-5 text-primary" />
+                        ) : (
+                          <Square className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </Button>
                       <div className="p-2 bg-primary/10 rounded-lg">
                         {getFileIcon(doc.type)}
                       </div>
